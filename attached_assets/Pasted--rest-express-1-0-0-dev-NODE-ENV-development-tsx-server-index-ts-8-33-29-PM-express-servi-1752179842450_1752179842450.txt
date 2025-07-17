@@ -1,0 +1,38 @@
+
+> rest-express@1.0.0 dev
+> NODE_ENV=development tsx server/index.ts
+
+8:33:29 PM [express] serving on port 5000
+Browserslist: browsers data (caniuse-lite) is 9 months old. Please run:
+  npx update-browserslist-db@latest
+  Why you should do it regularly: https://github.com/browserslist/update-db#readme
+8:33:32 PM [express] GET /api/interviews 200 in 10ms
+8:33:32 PM [express] GET /api/job-templates/active 304 in 137ms :: [{"id":4,"title":"Software Engine…
+8:33:32 PM [express] GET /api/analyses 200 in 207ms :: {"analyses":[{"id":27,"jobTemplateId":null,"t…
+8:33:32 PM [express] GET /api/candidates 304 in 241ms :: {"candidates":[{"id":10,"name":"Roeland Wes…
+8:33:32 PM [express] GET /api/candidates 304 in 227ms :: {"candidates":[{"id":10,"name":"Roeland Wes…
+Duplicate found by email: roeland.westra@woodside.com matches Roeland.Westra@Woodside.com
+Skipped duplicate: Jimmy Banana (existing resume is comprehensive)
+Duplicate found by email: rfwestra@gmail.com matches rfwestra@gmail.com
+Skipped duplicate: Roeland Westra (existing resume is comprehensive)
+Standard import failed, trying alternative approach
+Successfully extracted 7037 characters from PDF: Adam Rogers rwt 2025.pdf
+Duplicate found by email: adam.rogers.hou@gmail.com matches adam.rogers.hou@gmail.com
+Skipped duplicate: Adam Rogers (existing resume is comprehensive)
+Updating analysis 28 status to processing, results count: 0, averageScore: undefined
+8:33:55 PM [express] POST /api/analyses/upload-and-analyze 200 in 1143ms :: {"message":"Upload and a…
+Analysis 28 updated successfully
+Starting analysis 28 with 3 resumes
+Attempting analysis with Claude Sonnet 4...
+Sending analysis 28 response: {
+  id: 28,
+  status: 'processing',
+  totalResumes: 3,
+  resultsCount: 3,
+  averageScore: 0
+}
+8:33:55 PM [express] GET /api/analyses/28 200 in 50ms :: {"id":28,"status":"processing","totalResume…
+Claude analysis completed successfully
+Analysis completed for 28, got 3 candidates
+Updating analysis 28 status to completed, results count: 3, averageScore: 76
+Analysis 28 updated successfully
