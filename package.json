@@ -1,0 +1,38 @@
+{
+  "name": "book-lens",
+  "private": true,
+  "workspaces": ["apps/*", "packages/*"],
+  "scripts": {
+    "dev": "concurrently \"pnpm -C apps/server dev\" \"pnpm -C apps/web dev\"",
+    "build": "pnpm -C apps/server build && pnpm -C apps/web build",
+    "start": "pnpm -C apps/server start",
+    "lint": "eslint .",
+    "typecheck": "tsc -b",
+    "test": "vitest run",
+    "size-check": "node scripts/size-check.mjs"
+  },
+  "lint-staged": {
+    "*.{ts,tsx,js,jsx,json,css,md}": [
+      "eslint --max-warnings=0",
+      "tsc -p tsconfig.json --noEmit --incremental false",
+      "prettier --check"
+    ]
+  },
+  "devDependencies": {
+    "@commitlint/cli": "^17.6.5",
+    "@commitlint/config-conventional": "^17.6.5",
+    "@typescript-eslint/eslint-plugin": "^6.0.0",
+    "@typescript-eslint/parser": "^6.0.0",
+    "concurrently": "^8.0.1",
+    "cypress": "^12.17.1",
+    "eslint": "^8.45.0",
+    "eslint-config-next": "^13.4.12",
+    "eslint-plugin-import": "^2.27.5",
+    "eslint-plugin-react-hooks": "^4.6.0",
+    "husky": "^8.0.3",
+    "lint-staged": "^13.2.1",
+    "prettier": "^3.0.0",
+    "typescript": "^5.2.0",
+    "vitest": "^0.34.6"
+  }
+}
