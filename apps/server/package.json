@@ -7,7 +7,7 @@
     "build": "tsc -p tsconfig.json",
     "start": "node dist/index.js",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "vitest run",
+    "test": "vitest run --silent",
     "lint": "eslint ."
   },
   "dependencies": {
@@ -19,6 +19,7 @@
   "devDependencies": {
     "@types/express": "^4.17.17",
     "@types/node": "^18.16.19",
+    "@types/cors": "^2.8.17",
     "supertest": "^6.3.3",
     "tsx": "^4.0.0",
     "typescript": "^5.2.0",

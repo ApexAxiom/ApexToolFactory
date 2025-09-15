@@ -1,11 +1,11 @@
-import express from 'express';
+import express, { type Express } from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import { cfg, providers } from './config.js';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const app = express();
+const app: Express = express();
 app.use(helmet());
 app.use(cors({ origin: cfg.ALLOW_ORIGIN }));
 app.use(express.json());
@@ -30,15 +30,14 @@ app.post('/api/entities', (req, res) => {
   res.json([]);
 });
 
-app.get('/api/link', (req, res) => {
-  const q = req.query.q as string;
-  res.json({ query: q, results: [] });
-});
+// Routers
+import linkRouter from './routes/link.js';
+import mediaRouter from './routes/media.js';
+import proxyRouter from './routes/proxy.js';
 
-app.get('/api/media', (req, res) => {
-  const q = req.query.q as string;
-  res.json({ query: q, results: [] });
-});
+app.use('/api/link', linkRouter);
+app.use('/api/media', mediaRouter);
+app.use('/api/proxy', proxyRouter);
 
 if (process.env.NODE_ENV === 'production') {
   const __dirname = path.dirname(fileURLToPath(import.meta.url));

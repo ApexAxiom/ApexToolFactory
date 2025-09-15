@@ -7,7 +7,7 @@
     "preview": "vite preview",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
-    "test": "vitest"
+    "test": "vitest run"
   },
   "dependencies": {
     "react": "^18.2.0",
@@ -15,7 +15,7 @@
     "zustand": "^4.3.6",
     "@headlessui/react": "^1.7.17",
     "@radix-ui/react-dialog": "^1.0.5",
-    "@radix-ui/react-label": "^1.0.2"
+    "@radix-ui/react-label": "^2.1.7"
   },
   "devDependencies": {
     "@testing-library/jest-dom": "^6.0.0",
