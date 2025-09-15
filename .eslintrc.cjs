@@ -2,12 +2,11 @@ module.exports = {
   root: true,
   parser: '@typescript-eslint/parser',
   parserOptions: {
-    project: true,
-    tsconfigRootDir: __dirname
+    ecmaVersion: 'latest',
+    sourceType: 'module'
   },
   plugins: ['@typescript-eslint', 'react-hooks', 'import'],
   extends: [
-    'next/core-web-vitals',
     'plugin:@typescript-eslint/recommended',
     'plugin:react-hooks/recommended',
     'plugin:import/recommended',
@@ -15,7 +14,16 @@ module.exports = {
     'prettier'
   ],
   settings: {
-    react: { version: 'detect' }
+    react: { version: 'detect' },
+    'import/resolver': {
+      typescript: {
+        alwaysTryTypes: true,
+        project: [
+          './apps/server/tsconfig.json',
+          './apps/web/tsconfig.json'
+        ]
+      }
+    }
   },
   rules: {
     'import/order': ['error'],

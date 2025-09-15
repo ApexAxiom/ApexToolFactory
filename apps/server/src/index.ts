@@ -1,9 +1,9 @@
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import express, { type Express } from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import { cfg, providers } from './config.js';
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 
 const app: Express = express();
 app.use(helmet());

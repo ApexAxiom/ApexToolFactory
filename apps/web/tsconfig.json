@@ -8,6 +8,7 @@
     "paths": {
       "@/*": ["./*"]
     },
+    "types": ["vite/client"]
   },
   "include": ["src"],
   "references": []
