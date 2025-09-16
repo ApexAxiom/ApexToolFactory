@@ -1,9 +1,14 @@
-import express, { type Express } from 'express';
-import cors from 'cors';
-import helmet from 'helmet';
-import { cfg, providers } from './config.js';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+
+import cors from 'cors';
+import express, { type Express } from 'express';
+import helmet from 'helmet';
+
+import { cfg, providers } from './config.js';
+import linkRouter from './routes/link.js';
+import mediaRouter from './routes/media.js';
+import proxyRouter from './routes/proxy.js';
 
 const app: Express = express();
 app.use(helmet());
@@ -29,11 +34,6 @@ app.post('/api/entities', (req, res) => {
   }
   res.json([]);
 });
-
-// Routers
-import linkRouter from './routes/link.js';
-import mediaRouter from './routes/media.js';
-import proxyRouter from './routes/proxy.js';
 
 app.use('/api/link', linkRouter);
 app.use('/api/media', mediaRouter);

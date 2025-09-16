@@ -7,19 +7,34 @@ module.exports = {
   },
   plugins: ['@typescript-eslint', 'react-hooks', 'import'],
   extends: [
-    'next/core-web-vitals',
     'plugin:@typescript-eslint/recommended',
     'plugin:react-hooks/recommended',
     'plugin:import/recommended',
-    'plugin:import/typescript',
-    'prettier'
+    'plugin:import/typescript'
   ],
   settings: {
-    react: { version: 'detect' }
+    react: { version: 'detect' },
+    'import/resolver': {
+      typescript: {
+        project: ['./tsconfig.json', './apps/*/tsconfig.json']
+      }
+    }
   },
   rules: {
     'import/order': ['error'],
-    '@typescript-eslint/explicit-module-boundary-types': 'off'
+    '@typescript-eslint/explicit-module-boundary-types': 'off',
+    'import/default': 'off',
+    'import/no-named-as-default': 'off',
+    'import/no-named-as-default-member': 'off'
   },
-  ignorePatterns: ['dist', 'node_modules']
+  ignorePatterns: [
+    'dist',
+    'node_modules',
+    'apps/web/postcss.config.js',
+    'apps/web/tailwind.config.ts',
+    'apps/web/vite.config.ts',
+    'apps/web/service-worker.ts',
+    '**/*.test.ts',
+    '**/*.spec.ts'
+  ]
 };

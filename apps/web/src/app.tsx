@@ -1,11 +1,23 @@
 import React from 'react';
-import AskBar from './components/AskBar';
 
-export default function App() {
+import Reader from './pages/Reader';
+
+/**
+ * Renders the Book Lens application shell focused on the Reader experience.
+ *
+ * @returns {JSX.Element} The application root element.
+ * @example
+ * ```tsx
+ * import { createRoot } from 'react-dom/client';
+ * import App from './app';
+ *
+ * createRoot(document.getElementById('root')!).render(<App />);
+ * ```
+ */
+export default function App(): JSX.Element {
   return (
-    <div className="p-4">
-      Book Lens
-      <AskBar />
+    <div className="min-h-screen bg-slate-950 text-slate-100">
+      <Reader />
     </div>
   );
 }
