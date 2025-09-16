@@ -6,6 +6,7 @@ dist
 coverage
 .DS_Store
 *.log
+*.tsbuildinfo
 
 # Cypress
 cypress/videos
