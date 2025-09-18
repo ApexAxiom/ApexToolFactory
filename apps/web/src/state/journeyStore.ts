@@ -1,8 +1,10 @@
-import create from 'zustand';
+import create from "zustand";
 
 interface JourneyItem {
   id: string;
   createdAt: number;
+  query: string;
+  resultCount: number;
 }
 
 interface State {
@@ -12,5 +14,8 @@ interface State {
 
 export const useJourneyStore = create<State>((set) => ({
   items: [],
-  add: (item) => set((s) => ({ items: [...s.items, item] }))
+  add: (item) =>
+    set((state) => ({
+      items: [item, ...state.items].slice(0, 20)
+    }))
 }));

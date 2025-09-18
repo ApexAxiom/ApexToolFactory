@@ -1,16 +1,24 @@
-import create from 'zustand';
+import create from "zustand";
 
-interface Entity {
+export interface Entity {
   id: string;
-  badge: number;
+  label: string;
+  description?: string;
+  url?: string;
+  rank: number;
 }
 
 interface State {
   entities: Entity[];
-  setEntities: (e: Entity[]) => void;
+  setEntities: (entities: Entity[]) => void;
+  clear: () => void;
 }
 
 export const useEntitiesStore = create<State>((set) => ({
   entities: [],
-  setEntities: (entities) => set({ entities })
+  setEntities: (entities) =>
+    set({
+      entities: [...entities].sort((a, b) => b.rank - a.rank)
+    }),
+  clear: () => set({ entities: [] })
 }));

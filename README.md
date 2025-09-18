@@ -18,11 +18,15 @@ cp apps/web/.env.local.example apps/web/.env.local
 ```
 
 ## Scripts
-- `pnpm dev` – start web and server concurrently
-- `pnpm build` – build all workspaces
-- `pnpm lint` – run ESLint
-- `pnpm typecheck` – strict TypeScript check
-- `pnpm test` – run Vitest
+- `pnpm dev` - start web and server concurrently
+- `pnpm build` - build all workspaces
+- `pnpm lint` - run ESLint
+- `pnpm typecheck` - strict TypeScript check
+- `pnpm test` - run Vitest
+
+## Data Providers
+- The server queries Wikidata and Wikipedia for entity lookups when you submit a question.
+- To enable Google image matches, set `GOOGLE_CSE_API_KEY` and `GOOGLE_CSE_CX` in `apps/server/.env` with a valid Custom Search Engine.
 
 ## Privacy Statement
 Camera frames never leave the device. Only structured OCR spans and hints are sent to the server.
@@ -37,7 +41,7 @@ git config --global core.bigFileThreshold 500k
 ```
 Run `pnpm run size-check` to validate.
 
-## Porting Plan (Web → React Native/Expo)
+## Porting Plan (Web -> React Native/Expo)
 - Reuse TypeScript types and React components.
 - Use `react-native-vision-camera` for camera access.
 - Leverage iOS Vision / Android ML Kit for on-device OCR.

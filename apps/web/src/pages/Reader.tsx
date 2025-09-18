@@ -5,8 +5,10 @@ import CameraView, {
   type CameraViewStatus,
   type FrameMetadata
 } from '../components/CameraView';
+import EntityStrip from '../components/EntityStrip';
 import OverlayCanvas from '../components/OverlayCanvas';
 import useOcrWorker from '../hooks/useOcrWorker';
+import usePageEntities from '../hooks/usePageEntities';
 import usePrefersReducedMotion from '../hooks/usePrefersReducedMotion';
 
 interface FrameSize {
@@ -14,15 +16,6 @@ interface FrameSize {
   readonly height: number;
 }
 
-/**
- * Full-screen reader surface combining camera capture, OCR overlay, and query input.
- *
- * @returns {JSX.Element} The primary Book Lens reader layout.
- * @example
- * ```tsx
- * <Reader />
- * ```
- */
 export default function Reader(): JSX.Element {
   const prefersReducedMotion = usePrefersReducedMotion();
   const [cameraStatus, setCameraStatus] = useState<CameraViewStatus>('idle');
@@ -36,6 +29,7 @@ export default function Reader(): JSX.Element {
   } = useOcrWorker({
     language: 'eng'
   });
+  const { ask, status: entityStatus, error: askError, summary, lastQuery } = usePageEntities();
 
   const handleFrame = useCallback(
     async (bitmap: ImageBitmap, metadata: FrameMetadata) => {
@@ -71,6 +65,33 @@ export default function Reader(): JSX.Element {
   const isCameraBlocked =
     cameraStatus === 'permission-denied' || cameraStatus === 'error';
 
+  const placeholder = useMemo(() => {
+    if (words.length === 0) {
+      return undefined;
+    }
+
+    const snippet = words
+      .slice(0, 4)
+      .map((word) => word.text)
+      .join(' ');
+
+    return snippet.length > 0 ? `Ask about "${snippet}"` : undefined;
+  }, [words]);
+
+  const summaryMessage = useMemo(() => {
+    if (!summary) {
+      return null;
+    }
+
+    const headline = lastQuery ? `About ${lastQuery}: ` : '';
+    const content = `${headline}${summary}`.trim();
+    if (content.length <= 240) {
+      return content;
+    }
+
+    return `${content.slice(0, 237)}...`;
+  }, [lastQuery, summary]);
+
   return (
     <div className="flex min-h-screen flex-col">
       <main className="relative flex-1 overflow-hidden">
@@ -93,7 +114,7 @@ export default function Reader(): JSX.Element {
         />
         <div
           aria-live="polite"
-          className="pointer-events-none absolute inset-x-0 bottom-28 flex justify-center px-6"
+          className="pointer-events-none absolute inset-x-0 bottom-32 flex justify-center px-6"
         >
           {isCameraBlocked ? (
             <span className="rounded-full bg-red-500/80 px-4 py-2 text-sm font-medium text-white shadow-lg">
@@ -101,11 +122,11 @@ export default function Reader(): JSX.Element {
             </span>
           ) : cameraStatus === 'initializing' ? (
             <span className="rounded-full bg-slate-900/70 px-4 py-2 text-sm text-slate-100 shadow-lg">
-              Preparing camera…
+              Preparing camera.
             </span>
           ) : workerStatus === 'loading' ? (
             <span className="rounded-full bg-slate-900/70 px-4 py-2 text-sm text-slate-100 shadow-lg">
-              Loading reader intelligence…
+              Loading reader intelligence.
             </span>
           ) : workerStatus === 'error' && workerError ? (
             <span className="rounded-full bg-red-500/80 px-4 py-2 text-sm font-medium text-white shadow-lg">
@@ -114,6 +135,7 @@ export default function Reader(): JSX.Element {
           ) : null}
         </div>
       </main>
+      <EntityStrip />
       <AskBar
         ariaLiveMessage={
           fullText.trim().length > 0
@@ -121,6 +143,11 @@ export default function Reader(): JSX.Element {
             : undefined
         }
         disabled={isCameraBlocked}
+        errorMessage={askError}
+        infoMessage={summaryMessage}
+        loading={entityStatus === 'loading'}
+        onSubmit={ask}
+        placeholder={placeholder}
       />
     </div>
   );
