@@ -55,6 +55,7 @@ describe('usePageEntities', () => {
     expect(result.current.summary).toBe('Planet Earth is our home world.');
     expect(result.current.error).toBeNull();
     expect(useEntitiesStore.getState().entities).toHaveLength(1);
+    expect(useEntitiesStore.getState().entities?.[0]?.source).toBe('typed');
     expect(useJourneyStore.getState().items[0]).toMatchObject({
       query: 'Earth',
       resultCount: 1

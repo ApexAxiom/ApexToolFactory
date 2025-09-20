@@ -17,6 +17,7 @@ interface UseOcrWorkerResult {
   readonly status: WorkerStatus;
   readonly error: string | null;
   readonly processFrame: (frame: ImageBitmap, metadata: FrameMetadata) => Promise<void>;
+  readonly clear: () => void;
 }
 
 interface WorkerResultMessage {
@@ -161,6 +162,10 @@ export default function useOcrWorker({
     fullText,
     status,
     error,
-    processFrame
+    processFrame,
+    clear: () => {
+      setWords([]);
+      setFullText('');
+    }
   };
 }

@@ -1,12 +1,14 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useMemo, useRef } from 'react';
 
 import type { RecognizedWord } from '../lib/types';
+import type { Entity } from '../state/entitiesStore';
 
-interface OverlayCanvasProps
-  extends Omit<React.CanvasHTMLAttributes<HTMLCanvasElement>, 'children'> {
+interface OverlayCanvasProps extends Omit<React.HTMLAttributes<HTMLDivElement>, 'children'> {
   readonly words: readonly RecognizedWord[];
   readonly frameSize: { readonly width: number; readonly height: number } | null;
   readonly prefersReducedMotion?: boolean;
+  readonly interactive?: boolean;
+  readonly entities?: readonly Entity[];
 }
 
 function clamp(value: number, min: number, max: number): number {
@@ -27,9 +29,12 @@ export default function OverlayCanvas({
   words,
   frameSize,
   prefersReducedMotion = false,
+  interactive = false,
+  entities = [],
   ...props
 }: OverlayCanvasProps): JSX.Element {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const containerRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -73,31 +78,50 @@ export default function OverlayCanvas({
       context.stroke();
     }
 
-    const centerX = clientWidth / 2;
-    const centerY = clientHeight / 2;
-    const aspectRatio = frameSize
-      ? frameSize.width / Math.max(frameSize.height, 1)
-      : clientWidth / Math.max(clientHeight, 1);
-    const radiusBase = Math.min(clientWidth, clientHeight) * 0.08;
-    const radius = Math.max(24, aspectRatio > 1.2 ? radiusBase * 0.9 : radiusBase);
-
-    context.save();
-    context.lineWidth = 2;
-    context.strokeStyle = prefersReducedMotion ? 'rgba(250, 250, 252, 0.75)' : 'rgba(250, 250, 252, 0.9)';
-    context.setLineDash(prefersReducedMotion ? [] : [8, 6]);
-    context.beginPath();
-    context.arc(centerX, centerY, radius, 0, Math.PI * 2);
-    context.stroke();
-
-    context.setLineDash([]);
-    context.beginPath();
-    context.moveTo(centerX - radius * 0.6, centerY);
-    context.lineTo(centerX + radius * 0.6, centerY);
-    context.moveTo(centerX, centerY - radius * 0.6);
-    context.lineTo(centerX, centerY + radius * 0.6);
-    context.stroke();
-    context.restore();
+    // Removed center reticle / crosshair for a cleaner UI
   }, [frameSize, prefersReducedMotion, words]);
 
-  return <canvas ref={canvasRef} {...props} />;
+  const wordToEntity = useMemo(() => {
+    const map = new Map<string, Entity>();
+    for (const ent of entities) {
+      map.set(ent.label.toLowerCase(), ent);
+    }
+    return map;
+  }, [entities]);
+
+  return (
+    <div ref={containerRef} className="relative" {...props}>
+      <canvas className="absolute inset-0" ref={canvasRef} />
+      {interactive
+        ? words.map((word, idx) => {
+            const left = `${word.box.x * 100}%`;
+            const top = `${word.box.y * 100}%`;
+            const width = `${word.box.width * 100}%`;
+            const height = `${word.box.height * 100}%`;
+            const key = `${word.text}-${idx}`;
+            const match = wordToEntity.get(word.text.toLowerCase());
+            const href = match?.url || `https://en.wikipedia.org/wiki/${encodeURIComponent(word.text)}`;
+            const description = match?.description;
+            return (
+              <a
+                key={key}
+                href={href}
+                target="_blank"
+                rel="noreferrer"
+                className="group absolute rounded-sm outline-none ring-sky-400/50 focus-visible:ring-2"
+                style={{ left, top, width, height }}
+                title={match?.label || word.text}
+              >
+                <span className="sr-only">{match?.label || word.text}</span>
+                {description ? (
+                  <div className="pointer-events-none absolute left-0 top-full z-20 mt-1 hidden max-w-[240px] rounded-xl border border-slate-200 bg-white/80 p-2 text-[11px] text-slate-700 shadow-lg supports-[backdrop-filter]:backdrop-blur-md group-hover:block">
+                    {description}
+                  </div>
+                ) : null}
+              </a>
+            );
+          })
+        : null}
+    </div>
+  );
 }

@@ -11,7 +11,7 @@ export default function EntityStrip(): JSX.Element | null {
   }
 
   return (
-    <section aria-label="Book Lens matches" className="w-full bg-slate-950/90">
+    <section aria-label="Book Lens matches" className="w-full bg-white/80 supports-[backdrop-filter]:backdrop-blur-md border-t border-slate-200">
       <div className="mx-auto flex w-full max-w-5xl flex-col gap-2 px-4 pb-4 pt-3">
         <span className="text-xs uppercase tracking-wide text-slate-500">Matches</span>
         <div className="flex gap-3 overflow-x-auto pb-1" role="list">

@@ -24,13 +24,20 @@ function toEntity(item: LinkEntity, index: number): Entity {
   const label = item.label?.trim() || item.id;
   const rank = typeof item.rank === "number" ? item.rank : Math.max(1, 500 - index * 20);
 
-  return {
+  const entity: Entity = {
     id: item.id,
     label,
-    description: item.description?.trim() || undefined,
-    url: item.url,
-    rank
+    rank,
+    source: 'typed'
   };
+  const description = item.description?.trim();
+  if (description) {
+    entity.description = description;
+  }
+  if (item.url) {
+    entity.url = item.url;
+  }
+  return entity;
 }
 
 function createJourneyId(): string {

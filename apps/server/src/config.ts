@@ -5,7 +5,8 @@ const envSchema = z.object({
   PORT: z.coerce.number().default(8080),
   ALLOW_ORIGIN: z.string().default('*'),
   GOOGLE_CSE_API_KEY: z.string().optional(),
-  GOOGLE_CSE_CX: z.string().optional()
+  GOOGLE_CSE_CX: z.string().optional(),
+  OPENAI_API_KEY: z.string().optional()
 });
 
 export const cfg = envSchema.parse(process.env);
@@ -16,6 +17,7 @@ export function providers() {
   return {
     wikipedia: true,
     wikidata: true,
-    googleCse: Boolean(cfg.GOOGLE_CSE_API_KEY && cfg.GOOGLE_CSE_CX)
+    googleCse: Boolean(cfg.GOOGLE_CSE_API_KEY && cfg.GOOGLE_CSE_CX),
+    openai: Boolean(cfg.OPENAI_API_KEY)
   };
 }

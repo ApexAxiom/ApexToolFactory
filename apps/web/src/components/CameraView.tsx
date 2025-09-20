@@ -17,6 +17,7 @@ export type CameraViewStatus =
 
 interface CameraViewProps {
   readonly active: boolean;
+  readonly paused?: boolean;
   readonly className?: string;
   readonly facingMode?: 'environment' | 'user';
   readonly onError?: (error: Error) => void;
@@ -59,6 +60,7 @@ async function createBitmap(canvas: HTMLCanvasElement): Promise<ImageBitmap> {
  */
 export default function CameraView({
   active,
+  paused = false,
   className,
   facingMode = 'environment',
   onError,
@@ -112,7 +114,7 @@ export default function CameraView({
   const captureLoop = useCallback(async (): Promise<void> => {
     animationFrameRef.current = requestAnimationFrame(captureLoop);
 
-    if (!active) {
+    if (!active || paused) {
       return;
     }
 
@@ -165,7 +167,7 @@ export default function CameraView({
     } finally {
       busyRef.current = false;
     }
-  }, [active, onError, onFrame]);
+  }, [active, paused, onError, onFrame]);
 
   useEffect(() => {
     canvasRef.current = document.createElement('canvas');
@@ -214,7 +216,11 @@ export default function CameraView({
 
         streamRef.current = stream;
         video.srcObject = stream;
-        await video.play();
+        if (!paused) {
+          await video.play();
+        } else {
+          video.pause();
+        }
 
         updateStatus('ready');
         captureLoop().catch((error: unknown) => {
@@ -241,7 +247,18 @@ export default function CameraView({
       cancelled = true;
       stopStream();
     };
-  }, [active, captureLoop, facingMode, onError, stopStream, updateStatus]);
+    }, [active, paused, captureLoop, facingMode, onError, stopStream, updateStatus]);
+
+  // Respond to paused toggles without restarting stream
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+    if (paused) {
+      video.pause();
+    } else if (active) {
+      void video.play();
+    }
+  }, [active, paused]);
 
   return (
     <video
