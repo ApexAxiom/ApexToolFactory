@@ -36,11 +36,14 @@ export async function searchWikidata(query: string): Promise<Entity[]> {
     timeoutMs: 6000
   });
 
-  return data.search.map((item, index) => ({
-    id: item.id,
-    label: item.label,
-    description: item.description,
-    url: item.concepturi,
-    rank: score(cleaned, item.label, index)
-  }));
+  return data.search.map((item, index) => {
+    const entity: Entity = {
+      id: item.id,
+      label: item.label,
+      rank: score(cleaned, item.label, index)
+    };
+    if (item.description !== undefined) entity.description = item.description;
+    if (item.concepturi !== undefined) entity.url = item.concepturi;
+    return entity;
+  });
 }

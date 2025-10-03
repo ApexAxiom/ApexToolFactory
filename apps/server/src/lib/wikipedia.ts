@@ -30,7 +30,7 @@ async function resolveTitle(query: string): Promise<string | null> {
   });
 
   const titles = data[1];
-  if (Array.isArray(titles) && titles.length > 0) {
+  if (Array.isArray(titles) && titles.length > 0 && titles[0] !== undefined) {
     return titles[0];
   }
 

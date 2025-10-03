@@ -44,10 +44,11 @@ export async function searchImages(query: string): Promise<ImageResult[]> {
     timeoutMs: 6000
   });
 
-  return (data.items ?? []).map((item) => ({
-    url: item.link,
-    width: item.image?.width,
-    height: item.image?.height,
-    thumbnailUrl: item.image?.thumbnailLink
-  }));
+  return (data.items ?? []).map((item) => {
+    const result: ImageResult = { url: item.link };
+    if (item.image?.width !== undefined) result.width = item.image.width;
+    if (item.image?.height !== undefined) result.height = item.image.height;
+    if (item.image?.thumbnailLink !== undefined) result.thumbnailUrl = item.image.thumbnailLink;
+    return result;
+  });
 }
