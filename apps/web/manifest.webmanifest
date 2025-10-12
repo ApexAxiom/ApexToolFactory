@@ -1,9 +1,0 @@
-{
-  "name": "Book Lens",
-  "short_name": "BookLens",
-  "start_url": "/",
-  "display": "standalone",
-  "background_color": "#ffffff",
-  "description": "Overlay context for places and art while reading.",
-  "icons": []
-}

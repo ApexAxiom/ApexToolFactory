@@ -1,13 +1,13 @@
 node_modules
-dist
-.env*
-!.env.example
-!apps/*/.env.example
+.next
+.env
+.env.local
+.env.production
+.storage
+storage
+!storage/.gitkeep
 coverage
+.eslintcache
+.tsbuildinfo
+pnpm-debug.log
 .DS_Store
-*.log
-*.tsbuildinfo
-
-# Cypress
-cypress/videos
-cypress/screenshots
