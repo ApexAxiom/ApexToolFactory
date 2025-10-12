@@ -26,6 +26,7 @@ model Organization {
   serviceRecipeItems ServiceRecipeItem[]
   quoteLineItems QuoteLineItem[]
   quoteCalcSnapshots QuoteCalcSnapshot[]
+  pricingPresets PricingPreset[]
 }
 
 model User {
@@ -218,6 +219,29 @@ model QuoteCalcSnapshot {
   quote         Quote @relation(fields: [quoteId], references: [id])
   quoteId       String @unique
   json          Json
+}
+
+/// Stores reusable pricing configurations users can quickly apply to new quotes.
+model PricingPreset {
+  id                String   @id @default(cuid())
+  organization      Organization @relation(fields: [organizationId], references: [id])
+  organizationId    String
+  name              String
+  pricingMode       String   // 'margin' | 'markup'
+  marginOrMarkup    Float
+  hourlyWage        Float
+  burdenPercent     Float
+  taxRate           Float
+  roundingRule      String   // 'nearest_1' | 'nearest_5' | 'psychological_9'
+  minimum           Float
+  travelFixedMin    Int
+  travelMinsPerMile Float
+  fees              Float    @default(0)
+  discounts         Float    @default(0)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([organizationId, name])
 }
 
 model File {
