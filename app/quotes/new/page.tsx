@@ -112,6 +112,7 @@ export default function QuoteWizardPage() {
   const [marginPercentInput, setMarginPercentInput] = useState('45');
   const [burdenPercentInput, setBurdenPercentInput] = useState('28');
   const [taxRateInput, setTaxRateInput] = useState('8.25');
+  const [stepError, setStepError] = useState<string | null>(null);
 
   const numberFormatter = useMemo(() => new Intl.NumberFormat('en-US'), []);
 
@@ -248,6 +249,7 @@ export default function QuoteWizardPage() {
     const customer = findCustomerById(customerId);
     setSelectedCustomerId(customerId);
     setCustomerInput(customer?.name || '');
+    setStepError(null);
     if (customer) {
       const existingProperty = customer.properties.find((p) => p.id === selectedPropertyId);
       if (!existingProperty) {
@@ -278,6 +280,7 @@ export default function QuoteWizardPage() {
       setPropertyInput(match.property.address);
       updateArea(match.property.area);
     }
+    setStepError(null);
   };
 
   const handleTemplateSelect = (templateId: string) => {
@@ -288,6 +291,7 @@ export default function QuoteWizardPage() {
     const template = findTemplateById(templateId);
     setSelectedTemplateId(templateId);
     setTemplateInput(template?.name || '');
+    setStepError(null);
   };
 
   const applyPreset = (preset: BootstrapData['presets'][number]) => {
@@ -354,6 +358,71 @@ export default function QuoteWizardPage() {
     return Array.from(options.values());
   }, [bootstrap.templates, history]);
 
+  const resolveOptionId = (
+    input: string,
+    options: Array<{ id: string; label: string }>,
+  ) => {
+    const normalized = input.trim().toLowerCase();
+    if (!normalized) return '';
+    const exact = options.find((option) => option.label.toLowerCase() === normalized);
+    if (exact) return exact.id;
+    const uniquePartial = options.filter((option) => option.label.toLowerCase().includes(normalized));
+    return uniquePartial.length === 1 ? uniquePartial[0]?.id ?? '' : '';
+  };
+
+  const handleNext = () => {
+    if (current >= wizardSteps.length) return;
+
+    if (current === 1) {
+      let customerId = selectedCustomerId;
+      let propertyId = selectedPropertyId;
+      let templateId = selectedTemplateId;
+
+      if (!customerId) {
+        const resolved = resolveOptionId(customerInput, customerOptions);
+        if (resolved) {
+          customerId = resolved;
+          handleCustomerSelect(resolved);
+        }
+      }
+
+      if (!propertyId) {
+        const resolved = resolveOptionId(propertyInput, propertyOptions);
+        if (resolved) {
+          propertyId = resolved;
+          handlePropertySelect(resolved);
+        }
+      }
+
+      if (!templateId) {
+        const resolved = resolveOptionId(templateInput, templateOptions);
+        if (resolved) {
+          templateId = resolved;
+          handleTemplateSelect(resolved);
+        }
+      }
+
+      if (!customerId || !propertyId || !templateId) {
+        setStepError('Select a customer, property, and service template before continuing.');
+        return;
+      }
+    }
+
+    if (current === 2) {
+      if (!interior && !exterior) {
+        setStepError('Choose at least interior or exterior service before continuing.');
+        return;
+      }
+      if (!Number.isFinite(area) || area <= 0) {
+        setStepError('Enter the treatment area to keep your estimate accurate.');
+        return;
+      }
+    }
+
+    setStepError(null);
+    setCurrent((value) => Math.min(wizardSteps.length, value + 1));
+  };
+
   const percentToInput = (value: number) => {
     if (!Number.isFinite(value)) return '';
     const scaled = Number((value * 100).toFixed(4));
@@ -371,6 +440,20 @@ export default function QuoteWizardPage() {
   useEffect(() => {
     setTaxRateInput(percentToInput(taxRate));
   }, [taxRate]);
+
+  useEffect(() => {
+    if (current !== 1) return;
+    if (selectedCustomerId && selectedPropertyId && selectedTemplateId) {
+      setStepError(null);
+    }
+  }, [current, selectedCustomerId, selectedPropertyId, selectedTemplateId]);
+
+  useEffect(() => {
+    if (current !== 2) return;
+    if ((interior || exterior) && Number.isFinite(area) && area > 0) {
+      setStepError(null);
+    }
+  }, [current, interior, exterior, area]);
 
   const buildSnapshot = (): QuoteSnapshot => ({
     timestamp: Date.now(),
@@ -824,13 +907,24 @@ export default function QuoteWizardPage() {
           </div>
 
           <div className="mt-4 flex items-center gap-2">
-            <Button type="button" onClick={() => setCurrent((value) => Math.min(wizardSteps.length, value + 1))} disabled={current === 1 && (!selectedCustomerId || !selectedPropertyId || !selectedTemplateId)}>Next</Button>
-            <Button type="button" variant="secondary" onClick={() => setCurrent((value) => Math.max(1, value - 1))}>Previous</Button>
+            <Button type="button" onClick={handleNext} disabled={current >= wizardSteps.length}>Next</Button>
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => {
+                setStepError(null);
+                setCurrent((value) => Math.max(1, value - 1));
+              }}
+              disabled={current === 1}
+            >
+              Previous
+            </Button>
             <Button type="button" variant="secondary" onClick={() => setPresetOpen(true)} className="ml-auto">Save preset</Button>
             <Button type="button" onClick={onSaveQuote} disabled={saving || !selectedTemplateId || !selectedPropertyId}>
               {saving ? 'Saving…' : 'Save quote'}
             </Button>
           </div>
+          {stepError ? <p className="mt-2 text-sm text-red-600">{stepError}</p> : null}
           {saveError ? <p className="mt-2 text-sm text-red-600">{saveError}</p> : null}
         </Card>
 
