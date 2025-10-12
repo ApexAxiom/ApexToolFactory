@@ -8,6 +8,8 @@ import path from 'path';
 
 const s3 = process.env.ASSET_BUCKET && process.env.AWS_REGION ? new S3Client({ region: process.env.AWS_REGION }) : null;
 
+export const runtime = 'nodejs';
+
 export async function GET(_: Request, { params }: { params: { id: string } }) {
   const user = await requireSession();
   const quote = await prisma.quote.findFirst({

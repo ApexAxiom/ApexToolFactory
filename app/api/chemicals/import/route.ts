@@ -5,6 +5,8 @@ import { prisma } from '@/lib/db';
 import { getSession } from '@/lib/auth';
 import { parseChemicalsCsv } from '@/lib/csv';
 
+export const runtime = 'nodejs';
+
 const ImportSchema = z.object({ csv: z.string().min(1) });
 
 export async function POST(request: Request) {
