@@ -1,9 +1,33 @@
-import { Duration, Stack, StackProps, aws_apprunner as apprunner, aws_iam as iam, aws_s3 as s3, aws_secretsmanager as secrets } from 'aws-cdk-lib';
+import {
+  Duration,
+  Stack,
+  StackProps,
+  aws_apprunner as apprunner,
+  aws_ec2 as ec2,
+  aws_iam as iam,
+  aws_rds as rds,
+  aws_s3 as s3,
+} from 'aws-cdk-lib';
 import { Construct } from 'constructs';
 
 export class AppRunnerStack extends Stack {
   constructor(scope: Construct, id: string, props?: StackProps) {
     super(scope, id, props);
+
+    const vpc = new ec2.Vpc(this, 'AuroraVpc', {
+      maxAzs: 2,
+      natGateways: 0,
+    });
+
+    const cluster = new rds.ServerlessCluster(this, 'Aurora', {
+      engine: rds.DatabaseClusterEngine.auroraPostgres({
+        version: rds.AuroraPostgresEngineVersion.VER_15_2,
+      }),
+      vpc,
+      defaultDatabaseName: 'pestpro',
+      scaling: { autoPause: Duration.minutes(10) },
+    });
+    cluster.connections.allowDefaultPortFromAnyIpv4('App Runner access');
 
     const assetBucket = new s3.Bucket(this, 'AssetBucket', {
       blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
@@ -11,14 +35,22 @@ export class AppRunnerStack extends Stack {
       encryption: s3.BucketEncryption.S3_MANAGED,
     });
 
-    const secret = new secrets.Secret(this, 'DatabaseSecret');
+    const instanceRole = new iam.Role(this, 'AppRunnerInstanceRole', {
+      assumedBy: new iam.ServicePrincipal('tasks.apprunner.amazonaws.com'),
+    });
+    assetBucket.grantReadWrite(instanceRole);
+    cluster.secret?.grantRead(instanceRole);
 
-    const role = new iam.Role(this, 'AppRunnerRole', {
-      assumedBy: new iam.ServicePrincipal('build.apprunner.amazonaws.com'),
+    const autoScaling = new apprunner.CfnAutoScalingConfiguration(this, 'AutoScaling', {
+      autoScalingConfigurationName: 'pestpro-default',
+      maxConcurrency: 100,
+      maxSize: 10,
+      minSize: 1,
     });
 
-    assetBucket.grantReadWrite(role);
-    secret.grantRead(role);
+    const authenticationConfiguration = process.env.APP_RUNNER_CONNECTION_ARN
+      ? { connectionArn: process.env.APP_RUNNER_CONNECTION_ARN }
+      : undefined;
 
     new apprunner.CfnService(this, 'AppRunnerService', {
       serviceName: 'pestpro-apprunner',
@@ -30,10 +62,13 @@ export class AppRunnerStack extends Stack {
             configurationSource: 'REPOSITORY',
           },
         },
+        authenticationConfiguration,
+        autoDeploymentsEnabled: true,
       },
       instanceConfiguration: {
         cpu: '1024',
         memory: '2048',
+        instanceRoleArn: instanceRole.roleArn,
       },
       healthCheckConfiguration: {
         protocol: 'HTTP',
@@ -42,12 +77,16 @@ export class AppRunnerStack extends Stack {
         interval: 10,
         timeout: 5,
       },
-      autoScalingConfigurationArn: new apprunner.CfnAutoScalingConfiguration(this, 'AutoScaling', {
-        autoScalingConfigurationName: 'pestpro-default',
-        maxConcurrency: 100,
-        maxSize: 10,
-        minSize: 1,
-      }).attrAutoScalingConfigurationArn,
+      autoScalingConfigurationArn: autoScaling.attrAutoScalingConfigurationArn,
+      serviceConfiguration: {
+        runtimeConfiguration: {
+          environment: [
+            { name: 'AWS_REGION', value: Stack.of(this).region },
+            { name: 'ASSET_BUCKET', value: assetBucket.bucketName },
+            { name: 'DB_SECRET_ARN', value: cluster.secret?.secretArn ?? '' },
+          ],
+        },
+      },
     });
   }
 }

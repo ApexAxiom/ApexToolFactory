@@ -28,9 +28,12 @@ a {
 
 @media print {
   body {
-    background: white;
+    background: #fff !important;
   }
   .no-print {
     display: none !important;
+  }
+  @page {
+    margin: 12mm;
   }
 }

@@ -1,26 +1,46 @@
 import { NextResponse } from 'next/server';
-import { z } from 'zod';
-import { createUploadRequest } from '@/lib/s3';
+import { requireSession } from '@/lib/auth';
+import { PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
+import crypto from 'crypto';
+import fs from 'fs/promises';
+import path from 'path';
 
-const UploadSchema = z.object({
-  key: z.string(),
-  contentType: z.string(),
-});
+const s3 = process.env.ASSET_BUCKET && process.env.AWS_REGION ? new S3Client({ region: process.env.AWS_REGION }) : null;
+export const runtime = 'nodejs';
 
-export async function POST(request: Request) {
-  const body = await request.json();
-  const parsed = UploadSchema.safeParse(body);
-  if (!parsed.success) {
-    return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
+export async function POST(req: Request) {
+  const user = await requireSession();
+  const contentType = req.headers.get('content-type') || '';
+  if (!contentType.startsWith('application/octet-stream')) {
+    return NextResponse.json({ error: 'Send raw bytes with content-type application/octet-stream' }, { status: 400 });
   }
-  const bucket = process.env.ASSET_BUCKET ?? '';
-  if (!bucket) {
-    return NextResponse.json({
-      url: `/storage/${parsed.data.key}`,
-      key: parsed.data.key,
-      note: 'Upload directly to local storage in development.',
-    });
+  const filename = req.headers.get('x-filename') || 'upload.bin';
+  const type = (req.headers.get('x-type') || 'logo').toString();
+  const ext = path.extname(filename) || '';
+  const key = `${user.organizationId}/${type}/${crypto.randomUUID()}${ext}`;
+  const bytes = Buffer.from(await req.arrayBuffer());
+
+  if (s3) {
+    await s3.send(
+      new PutObjectCommand({
+        Bucket: process.env.ASSET_BUCKET!,
+        Key: key,
+        Body: bytes,
+        ContentType: guess(ext),
+      }),
+    );
+    return NextResponse.json({ key, url: `s3://${process.env.ASSET_BUCKET}/${key}` });
   }
-  const result = await createUploadRequest(bucket, parsed.data);
-  return NextResponse.json(result);
+
+  const filePath = path.join(process.cwd(), 'storage', key);
+  await fs.mkdir(path.dirname(filePath), { recursive: true });
+  await fs.writeFile(filePath, bytes);
+  return NextResponse.json({ key, url: `file://${filePath}` });
+}
+
+function guess(ext: string) {
+  if (ext === '.png') return 'image/png';
+  if (ext === '.jpg' || ext === '.jpeg') return 'image/jpeg';
+  if (ext === '.pdf') return 'application/pdf';
+  return 'application/octet-stream';
 }
