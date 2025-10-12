@@ -648,7 +648,7 @@ export default function QuoteWizardPage() {
   };
 
   return (
-    <div className="grid gap-6 lg:grid-cols-[2fr_1fr]">
+    <div className="grid gap-6 lg:grid-cols-[2fr_1fr] pb-6">
       <div className="space-y-6">
         <WizardSteps steps={wizardSteps} current={current} />
         <Card title={<span className="text-lg font-semibold">Step {current}: {wizardSteps[current - 1]?.label}</span>}>
@@ -906,8 +906,8 @@ export default function QuoteWizardPage() {
             )}
           </div>
 
-          <div className="mt-4 flex items-center gap-2">
-            <Button type="button" onClick={handleNext} disabled={current >= wizardSteps.length}>Next</Button>
+          <div className="mt-4 flex flex-wrap items-center gap-2 sm:gap-3 pb-2">
+            <Button type="button" onClick={handleNext} disabled={current >= wizardSteps.length} className="min-w-[80px] touch-manipulation">Next</Button>
             <Button
               type="button"
               variant="secondary"
@@ -916,11 +916,12 @@ export default function QuoteWizardPage() {
                 setCurrent((value) => Math.max(1, value - 1));
               }}
               disabled={current === 1}
+              className="min-w-[80px] touch-manipulation"
             >
               Previous
             </Button>
-            <Button type="button" variant="secondary" onClick={() => setPresetOpen(true)} className="ml-auto">Save preset</Button>
-            <Button type="button" onClick={onSaveQuote} disabled={saving || !selectedTemplateId || !selectedPropertyId}>
+            <Button type="button" variant="secondary" onClick={() => setPresetOpen(true)} className="sm:ml-auto touch-manipulation">Save preset</Button>
+            <Button type="button" onClick={onSaveQuote} disabled={saving || !selectedTemplateId || !selectedPropertyId} className="touch-manipulation">
               {saving ? 'Saving…' : 'Save quote'}
             </Button>
           </div>

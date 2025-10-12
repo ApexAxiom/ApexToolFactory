@@ -48,20 +48,20 @@ const ctaLinks = [
 
 export default function WelcomePage() {
   return (
-    <div className="space-y-16">
-      <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[color:var(--brand-primary-from)]/95 via-[color:var(--brand-primary-to)]/90 to-sky-500/80 p-10 text-white shadow-soft">
+    <div className="space-y-8 sm:space-y-16">
+      <section className="relative overflow-hidden rounded-2xl sm:rounded-3xl bg-gradient-to-br from-[color:var(--brand-primary-from)]/95 via-[color:var(--brand-primary-to)]/90 to-sky-500/80 p-6 sm:p-10 text-white shadow-soft">
         <div className="absolute -right-20 -top-20 h-56 w-56 rounded-full bg-white/10 blur-3xl" aria-hidden="true" />
         <div className="absolute -bottom-24 -left-10 h-72 w-72 rounded-full bg-white/10 blur-3xl" aria-hidden="true" />
-        <div className="relative mx-auto max-w-3xl space-y-6 text-center">
-          <span className="inline-flex rounded-full bg-white/10 px-4 py-1 text-sm font-semibold tracking-wide">Pestimator</span>
-          <h1 className="text-4xl font-semibold tracking-tight md:text-5xl">
+        <div className="relative mx-auto max-w-3xl space-y-4 sm:space-y-6 text-center">
+          <span className="inline-flex rounded-full bg-white/10 px-3 py-1 text-xs sm:text-sm font-semibold tracking-wide">Pestimator</span>
+          <h1 className="text-2xl sm:text-4xl font-semibold tracking-tight md:text-5xl">
             Welcome to your pest control quoting command center
           </h1>
-          <p className="text-base text-slate-100 md:text-lg">
+          <p className="text-sm sm:text-base text-white md:text-lg">
             Build fast, accurate quotes that factor in chemicals, crew time, and travel so you win more jobs—and protect your
             margins on every route.
           </p>
-          <div className="flex flex-wrap items-center justify-center gap-3">
+          <div className="flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center justify-center gap-2 sm:gap-3">
             {ctaLinks.map((link) => (
               <Link key={link.href} href={link.href} className={link.style}>
                 {link.label}
