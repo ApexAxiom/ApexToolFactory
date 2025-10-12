@@ -68,6 +68,12 @@ pnpm test
 
 App Runner reads `apprunner.yaml` to install, build, and run `pnpm start` on port 8080.
 
+### AWS App Runner ("Agility" server) readiness
+- The `infra/cdk/lib/apprunner-stack.ts` stack provisions an App Runner service with a VPC connector to private Aurora subnets and injects `DATABASE_URL` from Secrets Manager, so no public database exposure is required.
+- `apprunner.yaml` targets the Node.js managed runtime, installs with `pnpm`, and starts the server on `$PORT`/`0.0.0.0`, matching App Runner’s expectations.
+- Health checks are configured against `/healthz`, and storage writes (PDFs, logos) are prefixed by `organizationId/…` in S3, maintaining tenant isolation.
+- To deploy into another AWS environment (for example, an “Agility” sandbox), point the CDK context at that account/region, ensure Secrets Manager contains the required secrets, and redeploy the App Runner stack—no code changes are needed.
+
 ## Observability
 - `/healthz` returns `{ ok: true }` for uptime checks.
 - Application logs flow to App Runner CloudWatch logs. Include pricing snapshot IDs for debugging quotes.

@@ -116,6 +116,9 @@ model Chemical {
   notes         String?
   createdAt     DateTime @default(now())
   recipeItems   ServiceRecipeItem[]
+
+  @@unique([organizationId, name], name: "organizationId_name")
+  @@index([organizationId, name])
 }
 
 model ServiceTemplate {
