@@ -13,11 +13,11 @@ import { runPricingEngine } from '@/lib/pricing/engine';
 import { Modal } from '@/components/ui/Modal';
 
 const wizardSteps = [
-  { id: 1, label: 'Customer', description: 'Select customer and property' },
-  { id: 2, label: 'Service', description: 'Choose template and scope' },
-  { id: 3, label: 'Area & Add-ons', description: 'Size and adjustments' },
-  { id: 4, label: 'Pricing', description: 'Margins, rounding, tax' },
-  { id: 5, label: 'Delivery', description: 'PDF and email' },
+  { id: 1, label: 'Customer & Service', description: 'Pick customer, property, template' },
+  { id: 2, label: 'Scope', description: 'Interior/Exterior and area' },
+  { id: 3, label: 'Travel & Adjustments', description: 'Travel, fees, discounts' },
+  { id: 4, label: 'Pricing', description: 'Mode, margin/markup, tax' },
+  { id: 5, label: 'Review & Save', description: 'Review totals and save' },
 ];
 
 type BootstrapData = {
@@ -77,6 +77,26 @@ export default function QuoteWizardPage() {
       }
     })();
   }, []);
+
+  const handleCustomerChange = (customerId: string) => {
+    setSelectedCustomerId(customerId);
+    const customer = bootstrap.customers.find((c) => c.id === customerId);
+    const firstProperty = customer?.properties?.[0];
+    if (firstProperty) {
+      setSelectedPropertyId(firstProperty.id);
+      setArea(firstProperty.area);
+    } else {
+      setSelectedPropertyId('');
+    }
+  };
+
+  const handlePropertyChange = (propertyId: string) => {
+    setSelectedPropertyId(propertyId);
+    const property = bootstrap.customers.flatMap((c) => c.properties).find((p) => p.id === propertyId);
+    if (property) {
+      setArea(property.area);
+    }
+  };
 
   const applyPreset = (preset: BootstrapData['presets'][number]) => {
     setMode(preset.pricingMode);
@@ -202,6 +222,9 @@ export default function QuoteWizardPage() {
           },
         }),
       });
+      if (response.status === 401 || response.status === 403) {
+        throw new Error('Please sign in to save quotes.');
+      }
       if (!response.ok) throw new Error(await response.text());
       const data = await response.json();
       window.location.href = `/quotes/${data.id}`;
@@ -247,103 +270,131 @@ export default function QuoteWizardPage() {
     <div className="grid gap-6 lg:grid-cols-[2fr_1fr]">
       <div className="space-y-6">
         <WizardSteps steps={wizardSteps} current={current} />
-        <Card title={<span className="text-lg font-semibold">Step {current}: Configure quote</span>}>
+        <Card title={<span className="text-lg font-semibold">Step {current}: {wizardSteps[current - 1]?.label}</span>}>
           <div className="grid gap-4 sm:grid-cols-2">
-            <FormField label="Customer">
-              <Select value={selectedCustomerId} onChange={(e) => setSelectedCustomerId(e.target.value)}>
-                {bootstrap.customers.map((c) => (
-                  <option key={c.id} value={c.id}>{c.name}</option>
-                ))}
-              </Select>
-            </FormField>
-            <FormField label="Property">
-              <Select value={selectedPropertyId} onChange={(e) => setSelectedPropertyId(e.target.value)}>
-                {bootstrap.customers.find(c => c.id === selectedCustomerId)?.properties.map((p) => (
-                  <option key={p.id} value={p.id}>{p.address}</option>
-                ))}
-              </Select>
-            </FormField>
-            <FormField label="Service template">
-              <Select value={selectedTemplateId} onChange={(e) => setSelectedTemplateId(e.target.value)}>
-                {bootstrap.templates.map((t) => (
-                  <option key={t.id} value={t.id}>{t.name}</option>
-                ))}
-              </Select>
-            </FormField>
-            <FormField label="Preset">
-              <Select value={selectedPresetId} onChange={(e) => { setSelectedPresetId(e.target.value); const p = bootstrap.presets.find(x => x.id === e.target.value); if (p) applyPreset(p); }}>
-                <option value="">Custom</option>
-                {bootstrap.presets.map((p) => (
-                  <option key={p.id} value={p.id}>{p.name}</option>
-                ))}
-              </Select>
-            </FormField>
+            {current === 1 && (
+              <>
+                <FormField label="Customer">
+                  <Select value={selectedCustomerId} onChange={(e) => handleCustomerChange(e.target.value)}>
+                    {bootstrap.customers.length === 0 ? (<option value="">No customers</option>) : null}
+                    {bootstrap.customers.map((c) => (
+                      <option key={c.id} value={c.id}>{c.name}</option>
+                    ))}
+                  </Select>
+                </FormField>
+                <FormField label="Property">
+                  <Select value={selectedPropertyId} onChange={(e) => handlePropertyChange(e.target.value)}>
+                    {bootstrap.customers.find(c => c.id === selectedCustomerId)?.properties?.length ? null : (
+                      <option value="">No properties</option>
+                    )}
+                    {bootstrap.customers.find(c => c.id === selectedCustomerId)?.properties.map((p) => (
+                      <option key={p.id} value={p.id}>{p.address}</option>
+                    ))}
+                  </Select>
+                </FormField>
+                <FormField label="Service template">
+                  <Select value={selectedTemplateId} onChange={(e) => setSelectedTemplateId(e.target.value)}>
+                    {bootstrap.templates.length ? null : <option value="">No templates</option>}
+                    {bootstrap.templates.map((t) => (
+                      <option key={t.id} value={t.id}>{t.name}</option>
+                    ))}
+                  </Select>
+                </FormField>
+                <FormField label="Preset">
+                  <Select value={selectedPresetId} onChange={(e) => { setSelectedPresetId(e.target.value); const p = bootstrap.presets.find(x => x.id === e.target.value); if (p) applyPreset(p); }}>
+                    <option value="">Custom</option>
+                    {bootstrap.presets.map((p) => (
+                      <option key={p.id} value={p.id}>{p.name}</option>
+                    ))}
+                  </Select>
+                </FormField>
+              </>
+            )}
 
-            <FormField label="Interior">
-              <Select value={interior ? 'yes' : 'no'} onChange={(e) => setInterior(e.target.value === 'yes')}>
-                <option value="yes">Yes</option>
-                <option value="no">No</option>
-              </Select>
-            </FormField>
-            <FormField label="Exterior">
-              <Select value={exterior ? 'yes' : 'no'} onChange={(e) => setExterior(e.target.value === 'yes')}>
-                <option value="yes">Yes</option>
-                <option value="no">No</option>
-              </Select>
-            </FormField>
+            {current === 2 && (
+              <>
+                <FormField label="Interior">
+                  <Select value={interior ? 'yes' : 'no'} onChange={(e) => setInterior(e.target.value === 'yes')}>
+                    <option value="yes">Yes</option>
+                    <option value="no">No</option>
+                  </Select>
+                </FormField>
+                <FormField label="Exterior">
+                  <Select value={exterior ? 'yes' : 'no'} onChange={(e) => setExterior(e.target.value === 'yes')}>
+                    <option value="yes">Yes</option>
+                    <option value="no">No</option>
+                  </Select>
+                </FormField>
+                <FormField label="Area">
+                  <Input type="number" value={area} min={0} onChange={(e) => setArea(Number(e.target.value))} />
+                </FormField>
+              </>
+            )}
 
-            <FormField label="Area">
-              <Input type="number" value={area} min={0} onChange={(e) => setArea(Number(e.target.value))} />
-            </FormField>
-            <FormField label="Mode">
-              <Select value={mode} onChange={(e) => setMode(e.target.value as any)}>
-                <option value="margin">Margin</option>
-                <option value="markup">Markup</option>
-              </Select>
-            </FormField>
-            <FormField label="Margin / Markup">
-              <Input type="number" step="0.01" value={marginOrMarkup} onChange={(e) => setMarginOrMarkup(Number(e.target.value))} />
-            </FormField>
-            <FormField label="Hourly wage ($)">
-              <Input type="number" step="0.25" value={hourlyWage} onChange={(e) => setHourlyWage(Number(e.target.value))} />
-            </FormField>
-            <FormField label="Burden (%)">
-              <Input type="number" step="0.01" value={burdenPercent} onChange={(e) => setBurdenPercent(Number(e.target.value))} />
-            </FormField>
-            <FormField label="Tax rate (%)">
-              <Input type="number" step="0.0001" value={taxRate} onChange={(e) => setTaxRate(Number(e.target.value))} />
-            </FormField>
-            <FormField label="Rounding">
-              <Select value={roundingRule} onChange={(e) => setRoundingRule(e.target.value as any)}>
-                <option value="nearest_1">Nearest $1</option>
-                <option value="nearest_5">Nearest $5</option>
-                <option value="psychological_9">Psychological .99</option>
-              </Select>
-            </FormField>
-            <FormField label="Minimum ($)">
-              <Input type="number" step="1" value={minimum} onChange={(e) => setMinimum(Number(e.target.value))} />
-            </FormField>
-            <FormField label="Fees ($)">
-              <Input type="number" step="1" value={fees} onChange={(e) => setFees(Number(e.target.value))} />
-            </FormField>
-            <FormField label="Discounts ($)">
-              <Input type="number" step="1" value={discounts} onChange={(e) => setDiscounts(Number(e.target.value))} />
-            </FormField>
-            <FormField label="Travel fixed (min)">
-              <Input type="number" step="1" value={travelFixedMinutes} onChange={(e) => setTravelFixedMinutes(Number(e.target.value))} />
-            </FormField>
-            <FormField label="Travel mins/mi">
-              <Input type="number" step="0.1" value={travelMinutesPerMile} onChange={(e) => setTravelMinutesPerMile(Number(e.target.value))} />
-            </FormField>
-            <FormField label="Travel miles">
-              <Input type="number" step="0.1" value={travelMiles} onChange={(e) => setTravelMiles(Number(e.target.value))} />
-            </FormField>
+            {current === 3 && (
+              <>
+                <FormField label="Travel fixed (min)">
+                  <Input type="number" step="1" value={travelFixedMinutes} onChange={(e) => setTravelFixedMinutes(Number(e.target.value))} />
+                </FormField>
+                <FormField label="Travel mins/mi">
+                  <Input type="number" step="0.1" value={travelMinutesPerMile} onChange={(e) => setTravelMinutesPerMile(Number(e.target.value))} />
+                </FormField>
+                <FormField label="Travel miles">
+                  <Input type="number" step="0.1" value={travelMiles} onChange={(e) => setTravelMiles(Number(e.target.value))} />
+                </FormField>
+                <FormField label="Fees ($)">
+                  <Input type="number" step="1" value={fees} onChange={(e) => setFees(Number(e.target.value))} />
+                </FormField>
+                <FormField label="Discounts ($)">
+                  <Input type="number" step="1" value={discounts} onChange={(e) => setDiscounts(Number(e.target.value))} />
+                </FormField>
+              </>
+            )}
+
+            {current === 4 && (
+              <>
+                <FormField label="Mode">
+                  <Select value={mode} onChange={(e) => setMode(e.target.value as any)}>
+                    <option value="margin">Margin</option>
+                    <option value="markup">Markup</option>
+                  </Select>
+                </FormField>
+                <FormField label="Margin / Markup">
+                  <Input type="number" step="0.01" value={marginOrMarkup} onChange={(e) => setMarginOrMarkup(Number(e.target.value))} />
+                </FormField>
+                <FormField label="Hourly wage ($)">
+                  <Input type="number" step="0.25" value={hourlyWage} onChange={(e) => setHourlyWage(Number(e.target.value))} />
+                </FormField>
+                <FormField label="Burden (%)">
+                  <Input type="number" step="0.01" value={burdenPercent} onChange={(e) => setBurdenPercent(Number(e.target.value))} />
+                </FormField>
+                <FormField label="Tax rate (%)">
+                  <Input type="number" step="0.0001" value={taxRate} onChange={(e) => setTaxRate(Number(e.target.value))} />
+                </FormField>
+                <FormField label="Rounding">
+                  <Select value={roundingRule} onChange={(e) => setRoundingRule(e.target.value as any)}>
+                    <option value="nearest_1">Nearest $1</option>
+                    <option value="nearest_5">Nearest $5</option>
+                    <option value="psychological_9">Psychological .99</option>
+                  </Select>
+                </FormField>
+                <FormField label="Minimum ($)">
+                  <Input type="number" step="1" value={minimum} onChange={(e) => setMinimum(Number(e.target.value))} />
+                </FormField>
+              </>
+            )}
+
+            {current === 5 && (
+              <>
+                <p className="col-span-2 text-sm text-slate-600">Review the line items and totals on the right. When you're satisfied, save the quote.</p>
+              </>
+            )}
           </div>
 
           <div className="mt-4 flex items-center gap-2">
-            <Button type="button" onClick={() => setCurrent((value) => Math.min(wizardSteps.length, value + 1))}>Next</Button>
+            <Button type="button" onClick={() => setCurrent((value) => Math.min(wizardSteps.length, value + 1))} disabled={current === 1 && (!selectedCustomerId || !selectedPropertyId || !selectedTemplateId)}>Next</Button>
             <Button type="button" variant="secondary" onClick={() => setCurrent((value) => Math.max(1, value - 1))}>Previous</Button>
-            <Button type="button" variant="secondary" onClick={() => setPresetOpen(true)}>Save preset</Button>
+            <Button type="button" variant="secondary" onClick={() => setPresetOpen(true)} className="ml-auto">Save preset</Button>
             <Button type="button" onClick={onSaveQuote} disabled={saving || !selectedTemplateId || !selectedPropertyId}>
               {saving ? 'Saving…' : 'Save quote'}
             </Button>

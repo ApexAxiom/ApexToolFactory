@@ -1,55 +1,29 @@
 import { Card } from '@/components/ui/Card';
-import { Table, TBody, TD, TH, THead, TR } from '@/components/ui/Table';
 
 export default function DashboardPage() {
-  const kpis = [
-    { label: 'Active Quotes', value: 18 },
-    { label: 'Won This Month', value: '$32,400' },
-    { label: 'Average Margin', value: '47%' },
-  ];
-  const recentQuotes = [
-    { id: 'Q-2024-0005', customer: 'Woodland Apartments', total: '$1,480', status: 'Sent' },
-    { id: 'Q-2024-0004', customer: 'Jordan Residence', total: '$385', status: 'Accepted' },
-  ];
   return (
-    <div className="space-y-8">
-      <div className="grid gap-4 sm:grid-cols-3">
-        {kpis.map((kpi) => (
-          <Card key={kpi.label} title={<span className="text-sm font-semibold text-slate-500">{kpi.label}</span>}>
-            <p className="text-3xl font-bold text-slate-900">{kpi.value}</p>
-          </Card>
-        ))}
-      </div>
-      <Card
-        title={
-          <div className="flex w-full items-center justify-between">
-            <span className="text-lg font-semibold">Recent Quotes</span>
-            <a href="/quotes/new" className="gradient-button text-sm">
-              New Quote
-            </a>
+    <div className="mx-auto max-w-3xl">
+      <Card>
+        <div className="space-y-6 text-center">
+          <h2 className="text-2xl font-semibold text-slate-900">Get started with your first quote</h2>
+          <p className="text-slate-600">
+            Build a professional quote by selecting a customer, property, and service template. The
+            pricing engine will calculate labor, materials, travel, tax, and rounding for you.
+          </p>
+          <div className="flex justify-center gap-3">
+            <a href="/quotes/new" className="gradient-button">Create a quote</a>
+            <a href="/services" className="btn-secondary">Manage service templates</a>
           </div>
-        }
-      >
-        <Table>
-          <THead>
-            <TR>
-              <TH>Quote</TH>
-              <TH>Customer</TH>
-              <TH>Status</TH>
-              <TH className="text-right">Total</TH>
-            </TR>
-          </THead>
-          <TBody>
-            {recentQuotes.map((quote) => (
-              <TR key={quote.id}>
-                <TD>{quote.id}</TD>
-                <TD>{quote.customer}</TD>
-                <TD>{quote.status}</TD>
-                <TD className="text-right">{quote.total}</TD>
-              </TR>
-            ))}
-          </TBody>
-        </Table>
+          <div className="mx-auto max-w-xl text-left text-sm text-slate-600">
+            <ol className="list-decimal space-y-2 pl-5">
+              <li>Pick the customer and property</li>
+              <li>Choose a service template</li>
+              <li>Adjust scope, travel, and pricing</li>
+              <li>Review line items and save</li>
+              <li>Generate a PDF to send</li>
+            </ol>
+          </div>
+        </div>
       </Card>
     </div>
   );
