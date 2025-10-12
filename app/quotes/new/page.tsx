@@ -29,14 +29,68 @@ type BootstrapData = {
 
 const emptyBootstrap: BootstrapData = { settings: null, customers: [], templates: [], presets: [] };
 
+const HISTORY_STORAGE_KEY = 'quoteWizard:history';
+
+type QuoteSnapshot = {
+  timestamp: number;
+  customerId: string;
+  customerName: string;
+  propertyId: string;
+  propertyName: string;
+  templateId: string;
+  templateName: string;
+  presetId?: string | null;
+  area: number;
+  interior: boolean;
+  exterior: boolean;
+  mode: 'margin' | 'markup';
+  marginOrMarkup: number;
+  hourlyWage: number;
+  burdenPercent: number;
+  taxRate: number;
+  roundingRule: 'nearest_1' | 'nearest_5' | 'psychological_9';
+  minimum: number;
+  fees: number;
+  discounts: number;
+  travelFixedMinutes: number;
+  travelMinutesPerMile: number;
+  travelMiles: number;
+};
+
+function loadHistory(): QuoteSnapshot[] {
+  if (typeof window === 'undefined') return [];
+  try {
+    const raw = window.localStorage.getItem(HISTORY_STORAGE_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw) as QuoteSnapshot[];
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function persistHistory(history: QuoteSnapshot[]) {
+  if (typeof window === 'undefined') return;
+  try {
+    window.localStorage.setItem(HISTORY_STORAGE_KEY, JSON.stringify(history));
+  } catch {
+    // Ignore persistence errors (e.g., private mode)
+  }
+}
+
 export default function QuoteWizardPage() {
   const [current, setCurrent] = useState(1);
   const [bootstrap, setBootstrap] = useState<BootstrapData>(emptyBootstrap);
+  const [history, setHistory] = useState<QuoteSnapshot[]>([]);
   const [selectedCustomerId, setSelectedCustomerId] = useState<string>('');
   const [selectedPropertyId, setSelectedPropertyId] = useState<string>('');
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>('');
   const [selectedPresetId, setSelectedPresetId] = useState<string>('');
+  const [customerInput, setCustomerInput] = useState('');
+  const [propertyInput, setPropertyInput] = useState('');
+  const [templateInput, setTemplateInput] = useState('');
   const [area, setArea] = useState<number>(0);
+  const [areaInput, setAreaInput] = useState('');
   const [interior, setInterior] = useState(true);
   const [exterior, setExterior] = useState(true);
   const [mode, setMode] = useState<'margin'|'markup'>('margin');
@@ -55,6 +109,35 @@ export default function QuoteWizardPage() {
   const [saveError, setSaveError] = useState<string | null>(null);
   const [presetOpen, setPresetOpen] = useState(false);
   const [presetName, setPresetName] = useState('');
+  const [marginPercentInput, setMarginPercentInput] = useState('45');
+  const [burdenPercentInput, setBurdenPercentInput] = useState('28');
+  const [taxRateInput, setTaxRateInput] = useState('8.25');
+
+  const numberFormatter = useMemo(() => new Intl.NumberFormat('en-US'), []);
+
+  const formatAreaInput = (value: number) => {
+    if (!Number.isFinite(value) || value === 0) return '';
+    return numberFormatter.format(value);
+  };
+
+  const updateArea = (value: number) => {
+    setArea(value);
+    setAreaInput(formatAreaInput(value));
+  };
+
+  const findCustomerById = (id: string) => bootstrap.customers.find((c) => c.id === id) || null;
+
+  const findPropertyById = (id: string) => {
+    for (const customer of bootstrap.customers) {
+      const property = customer.properties.find((p) => p.id === id);
+      if (property) {
+        return { property, customer } as const;
+      }
+    }
+    return null;
+  };
+
+  const findTemplateById = (id: string) => bootstrap.templates.find((t) => t.id === id) || null;
 
   useEffect(() => {
     (async () => {
@@ -62,40 +145,149 @@ export default function QuoteWizardPage() {
       if (!res.ok) return;
       const data = (await res.json()) as BootstrapData;
       setBootstrap(data);
-      if (data.customers[0]) {
-        setSelectedCustomerId(data.customers[0].id);
-        if (data.customers[0].properties[0]) {
-          const p = data.customers[0].properties[0];
-          setSelectedPropertyId(p.id);
-          setArea(p.area);
+      const storedHistory = loadHistory();
+      setHistory(storedHistory);
+
+      const applyFromSnapshot = (snapshot: QuoteSnapshot) => {
+        const templateMatch = findTemplateById(snapshot.templateId) || data.templates[0] || null;
+        if (templateMatch) {
+          setSelectedTemplateId(templateMatch.id);
+          setTemplateInput(templateMatch.name);
+        } else {
+          setSelectedTemplateId('');
+          setTemplateInput(snapshot.templateName || '');
         }
-      }
-      if (data.templates[0]) setSelectedTemplateId(data.templates[0].id);
-      if (data.presets[0]) {
-        setSelectedPresetId(data.presets[0].id);
-        applyPreset(data.presets[0]);
+
+        const propertyMatch = findPropertyById(snapshot.propertyId);
+        if (propertyMatch) {
+          setSelectedCustomerId(propertyMatch.customer.id);
+          setCustomerInput(propertyMatch.customer.name);
+          setSelectedPropertyId(propertyMatch.property.id);
+          setPropertyInput(propertyMatch.property.address);
+          updateArea(snapshot.area ?? propertyMatch.property.area);
+        } else {
+          const customerMatch = findCustomerById(snapshot.customerId) || data.customers[0] || null;
+          if (customerMatch) {
+            setSelectedCustomerId(customerMatch.id);
+            setCustomerInput(customerMatch.name);
+            const defaultProperty = customerMatch.properties.find((p) => p.id === snapshot.propertyId) || customerMatch.properties[0];
+            if (defaultProperty) {
+              setSelectedPropertyId(defaultProperty.id);
+              setPropertyInput(defaultProperty.address);
+              updateArea(snapshot.area ?? defaultProperty.area);
+            } else {
+              setSelectedPropertyId('');
+              setPropertyInput(snapshot.propertyName || '');
+              updateArea(snapshot.area ?? 0);
+            }
+          } else {
+            setSelectedCustomerId('');
+            setCustomerInput(snapshot.customerName || '');
+            setSelectedPropertyId('');
+            setPropertyInput(snapshot.propertyName || '');
+            updateArea(snapshot.area ?? 0);
+          }
+        }
+
+        const presetMatch = data.presets.find((p) => p.id === snapshot.presetId);
+        if (presetMatch) {
+          setSelectedPresetId(presetMatch.id);
+          applyPreset(presetMatch);
+        } else {
+          setSelectedPresetId('');
+          setMode(snapshot.mode);
+          setMarginOrMarkup(snapshot.marginOrMarkup);
+          setHourlyWage(snapshot.hourlyWage);
+          setBurdenPercent(snapshot.burdenPercent);
+          setTaxRate(snapshot.taxRate);
+          setRoundingRule(snapshot.roundingRule);
+          setMinimum(snapshot.minimum);
+          setFees(snapshot.fees);
+          setDiscounts(snapshot.discounts);
+          setTravelFixedMinutes(snapshot.travelFixedMinutes);
+          setTravelMinutesPerMile(snapshot.travelMinutesPerMile);
+        }
+
+        setInterior(snapshot.interior);
+        setExterior(snapshot.exterior);
+        setTravelMiles(snapshot.travelMiles);
+      };
+
+      const lastSnapshot = storedHistory.at(-1);
+      if (lastSnapshot) {
+        applyFromSnapshot(lastSnapshot);
+      } else {
+        if (data.customers[0]) {
+          const firstCustomer = data.customers[0];
+          setSelectedCustomerId(firstCustomer.id);
+          setCustomerInput(firstCustomer.name);
+          if (firstCustomer.properties[0]) {
+            const firstProperty = firstCustomer.properties[0];
+            setSelectedPropertyId(firstProperty.id);
+            setPropertyInput(firstProperty.address);
+            updateArea(firstProperty.area);
+          }
+        }
+        if (data.templates[0]) {
+          setSelectedTemplateId(data.templates[0].id);
+          setTemplateInput(data.templates[0].name);
+        }
+        if (data.presets[0]) {
+          setSelectedPresetId(data.presets[0].id);
+          applyPreset(data.presets[0]);
+        }
       }
     })();
   }, []);
 
-  const handleCustomerChange = (customerId: string) => {
+  const handleCustomerSelect = (customerId: string) => {
+    if (!customerId) {
+      setSelectedCustomerId('');
+      return;
+    }
+    const customer = findCustomerById(customerId);
     setSelectedCustomerId(customerId);
-    const customer = bootstrap.customers.find((c) => c.id === customerId);
-    const firstProperty = customer?.properties?.[0];
-    if (firstProperty) {
-      setSelectedPropertyId(firstProperty.id);
-      setArea(firstProperty.area);
-    } else {
-      setSelectedPropertyId('');
+    setCustomerInput(customer?.name || '');
+    if (customer) {
+      const existingProperty = customer.properties.find((p) => p.id === selectedPropertyId);
+      if (!existingProperty) {
+        const firstProperty = customer.properties[0];
+        if (firstProperty) {
+          setSelectedPropertyId(firstProperty.id);
+          setPropertyInput(firstProperty.address);
+          updateArea(firstProperty.area);
+        } else {
+          setSelectedPropertyId('');
+          setPropertyInput('');
+          updateArea(0);
+        }
+      }
     }
   };
 
-  const handlePropertyChange = (propertyId: string) => {
-    setSelectedPropertyId(propertyId);
-    const property = bootstrap.customers.flatMap((c) => c.properties).find((p) => p.id === propertyId);
-    if (property) {
-      setArea(property.area);
+  const handlePropertySelect = (propertyId: string) => {
+    if (!propertyId) {
+      setSelectedPropertyId('');
+      return;
     }
+    const match = findPropertyById(propertyId);
+    setSelectedPropertyId(propertyId);
+    if (match) {
+      setSelectedCustomerId(match.customer.id);
+      setCustomerInput(match.customer.name);
+      setPropertyInput(match.property.address);
+      updateArea(match.property.area);
+    }
+  };
+
+  const handleTemplateSelect = (templateId: string) => {
+    if (!templateId) {
+      setSelectedTemplateId('');
+      return;
+    }
+    const template = findTemplateById(templateId);
+    setSelectedTemplateId(templateId);
+    setTemplateInput(template?.name || '');
   };
 
   const applyPreset = (preset: BootstrapData['presets'][number]) => {
@@ -114,6 +306,111 @@ export default function QuoteWizardPage() {
 
   const selectedTemplate = useMemo(() => bootstrap.templates.find(t => t.id === selectedTemplateId) || null, [bootstrap.templates, selectedTemplateId]);
   const selectedProperty = useMemo(() => bootstrap.customers.flatMap(c => c.properties).find(p => p.id === selectedPropertyId) || null, [bootstrap.customers, selectedPropertyId]);
+
+  const customerOptions = useMemo(() => {
+    const options = new Map<string, { id: string; label: string }>();
+    for (const customer of bootstrap.customers) {
+      options.set(customer.name.toLowerCase(), { id: customer.id, label: customer.name });
+    }
+    for (const snapshot of history) {
+      if (!snapshot.customerId) continue;
+      const match = findCustomerById(snapshot.customerId);
+      if (match) {
+        options.set(match.name.toLowerCase(), { id: match.id, label: match.name });
+      }
+    }
+    return Array.from(options.values());
+  }, [bootstrap.customers, history]);
+
+  const propertyOptions = useMemo(() => {
+    const options = new Map<string, { id: string; label: string }>();
+    for (const customer of bootstrap.customers) {
+      for (const property of customer.properties) {
+        options.set(property.address.toLowerCase(), { id: property.id, label: property.address });
+      }
+    }
+    for (const snapshot of history) {
+      if (!snapshot.propertyId) continue;
+      const match = findPropertyById(snapshot.propertyId);
+      if (match) {
+        options.set(match.property.address.toLowerCase(), { id: match.property.id, label: match.property.address });
+      }
+    }
+    return Array.from(options.values());
+  }, [bootstrap.customers, history]);
+
+  const templateOptions = useMemo(() => {
+    const options = new Map<string, { id: string; label: string }>();
+    for (const template of bootstrap.templates) {
+      options.set(template.name.toLowerCase(), { id: template.id, label: template.name });
+    }
+    for (const snapshot of history) {
+      if (!snapshot.templateId) continue;
+      const match = findTemplateById(snapshot.templateId);
+      if (match) {
+        options.set(match.name.toLowerCase(), { id: match.id, label: match.name });
+      }
+    }
+    return Array.from(options.values());
+  }, [bootstrap.templates, history]);
+
+  const percentToInput = (value: number) => {
+    if (!Number.isFinite(value)) return '';
+    const scaled = Number((value * 100).toFixed(4));
+    return scaled.toString();
+  };
+
+  useEffect(() => {
+    setMarginPercentInput(percentToInput(marginOrMarkup));
+  }, [marginOrMarkup]);
+
+  useEffect(() => {
+    setBurdenPercentInput(percentToInput(burdenPercent));
+  }, [burdenPercent]);
+
+  useEffect(() => {
+    setTaxRateInput(percentToInput(taxRate));
+  }, [taxRate]);
+
+  const buildSnapshot = (): QuoteSnapshot => ({
+    timestamp: Date.now(),
+    customerId: selectedCustomerId,
+    customerName: customerInput,
+    propertyId: selectedPropertyId,
+    propertyName: propertyInput,
+    templateId: selectedTemplateId,
+    templateName: templateInput,
+    presetId: selectedPresetId || null,
+    area,
+    interior,
+    exterior,
+    mode,
+    marginOrMarkup,
+    hourlyWage,
+    burdenPercent,
+    taxRate,
+    roundingRule,
+    minimum,
+    fees,
+    discounts,
+    travelFixedMinutes,
+    travelMinutesPerMile,
+    travelMiles,
+  });
+
+  const saveSnapshotToHistory = (snapshot: QuoteSnapshot) => {
+    setHistory((prev) => {
+      const filtered = prev.filter(
+        (item) =>
+          item.customerId !== snapshot.customerId ||
+          item.propertyId !== snapshot.propertyId ||
+          item.templateId !== snapshot.templateId,
+      );
+      const next = [...filtered, snapshot].slice(-10);
+      persistHistory(next);
+      return next;
+    });
+  };
 
   const result = useMemo(() => {
     if (!selectedTemplate || !selectedProperty) {
@@ -227,6 +524,7 @@ export default function QuoteWizardPage() {
       }
       if (!response.ok) throw new Error(await response.text());
       const data = await response.json();
+      saveSnapshotToHistory(buildSnapshot());
       window.location.href = `/quotes/${data.id}`;
     } catch (error: any) {
       setSaveError(error?.message || 'Failed to save quote');
@@ -275,30 +573,89 @@ export default function QuoteWizardPage() {
             {current === 1 && (
               <>
                 <FormField label="Customer">
-                  <Select value={selectedCustomerId} onChange={(e) => handleCustomerChange(e.target.value)}>
-                    {bootstrap.customers.length === 0 ? (<option value="">No customers</option>) : null}
-                    {bootstrap.customers.map((c) => (
-                      <option key={c.id} value={c.id}>{c.name}</option>
-                    ))}
-                  </Select>
+                  <div className="relative">
+                    <Input
+                      value={customerInput}
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        setCustomerInput(value);
+                        if (!value.trim()) {
+                          setSelectedCustomerId('');
+                          setSelectedPropertyId('');
+                          setPropertyInput('');
+                          updateArea(0);
+                          return;
+                        }
+                        const match = customerOptions.find((option) => option.label.toLowerCase() === value.trim().toLowerCase());
+                        if (match) {
+                          handleCustomerSelect(match.id);
+                        }
+                      }}
+                      list="quote-customer-options"
+                      placeholder="Start typing a customer"
+                      autoComplete="off"
+                    />
+                    <datalist id="quote-customer-options">
+                      {customerOptions.map((option) => (
+                        <option key={option.id} value={option.label} />
+                      ))}
+                    </datalist>
+                  </div>
                 </FormField>
                 <FormField label="Property">
-                  <Select value={selectedPropertyId} onChange={(e) => handlePropertyChange(e.target.value)}>
-                    {bootstrap.customers.find(c => c.id === selectedCustomerId)?.properties?.length ? null : (
-                      <option value="">No properties</option>
-                    )}
-                    {bootstrap.customers.find(c => c.id === selectedCustomerId)?.properties.map((p) => (
-                      <option key={p.id} value={p.id}>{p.address}</option>
-                    ))}
-                  </Select>
+                  <div className="relative">
+                    <Input
+                      value={propertyInput}
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        setPropertyInput(value);
+                        if (!value.trim()) {
+                          setSelectedPropertyId('');
+                          updateArea(0);
+                          return;
+                        }
+                        const match = propertyOptions.find((option) => option.label.toLowerCase() === value.trim().toLowerCase());
+                        if (match) {
+                          handlePropertySelect(match.id);
+                        }
+                      }}
+                      list="quote-property-options"
+                      placeholder="Start typing a property"
+                      autoComplete="off"
+                    />
+                    <datalist id="quote-property-options">
+                      {propertyOptions.map((option) => (
+                        <option key={option.id} value={option.label} />
+                      ))}
+                    </datalist>
+                  </div>
                 </FormField>
                 <FormField label="Service template">
-                  <Select value={selectedTemplateId} onChange={(e) => setSelectedTemplateId(e.target.value)}>
-                    {bootstrap.templates.length ? null : <option value="">No templates</option>}
-                    {bootstrap.templates.map((t) => (
-                      <option key={t.id} value={t.id}>{t.name}</option>
-                    ))}
-                  </Select>
+                  <div className="relative">
+                    <Input
+                      value={templateInput}
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        setTemplateInput(value);
+                        if (!value.trim()) {
+                          setSelectedTemplateId('');
+                          return;
+                        }
+                        const match = templateOptions.find((option) => option.label.toLowerCase() === value.trim().toLowerCase());
+                        if (match) {
+                          handleTemplateSelect(match.id);
+                        }
+                      }}
+                      list="quote-template-options"
+                      placeholder="Start typing a template"
+                      autoComplete="off"
+                    />
+                    <datalist id="quote-template-options">
+                      {templateOptions.map((option) => (
+                        <option key={option.id} value={option.label} />
+                      ))}
+                    </datalist>
+                  </div>
                 </FormField>
                 <FormField label="Preset">
                   <Select value={selectedPresetId} onChange={(e) => { setSelectedPresetId(e.target.value); const p = bootstrap.presets.find(x => x.id === e.target.value); if (p) applyPreset(p); }}>
@@ -326,7 +683,25 @@ export default function QuoteWizardPage() {
                   </Select>
                 </FormField>
                 <FormField label="Area">
-                  <Input type="number" value={area} min={0} onChange={(e) => setArea(Number(e.target.value))} />
+                  <Input
+                    value={areaInput}
+                    inputMode="decimal"
+                    placeholder="15,000"
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      if (!value.trim()) {
+                        setArea(0);
+                        setAreaInput('');
+                        return;
+                      }
+                      const numeric = Number(value.replace(/,/g, ''));
+                      if (Number.isNaN(numeric)) {
+                        setAreaInput(value);
+                        return;
+                      }
+                      updateArea(numeric);
+                    }}
+                  />
                 </FormField>
               </>
             )}
@@ -359,17 +734,74 @@ export default function QuoteWizardPage() {
                     <option value="markup">Markup</option>
                   </Select>
                 </FormField>
-                <FormField label="Margin / Markup">
-                  <Input type="number" step="0.01" value={marginOrMarkup} onChange={(e) => setMarginOrMarkup(Number(e.target.value))} />
+                <FormField label="Margin">
+                  <div className="relative">
+                    <Input
+                      value={marginPercentInput}
+                      inputMode="decimal"
+                      placeholder="45"
+                      className="pr-10"
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        setMarginPercentInput(value);
+                        if (!value.trim()) {
+                          setMarginOrMarkup(0);
+                          return;
+                        }
+                        const numeric = Number(value);
+                        if (Number.isNaN(numeric)) return;
+                        setMarginOrMarkup(numeric / 100);
+                      }}
+                    />
+                    <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-sm text-slate-500">%</span>
+                  </div>
                 </FormField>
                 <FormField label="Hourly wage ($)">
                   <Input type="number" step="0.25" value={hourlyWage} onChange={(e) => setHourlyWage(Number(e.target.value))} />
                 </FormField>
-                <FormField label="Burden (%)">
-                  <Input type="number" step="0.01" value={burdenPercent} onChange={(e) => setBurdenPercent(Number(e.target.value))} />
+                <FormField label="Burden">
+                  <div className="relative">
+                    <Input
+                      value={burdenPercentInput}
+                      inputMode="decimal"
+                      placeholder="28"
+                      className="pr-10"
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        setBurdenPercentInput(value);
+                        if (!value.trim()) {
+                          setBurdenPercent(0);
+                          return;
+                        }
+                        const numeric = Number(value);
+                        if (Number.isNaN(numeric)) return;
+                        setBurdenPercent(numeric / 100);
+                      }}
+                    />
+                    <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-sm text-slate-500">%</span>
+                  </div>
                 </FormField>
-                <FormField label="Tax rate (%)">
-                  <Input type="number" step="0.0001" value={taxRate} onChange={(e) => setTaxRate(Number(e.target.value))} />
+                <FormField label="Tax rate">
+                  <div className="relative">
+                    <Input
+                      value={taxRateInput}
+                      inputMode="decimal"
+                      placeholder="8.25"
+                      className="pr-10"
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        setTaxRateInput(value);
+                        if (!value.trim()) {
+                          setTaxRate(0);
+                          return;
+                        }
+                        const numeric = Number(value);
+                        if (Number.isNaN(numeric)) return;
+                        setTaxRate(numeric / 100);
+                      }}
+                    />
+                    <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-sm text-slate-500">%</span>
+                  </div>
                 </FormField>
                 <FormField label="Rounding">
                   <Select value={roundingRule} onChange={(e) => setRoundingRule(e.target.value as any)}>
