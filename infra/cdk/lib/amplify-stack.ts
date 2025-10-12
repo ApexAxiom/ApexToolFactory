@@ -19,7 +19,7 @@ export class AmplifyStack extends Stack {
       name: 'pestpro-amplify',
       repository: 'https://github.com/example/apex-pest-quoting',
       iamServiceRole: serviceRole.roleArn,
-      buildSpec: `version: 1.0\nfrontend:\n  phases:\n    preBuild:\n      commands:\n        - pnpm install --frozen-lockfile\n    build:\n      commands:\n        - pnpm build\n  artifacts:\n    baseDirectory: .next\n    files:\n      - '**/*'\n  cache:\n    paths:\n      - node_modules/**/*`,
+      buildSpec: `version: 1.0\nfrontend:\n  phases:\n    preBuild:\n      commands:\n        - corepack enable\n        - pnpm install --frozen-lockfile\n    build:\n      commands:\n        - pnpm run build\n  artifacts:\n    baseDirectory: .next\n    files:\n      - '**/*'\n  cache:\n    paths:\n      - node_modules/**/*\n      - .pnpm-store/**/*\n      - .next/cache/**/*`,
     });
   }
 }
