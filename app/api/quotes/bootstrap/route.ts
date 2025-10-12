@@ -8,13 +8,17 @@ export async function GET() {
   // Try to use the authenticated user's organization. If unauthenticated,
   // fall back to the first organization in the DB or demo in-memory data
   // so the quote builder remains usable for first-time visitors.
+  const hasDatabase = Boolean(process.env.DATABASE_URL);
   let organizationId: string | null = null;
-  try {
-    const user = await requireSession();
-    organizationId = user.organizationId;
-  } catch {
-    const anyOrg = await prisma.organization.findFirst({ select: { id: true } });
-    organizationId = anyOrg?.id ?? null;
+
+  if (hasDatabase) {
+    try {
+      const user = await requireSession();
+      organizationId = user.organizationId;
+    } catch {
+      const anyOrg = await prisma.organization.findFirst({ select: { id: true } });
+      organizationId = anyOrg?.id ?? null;
+    }
   }
 
   let settings = null;
