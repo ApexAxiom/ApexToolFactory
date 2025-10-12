@@ -13,12 +13,12 @@ export interface WizardStepsProps {
 
 export function WizardSteps({ steps, current }: WizardStepsProps) {
   return (
-    <ol className="flex flex-wrap items-center gap-3">
+    <ol className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
       {steps.map((step) => {
         const active = step.id === current;
         const completed = step.id < current;
         return (
-          <li key={step.id} className={twMerge('flex items-center gap-2 rounded-xl px-3 py-2', active ? 'bg-brand-accent/10 text-brand-accent' : 'bg-white text-slate-600 shadow-sm')}>
+          <li key={step.id} className={twMerge('flex h-full items-center gap-2 rounded-xl px-3 py-2', active ? 'bg-brand-accent/10 text-brand-accent' : 'bg-white text-slate-600 shadow-sm')}>
             <span
               className={twMerge(
                 'flex h-6 w-6 items-center justify-center rounded-full text-xs font-semibold',
