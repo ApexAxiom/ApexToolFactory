@@ -47,8 +47,10 @@ const baseInput = {
     defaultInfestationMultiplier: 1,
     defaultComplexityMultiplier: 1,
     minPrice: 95,
+    mainUnit: 'ft2' as const,
   },
   currency: 'USD',
+  unitsArea: 'ft2' as const,
 };
 
 describe('pricing engine', () => {
@@ -145,6 +147,7 @@ describe('pricing engine', () => {
         defaultInfestationMultiplier: 1,
         defaultComplexityMultiplier: 1,
         minPrice: 175,
+        mainUnit: 'linear_ft' as const,
       },
       chemicals: baseInput.chemicals,
       tierRules: [],

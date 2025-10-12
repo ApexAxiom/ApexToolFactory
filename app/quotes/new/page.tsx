@@ -62,8 +62,10 @@ const mockInput = {
     defaultInfestationMultiplier: 1,
     defaultComplexityMultiplier: 1,
     minPrice: 95,
+    mainUnit: 'ft2' as const,
   },
   currency: 'USD',
+  unitsArea: 'ft2' as const,
   travelOverrideAmount: undefined,
   travelOverrideMinutes: undefined,
 };

@@ -1,50 +1,50 @@
-import type { IronSessionOptions } from 'iron-session';
-import { getIronSession } from 'iron-session';
-import type { cookies } from 'next/headers';
-import { prisma } from './db';
+import { cookies as nextCookies } from 'next/headers';
+import { getIronSession, IronSessionOptions } from 'iron-session';
 
-export interface SessionUser {
+export type SessionUser = {
   id: string;
   organizationId: string;
   role: 'Owner' | 'Manager' | 'Estimator' | 'Viewer';
   email: string;
   name: string;
-}
+};
+export type SessionData = { user?: SessionUser };
 
-export interface AppSession {
-  user?: SessionUser;
-}
-
-const sessionOptions: IronSessionOptions = {
-  cookieName: 'pestquote_session',
-  password: process.env.SESSION_PASSWORD ?? 'insecure-development-password-change-me',
+export const sessionOptions: IronSessionOptions = {
+  cookieName: process.env.SESSION_COOKIE_NAME || 'pestpro_session',
+  password: process.env.SESSION_PASSWORD!,
+  ttl: 60 * 60 * 24 * 7,
   cookieOptions: {
+    httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
     sameSite: 'lax',
+    path: '/',
   },
 };
 
-export async function getSession(cookieStore: ReturnType<typeof cookies>) {
-  return getIronSession<AppSession>(cookieStore, sessionOptions);
-}
-
-export async function requireSession(cookieStore: ReturnType<typeof cookies>) {
-  const session = await getSession(cookieStore);
-  if (!session.user) {
-    throw new Error('Unauthorized');
-  }
-  return session.user;
+/**
+ * Retrieves the iron-session wrapper for the current request.
+ * @param store Optional cookie store override.
+ * @returns The hydrated iron-session instance.
+ * @example
+ * const session = await getSession();
+ */
+export async function getSession(store?: ReturnType<typeof nextCookies>) {
+  const c = store ?? nextCookies();
+  return getIronSession<SessionData>(c, sessionOptions);
 }
 
 /**
- * Fetches the active user ensuring they belong to the current organization.
- * @param userId The user identifier from the session.
- * @returns The hydrated user record.
+ * Loads the active session user or throws when unauthenticated.
+ * @param store Optional cookie store override.
+ * @returns The authenticated session user object.
  * @example
- * await loadActiveUser(session.user.id);
+ * const user = await requireSession();
  */
-export async function loadActiveUser(userId: string) {
-  return prisma.user.findUniqueOrThrow({
-    where: { id: userId },
-  });
+export async function requireSession(store?: ReturnType<typeof nextCookies>) {
+  const s = await getSession(store);
+  if (!s.user) {
+    throw new Error('UNAUTHORIZED');
+  }
+  return s.user;
 }

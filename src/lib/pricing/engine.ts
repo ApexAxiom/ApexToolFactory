@@ -1,7 +1,9 @@
+import crypto from 'crypto';
 import { z } from 'zod';
 import { calculateLaborCost, calculateMaterialCost, calculatePrice, calculateTravelCost } from './formulas';
 import type { TierRule } from './rules';
 import { findTierRule, resolvePropertyMultiplier } from './rules';
+import { normalizeMainQuantity, type AreaUnit, type MainUnit } from './units';
 
 export const PricingInputSchema = z.object({
   propertyType: z.enum(['Residential', 'Commercial']),
@@ -30,7 +32,9 @@ export const PricingInputSchema = z.object({
   travelMiles: z.number().nonnegative(),
   travelOverrideMinutes: z.number().nonnegative().optional(),
   travelOverrideAmount: z.number().nonnegative().optional(),
+  travelOverrideReason: z.string().min(1).optional(),
   manualLaborAdderHours: z.number().nonnegative().default(0),
+  manualLaborReason: z.string().min(1).optional(),
   mode: z.enum(['margin', 'markup']),
   marginOrMarkup: z.number().min(0).max(0.95),
   fees: z.number().default(0),
@@ -45,8 +49,10 @@ export const PricingInputSchema = z.object({
     defaultInfestationMultiplier: z.number(),
     defaultComplexityMultiplier: z.number(),
     minPrice: z.number().nonnegative(),
+    mainUnit: z.enum(['ft2', 'm2', 'linear_ft', 'each']).default('ft2'),
   }),
   currency: z.string().default('USD'),
+  unitsArea: z.enum(['ft2', 'm2']).default('ft2'),
 });
 
 export type PricingInput = z.infer<typeof PricingInputSchema>;
@@ -70,6 +76,9 @@ export interface PricingResult {
   snapshot: Record<string, unknown>;
 }
 
+const shortHash = (value: unknown) =>
+  crypto.createHash('sha256').update(JSON.stringify(value)).digest('hex').slice(0, 12);
+
 /**
  * Executes the deterministic pricing engine.
  * @param unsafeInput raw inputs from the UI.
@@ -80,22 +89,38 @@ export interface PricingResult {
 export function runPricingEngine(unsafeInput: unknown): PricingResult {
   const input = PricingInputSchema.parse(unsafeInput);
   const { template } = input;
+  const { quantity: baseQty, unit: normalizedUnit } = normalizeMainQuantity(
+    input.area,
+    template.mainUnit as MainUnit,
+    input.unitsArea as AreaUnit,
+  );
   const propertyMultiplier = resolvePropertyMultiplier(template, input.propertyType);
   const infestationMultiplier = input.infestationMultiplier || template.defaultInfestationMultiplier;
   const complexityMultiplier = input.complexityMultiplier || template.defaultComplexityMultiplier;
 
   const materials = input.chemicals
-    .filter((chemical) =>
-      chemical.useFor === 'both' || (chemical.useFor === 'interior' && input.interior) || (chemical.useFor === 'exterior' && input.exterior),
+    .filter(
+      (chemical) =>
+        chemical.useFor === 'both' ||
+        (chemical.useFor === 'interior' && input.interior) ||
+        (chemical.useFor === 'exterior' && input.exterior),
     )
     .map((chemical) => {
-      const factor =
-        chemical.useFor === 'both' ? 1 : chemical.useFor === 'interior' ? (input.interior ? 1 : 0) : input.exterior ? 1 : 0;
+      const interiorExteriorFactor =
+        chemical.useFor === 'both'
+          ? 1
+          : chemical.useFor === 'interior'
+            ? input.interior
+              ? 1
+              : 0
+            : input.exterior
+              ? 1
+              : 0;
       const result = calculateMaterialCost({
         usageRatePer1000: chemical.usageRatePer1000,
-        area: input.area,
+        baseQty,
         infestationMultiplier: infestationMultiplier * propertyMultiplier,
-        interiorExteriorFactor: factor,
+        interiorExteriorFactor,
         packageSize: chemical.packageSize,
         packageCost: chemical.packageCost,
         wastePercent: chemical.wastePercent,
@@ -105,7 +130,7 @@ export function runPricingEngine(unsafeInput: unknown): PricingResult {
         label: chemical.name,
         amount: result.materialCost,
         qty: result.usageQty,
-        unit: 'units',
+        unit: normalizedUnit,
         unitCost: chemical.packageCost,
       } satisfies PricingLineItem;
     });
@@ -113,7 +138,7 @@ export function runPricingEngine(unsafeInput: unknown): PricingResult {
   const laborCalc = calculateLaborCost({
     setupTime: input.setupTime,
     timePer1000: input.timePer1000,
-    area: input.area,
+    baseQty,
     complexityMultiplier: complexityMultiplier * propertyMultiplier,
     manualAdders: input.manualLaborAdderHours,
     hourlyWage: input.hourlyWage,
@@ -132,10 +157,9 @@ export function runPricingEngine(unsafeInput: unknown): PricingResult {
     },
   });
 
-  const tierRule = findTierRule(input.tierRules, input.propertyType, input.area);
+  const tierRule = findTierRule(input.tierRules, input.propertyType, baseQty);
 
-  const preCost =
-    materials.reduce((sum, item) => sum + item.amount, 0) + laborCalc.laborCost + travelCalc.travelCost;
+  const preCost = materials.reduce((sum, item) => sum + item.amount, 0) + laborCalc.laborCost + travelCalc.travelCost;
 
   const priceCalc = calculatePrice({
     preCost,
@@ -148,11 +172,14 @@ export function runPricingEngine(unsafeInput: unknown): PricingResult {
     minimum: Math.max(input.minimum, template.minPrice),
     tierRule,
     propertyType: input.propertyType,
-    area: input.area,
+    area: baseQty,
   });
 
   const subtotal = priceCalc.discounted;
   const tax = subtotal * input.taxRate;
+  const materialsCost = materials.reduce((sum, item) => sum + item.amount, 0);
+  const otherCost = input.fees - Math.abs(input.discounts);
+
   const lineItems: PricingLineItem[] = [
     ...materials,
     {
@@ -162,6 +189,8 @@ export function runPricingEngine(unsafeInput: unknown): PricingResult {
       qty: laborCalc.laborHours,
       unit: 'hours',
       unitCost: input.hourlyWage,
+      isOverride: input.manualLaborAdderHours > 0,
+      overrideReason: input.manualLaborReason,
     },
     {
       kind: 'travel',
@@ -171,7 +200,7 @@ export function runPricingEngine(unsafeInput: unknown): PricingResult {
       unit: 'minutes',
       unitCost: (input.hourlyWage * (1 + input.burdenPercent)) / 60,
       isOverride: Boolean(input.travelOverrideAmount || input.travelOverrideMinutes),
-      overrideReason: input.travelOverrideAmount ? 'Manual travel override' : undefined,
+      overrideReason: input.travelOverrideReason,
     },
   ];
 
@@ -188,12 +217,59 @@ export function runPricingEngine(unsafeInput: unknown): PricingResult {
   const total = priceCalc.rounded;
 
   const snapshot = {
-    input,
-    propertyMultiplier,
-    laborCalc,
-    travelCalc,
-    priceCalc,
-    tierRule,
+    version: '1.0',
+    inputs: {
+      propertyType: input.propertyType,
+      areaInput: input.area,
+      normalizedBaseQty: baseQty,
+      infestationMultiplier,
+      complexityMultiplier,
+      interior: input.interior,
+      exterior: input.exterior,
+      pricingMode: input.mode,
+      discount: input.discounts,
+      fees: input.fees,
+      overrides: {
+        manualLaborAdderHours: input.manualLaborAdderHours || null,
+        manualLaborReason: input.manualLaborReason ?? null,
+        travelMinutesOverride: input.travelOverrideMinutes ?? null,
+        travelOverrideAmount: input.travelOverrideAmount ?? null,
+        travelOverrideReason: input.travelOverrideReason ?? null,
+      },
+    },
+    template: {
+      mainUnit: template.mainUnit,
+      residentialMultiplier: template.residentialMultiplier,
+      commercialMultiplier: template.commercialMultiplier,
+      hash: shortHash({
+        timePer1000: input.timePer1000,
+        setupTime: input.setupTime,
+        minPrice: template.minPrice,
+        mainUnit: template.mainUnit,
+      }),
+    },
+    chemicals: input.chemicals.map((chemical) => ({
+      id: chemical.id,
+      name: chemical.name,
+      hash: shortHash({
+        usageRatePer1000: chemical.usageRatePer1000,
+        packageSize: chemical.packageSize,
+        packageCost: chemical.packageCost,
+        wastePercent: chemical.wastePercent,
+      }),
+    })),
+    intermediates: {
+      materials,
+      laborHrs: laborCalc.laborHours,
+      materialsCost,
+      laborCost: laborCalc.laborCost,
+      travelCost: travelCalc.travelCost,
+      otherCost,
+      subtotal,
+      taxBeforeRounding: tax,
+      totalBeforeRounding: priceCalc.taxed,
+    },
+    outputs: { total },
   } satisfies Record<string, unknown>;
 
   return {

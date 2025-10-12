@@ -3,7 +3,7 @@ import { applyRounding } from './rules';
 
 export interface MaterialInput {
   usageRatePer1000: number;
-  area: number;
+  baseQty: number;
   infestationMultiplier: number;
   interiorExteriorFactor: number;
   packageSize: number;
@@ -14,7 +14,7 @@ export interface MaterialInput {
 export interface LaborInput {
   setupTime: number;
   timePer1000: number;
-  area: number;
+  baseQty: number;
   complexityMultiplier: number;
   manualAdders: number;
   hourlyWage: number;
@@ -49,14 +49,14 @@ export interface PriceInput {
 
 export function calculateMaterialCost(input: MaterialInput) {
   const usageQty =
-    (input.usageRatePer1000 * (input.area / 1000)) * input.infestationMultiplier * input.interiorExteriorFactor;
+    (input.usageRatePer1000 * (input.baseQty / 1000)) * input.infestationMultiplier * input.interiorExteriorFactor;
   const materialCost = (usageQty / input.packageSize) * input.packageCost * (1 + input.wastePercent);
   return { usageQty, materialCost };
 }
 
 export function calculateLaborCost(input: LaborInput) {
   const laborHours =
-    input.setupTime + (input.timePer1000 * (input.area / 1000)) * input.complexityMultiplier + input.manualAdders;
+    input.setupTime + (input.timePer1000 * (input.baseQty / 1000)) * input.complexityMultiplier + input.manualAdders;
   const laborCost = laborHours * input.hourlyWage * (1 + input.burdenPercent);
   return { laborHours, laborCost };
 }
