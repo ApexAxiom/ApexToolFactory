@@ -1,0 +1,24 @@
+version: 1
+frontend:
+  phases:
+    preBuild:
+      commands:
+        - nvm install 20
+        - nvm use 20
+        - node -v
+        - corepack enable
+        - corepack prepare pnpm@8.15.4 --activate
+        - pnpm install --frozen-lockfile
+    build:
+      commands:
+        - pnpm prisma:generate
+        # Run migrations only if DATABASE_URL is set (build env may not have VPC/db access)
+        - if [ -n "$DATABASE_URL" ]; then pnpm prisma migrate deploy; fi
+        - pnpm build
+  artifacts:
+    baseDirectory: .next
+    files:
+      - '**/*'
+  cache:
+    paths:
+      - node_modules/**/*

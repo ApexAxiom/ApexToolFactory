@@ -7,6 +7,8 @@ import { getIronSession } from 'iron-session';
 import { sessionOptions, SessionData } from '@/lib/auth';
 import { rateLimitByIp } from '@/lib/rate-limit';
 
+export const runtime = 'nodejs';
+
 const LoginSchema = z.object({
   action: z.literal('login'),
   email: z.string().email(),

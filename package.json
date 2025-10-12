@@ -12,6 +12,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "format": "prettier --write .",
+    "postinstall": "prisma generate",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate",
     "prisma:seed": "prisma db seed",
@@ -20,6 +21,7 @@
     "infra:cdk:deploy:apprunner": "cdk deploy AppRunnerStack",
     "infra:cdk:deploy:amplify": "cdk deploy AmplifyStack"
   },
+  "engines": { "node": ">=20" },
   "dependencies": {
     "@aws-sdk/client-s3": "3.521.0",
     "@aws-sdk/s3-request-presigner": "3.521.0",
@@ -28,7 +30,7 @@
     "@hookform/resolvers": "3.3.4",
     "@prisma/client": "5.12.1",
     "@tanstack/react-table": "8.11.8",
-    "bcrypt": "5.1.1",
+    "bcryptjs": "2.4.3",
     "clsx": "2.1.1",
     "csv-parse": "5.5.0",
     "csv-stringify": "6.4.0",
@@ -46,7 +48,6 @@
     "zod": "3.22.4"
   },
   "devDependencies": {
-    "@types/bcrypt": "5.0.2",
     "@types/node": "20.11.5",
     "@types/pdfkit": "0.12.12",
     "@types/react": "18.2.38",

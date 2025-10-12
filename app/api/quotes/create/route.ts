@@ -5,6 +5,8 @@ import { prisma } from '@/lib/db';
 import { requireSession } from '@/lib/auth';
 import { PricingInputSchema, runPricingEngine } from '@/lib/pricing/engine';
 
+export const runtime = 'nodejs';
+
 const CreateQuoteSchema = z.object({
   propertyId: z.string(),
   serviceTemplateId: z.string(),

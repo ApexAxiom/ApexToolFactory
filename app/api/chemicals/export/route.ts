@@ -4,6 +4,8 @@ import { prisma } from '@/lib/db';
 import { getSession } from '@/lib/auth';
 import { stringifyChemicals } from '@/lib/csv';
 
+export const runtime = 'nodejs';
+
 export async function GET() {
   const store = cookies();
   const session = await getSession(store);
