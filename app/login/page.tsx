@@ -11,7 +11,7 @@ export default function LoginPage() {
         <FormField label="Email">
           <Input type="email" name="email" required placeholder="you@example.com" />
         </FormField>
-        <FormField label="Password" hint={<Link href="/forgot" className="text-xs">Forgot password?</Link>}>
+        <FormField label="Password" hint={<Link href={"/forgot" as any} className="text-xs">Forgot password?</Link>}>
           <Input type="password" name="password" required placeholder="Password123!" />
         </FormField>
       </Form>

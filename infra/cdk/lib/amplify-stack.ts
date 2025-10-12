@@ -11,7 +11,7 @@ export class AmplifyStack extends Stack {
     });
 
     const serviceRole = new iam.Role(this, 'AmplifyRole', {
-      assumedBy: new iam.ServicePrincipal('amplify.amazonaws.com'),
+      assumedBy: new iam.ServicePrincipal('amplify.amazonaws.com') as unknown as iam.IPrincipal,
     });
     artifactBucket.grantReadWrite(serviceRole);
 

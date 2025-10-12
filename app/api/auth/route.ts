@@ -29,8 +29,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Too many requests' }, { status: 429 });
   }
   const json = await req.json().catch(() => ({}));
-  const store = cookies();
-  const session = await getIronSession<SessionData>(store, sessionOptions);
+  const session = await getIronSession<SessionData>(cookies() as any, sessionOptions);
 
   if (LoginSchema.safeParse(json).success) {
     const { email, password } = LoginSchema.parse(json);

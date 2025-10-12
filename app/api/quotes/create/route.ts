@@ -93,7 +93,7 @@ export async function POST(req: Request) {
       data: {
         organizationId: user.organizationId,
         quoteId: created.id,
-        json: result.snapshot as Prisma.JsonValue,
+        json: (result.snapshot ?? Prisma.JsonNull) as unknown as Prisma.InputJsonValue,
       },
     });
 

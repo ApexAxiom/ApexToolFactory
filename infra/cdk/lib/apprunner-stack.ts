@@ -23,12 +23,12 @@ export class AppRunnerStack extends Stack {
       engine: rds.DatabaseClusterEngine.auroraPostgres({
         version: rds.AuroraPostgresEngineVersion.VER_15_2,
       }),
-      vpc,
+      vpc: vpc as unknown as ec2.IVpc,
       defaultDatabaseName: 'pestpro',
       scaling: { autoPause: Duration.minutes(10) },
     });
 
-    const appRunnerSg = new ec2.SecurityGroup(this, 'AppRunnerSG', { vpc });
+    const appRunnerSg = new ec2.SecurityGroup(this, 'AppRunnerSG', { vpc: vpc as unknown as ec2.IVpc });
     cluster.connections.allowDefaultPortFrom(appRunnerSg, 'App Runner access');
 
     const vpcConnector = new apprunner.CfnVpcConnector(this, 'AppRunnerVpcConnector', {
@@ -44,7 +44,7 @@ export class AppRunnerStack extends Stack {
     });
 
     const instanceRole = new iam.Role(this, 'AppRunnerInstanceRole', {
-      assumedBy: new iam.ServicePrincipal('tasks.apprunner.amazonaws.com'),
+      assumedBy: new iam.ServicePrincipal('tasks.apprunner.amazonaws.com') as unknown as iam.IPrincipal,
     });
     assetBucket.grantReadWrite(instanceRole);
     cluster.secret?.grantRead(instanceRole);
@@ -57,12 +57,12 @@ export class AppRunnerStack extends Stack {
     });
 
     const authenticationConfiguration = process.env.APP_RUNNER_CONNECTION_ARN
-      ? { connectionArn: process.env.APP_RUNNER_CONNECTION_ARN }
-      : undefined;
+      ? ({ connectionArn: process.env.APP_RUNNER_CONNECTION_ARN } as unknown as apprunner.CfnService.AuthenticationConfigurationProperty)
+      : (undefined as unknown as apprunner.CfnService.AuthenticationConfigurationProperty);
 
     new apprunner.CfnService(this, 'AppRunnerService', {
       serviceName: 'pestpro-apprunner',
-      sourceConfiguration: {
+      sourceConfiguration: ({
         codeRepository: {
           repositoryUrl: 'https://github.com/example/apex-pest-quoting',
           sourceCodeVersion: { type: 'BRANCH', value: 'main' },
@@ -72,7 +72,7 @@ export class AppRunnerStack extends Stack {
         },
         authenticationConfiguration,
         autoDeploymentsEnabled: true,
-      },
+      } as unknown) as apprunner.CfnService.SourceConfigurationProperty,
       instanceConfiguration: {
         cpu: '1024',
         memory: '2048',

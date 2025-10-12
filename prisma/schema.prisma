@@ -3,7 +3,7 @@ generator client {
 }
 
 datasource db {
-  provider = env("DATABASE_PROVIDER")
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
@@ -23,6 +23,9 @@ model Organization {
   files       File[]
   invites     Invite[]
   auditLogs   AuditLog[]
+  serviceRecipeItems ServiceRecipeItem[]
+  quoteLineItems QuoteLineItem[]
+  quoteCalcSnapshots QuoteCalcSnapshot[]
 }
 
 model User {
@@ -36,6 +39,7 @@ model User {
   createdAt    DateTime @default(now())
 
   @@unique([organizationId, email])
+  auditLogs    AuditLog[]
 }
 
 enum Role {
@@ -85,7 +89,6 @@ model Customer {
   phone        String?
   createdAt    DateTime @default(now())
   properties   Property[]
-  quotes       Quote[]
 }
 
 model Property {
@@ -213,7 +216,7 @@ model QuoteCalcSnapshot {
   organization  Organization @relation(fields: [organizationId], references: [id])
   organizationId String
   quote         Quote @relation(fields: [quoteId], references: [id])
-  quoteId       String
+  quoteId       String @unique
   json          Json
 }
 

@@ -17,8 +17,7 @@ export async function GET(_: Request, { params }: { params: { id: string } }) {
     include: {
       organization: { include: { settings: true } },
       lineItems: true,
-      property: true,
-      customer: true,
+      property: { include: { customer: true } },
     },
   });
   if (!quote) {
@@ -40,7 +39,7 @@ export async function GET(_: Request, { params }: { params: { id: string } }) {
   doc.fontSize(20).fillColor(primary).text(quote.organization.name, 160, 48, { align: 'left' });
   doc.moveDown();
   doc.fontSize(12).fillColor('#0f172a').text(`Quote #: ${quote.quoteNumber}`);
-  doc.text(`Customer: ${quote.customer.name}`);
+  doc.text(`Customer: ${quote.property.customer.name}`);
   doc.text(`Property: ${quote.property.address}`);
   doc.text(`Expires: ${quote.expiresAt.toDateString()}`);
   doc.moveDown();
