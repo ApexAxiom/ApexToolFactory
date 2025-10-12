@@ -1,7 +1,9 @@
 {
-  "files": [],
-  "references": [
-    { "path": "apps/server" },
-    { "path": "apps/web" }
-  ]
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "incremental": true,
+    "tsBuildInfoFile": ".tsbuildinfo"
+  },
+  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
+  "exclude": ["node_modules"]
 }

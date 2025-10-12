@@ -1,51 +1,76 @@
-# Book Lens
+# PestPro Quotations
 
-Book Lens is a camera-first PWA for exploring places and works of art mentioned in physical books.
+PestPro Quotations is a multi-tenant SaaS platform that empowers pest-control companies to build accurate proposals for residential and commercial properties. The stack is designed for deterministic pricing, tenant isolation, and AWS App Runner readiness.
 
-## Environment Setup
-- Node.js 18+
-- pnpm 8+
+## Features
+- Next.js 14 App Router with Tailwind CSS UI and accessible design system
+- Iron-session authentication with role-based access (Owner, Manager, Estimator, Viewer)
+- Prisma ORM with SQLite (dev) and Aurora PostgreSQL (prod) support
+- Deterministic pricing engine with tier rules, materials, labor, travel, and rounding controls
+- PDF generation via pdfkit and email previews with Nodemailer
+- AWS CDK stacks for App Runner and Amplify Hosting options
+- Vitest unit tests for pricing formulas and utilities
 
-Install dependencies:
-```sh
-pnpm install
-```
-
-Copy environment examples:
-```sh
-cp apps/server/.env.example apps/server/.env
-cp apps/web/.env.local.example apps/web/.env.local
-```
+## Getting Started
+1. Install prerequisites: Node.js 20+, pnpm 8+
+2. Install dependencies:
+   ```sh
+   pnpm install
+   ```
+3. Configure environment:
+   ```sh
+   cp .env.example .env
+   ```
+   Update `SESSION_PASSWORD` and AWS placeholders as needed.
+4. Generate Prisma client and apply migrations:
+   ```sh
+   pnpm prisma:generate
+   pnpm prisma:migrate dev --name init
+   pnpm prisma:seed
+   ```
+5. Run the app locally:
+   ```sh
+   pnpm dev
+   ```
+6. Log in with seeded credentials: `admin@example.com` / `Password123!`
 
 ## Scripts
-- `pnpm dev` - start web and server concurrently
-- `pnpm build` - build all workspaces
-- `pnpm lint` - run ESLint
-- `pnpm typecheck` - strict TypeScript check
-- `pnpm test` - run Vitest
+- `pnpm dev` – Run Next.js locally
+- `pnpm build` – Build the production bundle
+- `pnpm start` – Start the production server (binds to `$PORT`)
+- `pnpm lint` – ESLint with Next.js configuration
+- `pnpm typecheck` – Strict TypeScript compilation
+- `pnpm test` – Vitest unit tests
+- `pnpm prisma:generate`, `pnpm prisma:migrate`, `pnpm prisma:seed` – Database workflows
+- `pnpm infra:cdk:bootstrap`, `pnpm infra:cdk:deploy:apprunner`, `pnpm infra:cdk:deploy:amplify` – AWS CDK utilities
 
-## Data Providers
-- The server queries Wikidata and Wikipedia for entity lookups when you submit a question.
-- To enable Google image matches, set `GOOGLE_CSE_API_KEY` and `GOOGLE_CSE_CX` in `apps/server/.env` with a valid Custom Search Engine.
-
-## Privacy Statement
-Camera frames never leave the device. Only structured OCR spans and hints are sent to the server.
-
-## Content Security Policy
-Lock down to self, allow APIs required for Wikidata, Wikipedia and Google Images. Avoid inline scripts and use nonces.
-
-## Binary Size Gate
-No binary files or files over 500 KB should be committed. Large assets must use Git LFS. Tip:
+## Size Gate
+Binary files or assets over 500 KB must use Git LFS. Configure a safety threshold:
 ```sh
-git config --global core.bigFileThreshold 500k
+git config core.bigFileThreshold 500k
 ```
-Run `pnpm run size-check` to validate.
+CI includes a size check to block large files.
 
-## Porting Plan (Web -> React Native/Expo)
-- Reuse TypeScript types and React components.
-- Use `react-native-vision-camera` for camera access.
-- Leverage iOS Vision / Android ML Kit for on-device OCR.
-- Store Journey items with SQLite (e.g., `expo-sqlite`).
+## Testing
+Run the full quality gate before merging:
+```sh
+pnpm lint
+pnpm typecheck
+pnpm test
+```
+
+## AWS Deployment
+1. Bootstrap CDK environment: `pnpm infra:cdk:bootstrap`
+2. Deploy App Runner stack (container-first): `pnpm infra:cdk:deploy:apprunner`
+3. Alternatively deploy Amplify Hosting: `pnpm infra:cdk:deploy:amplify`
+4. Populate Secrets Manager with `DATABASE_URL`, `SESSION_PASSWORD`, and `ASSET_BUCKET`
+5. App Runner health checks use `GET /healthz`
+
+App Runner reads `apprunner.yaml` to install, build, and run `pnpm start` on port 8080.
+
+## Observability
+- `/healthz` returns `{ ok: true }` for uptime checks.
+- Application logs flow to App Runner CloudWatch logs. Include pricing snapshot IDs for debugging quotes.
 
 ## Rollback
-See [docs/rollback.md](docs/rollback.md).
+See [docs/rollback.md](docs/rollback.md) for the rollback procedure.
