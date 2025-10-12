@@ -27,7 +27,15 @@ export class AppRunnerStack extends Stack {
       defaultDatabaseName: 'pestpro',
       scaling: { autoPause: Duration.minutes(10) },
     });
-    cluster.connections.allowDefaultPortFromAnyIpv4('App Runner access');
+
+    const appRunnerSg = new ec2.SecurityGroup(this, 'AppRunnerSG', { vpc });
+    cluster.connections.allowDefaultPortFrom(appRunnerSg, 'App Runner access');
+
+    const vpcConnector = new apprunner.CfnVpcConnector(this, 'AppRunnerVpcConnector', {
+      vpcConnectorName: `${Stack.of(this).stackName}-vpc-connector`,
+      subnets: vpc.privateSubnets.map((subnet) => subnet.subnetId),
+      securityGroups: [appRunnerSg.securityGroupId],
+    });
 
     const assetBucket = new s3.Bucket(this, 'AssetBucket', {
       blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
@@ -70,6 +78,12 @@ export class AppRunnerStack extends Stack {
         memory: '2048',
         instanceRoleArn: instanceRole.roleArn,
       },
+      networkConfiguration: {
+        egressConfiguration: {
+          egressType: 'VPC',
+          vpcConnectorArn: vpcConnector.attrVpcConnectorArn,
+        },
+      },
       healthCheckConfiguration: {
         protocol: 'HTTP',
         path: '/healthz',
@@ -80,10 +94,12 @@ export class AppRunnerStack extends Stack {
       autoScalingConfigurationArn: autoScaling.attrAutoScalingConfigurationArn,
       serviceConfiguration: {
         runtimeConfiguration: {
-          environment: [
+          runtimeEnvironmentSecrets: [
+            { name: 'DATABASE_URL', value: cluster.secret!.secretArn },
+          ],
+          runtimeEnvironmentVariables: [
             { name: 'AWS_REGION', value: Stack.of(this).region },
             { name: 'ASSET_BUCKET', value: assetBucket.bucketName },
-            { name: 'DB_SECRET_ARN', value: cluster.secret?.secretArn ?? '' },
           ],
         },
       },
