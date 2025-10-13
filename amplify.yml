@@ -10,7 +10,13 @@ applications:
             - npx prisma generate
         build:
           commands:
-            - npx prisma migrate deploy
+            - |
+              if [ -n "$DATABASE_URL" ]; then
+                echo "Running prisma migrate deploy"
+                npx prisma migrate deploy
+              else
+                echo "Skipping prisma migrate deploy: DATABASE_URL not set"
+              fi
             - pnpm build
       artifacts:
         baseDirectory: .next
