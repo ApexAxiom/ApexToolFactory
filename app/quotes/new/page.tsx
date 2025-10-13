@@ -423,28 +423,11 @@ export default function QuoteWizardPage() {
           area: Number(area) || 0,
           templateName: templateInput.trim(),
         };
-
-<<<<<<< HEAD
         const createLocalEntities = () => {
           setOfflineMode(true);
           const localCustomerId = customerId || `local:customer:${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
           const localPropertyId = propertyId || `local:property:${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
           const localTemplateId = templateId || `local:template:${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
-=======
-          if (res.status === 401) {
-            // Allow progressing with typed values; creation will be deferred until save
-            setStepError('You are not signed in. Records will be created when you save.');
-          }
-          if (!res.ok && res.status !== 401) {
-            // Allow progressing with typed values; creation will be retried on save
-            setStepError('Could not create records now. You can proceed and save later.');
-          }
-
-          const data = await res.json();
-          customerId = data.customer.id;
-          propertyId = data.property.id;
-          templateId = data.template.id;
->>>>>>> a555c68 (feat(wizard): allow proceeding to scope with typed values; defer record creation to save)
 
           setBootstrap((prev) => {
             const nextCustomers = (() => {
@@ -961,34 +944,6 @@ export default function QuoteWizardPage() {
     setSaving(true);
     setSaveError(null);
     try {
-<<<<<<< HEAD
-      // If we're in offlineMode and IDs are local placeholders, try to ensure entities first
-      let propertyIdToUse = selectedProperty.id;
-      let templateIdToUse = selectedTemplate.id;
-      if (offlineMode || propertyIdToUse.startsWith('local:') || templateIdToUse.startsWith('local:')) {
-        try {
-          const res = await fetch('/api/quotes/ensure-entities', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              customerName: customerInput.trim() || 'Customer',
-              propertyAddress: propertyInput.trim() || 'Property',
-              propertyType: selectedProperty?.propertyType ?? 'Residential',
-              area: Number(area) || 0,
-              templateName: templateInput.trim() || 'General Service',
-            }),
-          });
-          if (res.ok) {
-            const data = await res.json();
-            propertyIdToUse = data.property.id;
-            templateIdToUse = data.template.id;
-          }
-        } catch {
-          // ignore, we'll attempt to save with local IDs which will fail gracefully
-        }
-      }
-
-=======
       const ensured = await ensureEntitiesIfNeeded();
       if (!('ok' in ensured) || !ensured.ok) {
         return;
@@ -1008,18 +963,12 @@ export default function QuoteWizardPage() {
       const defaultComplexityMultiplier = selectedTemplate?.defaultComplexityMultiplier ?? 1;
       const mainUnit = selectedTemplate?.mainUnit ?? 'ft2';
       const tierRules = (selectedTemplate?.tierRules as any) ?? [];
-
->>>>>>> a555c68 (feat(wizard): allow proceeding to scope with typed values; defer record creation to save)
       const response = await fetch('/api/quotes/create', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           propertyId: propertyIdToUse,
           serviceTemplateId: templateIdToUse,
-<<<<<<< HEAD
-          // We will pass the same object used for runPricingEngine
-=======
->>>>>>> a555c68 (feat(wizard): allow proceeding to scope with typed values; defer record creation to save)
           pricingInput: {
             propertyType: propertyTypeToUse,
             area,
