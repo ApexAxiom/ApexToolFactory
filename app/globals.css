@@ -3,8 +3,8 @@
 @tailwind utilities;
 
 :root {
-  --brand-primary-from: #3b82f6;
-  --brand-primary-to: #10b981;
+  --brand-primary-from: #2563eb; /* slightly darker for contrast */
+  --brand-primary-to: #059669;   /* slightly darker for contrast */
   --brand-accent: #0ea5e9;
   color-scheme: light;
 }
@@ -27,7 +27,7 @@ a {
 }
 
 .gradient-button {
-  @apply rounded-xl bg-gradient-to-r from-[color:var(--brand-primary-from)] to-[color:var(--brand-primary-to)] px-4 py-2.5 font-semibold text-white shadow-soft transition hover:opacity-90 focus:outline-none focus-visible:ring focus-visible:ring-brand-accent touch-manipulation;
+  @apply rounded-xl bg-gradient-to-r from-[var(--brand-primary-from)] to-[var(--brand-primary-to)] px-4 py-2.5 font-semibold text-white shadow-soft transition hover:opacity-90 focus:outline-none focus-visible:ring focus-visible:ring-brand-accent touch-manipulation;
   min-height: 44px;
   display: inline-flex;
   align-items: center;
