@@ -142,101 +142,108 @@ export default function QuoteWizardPage() {
 
   useEffect(() => {
     (async () => {
-      const res = await fetch('/api/quotes/bootstrap');
-      if (!res.ok) return;
-      const data = (await res.json()) as BootstrapData;
-      setBootstrap(data);
-      const storedHistory = loadHistory();
-      setHistory(storedHistory);
-
-      const applyFromSnapshot = (snapshot: QuoteSnapshot) => {
-        const templateMatch = findTemplateById(snapshot.templateId) || data.templates[0] || null;
-        if (templateMatch) {
-          setSelectedTemplateId(templateMatch.id);
-          setTemplateInput(templateMatch.name);
-        } else {
-          setSelectedTemplateId('');
-          setTemplateInput(snapshot.templateName || '');
+      try {
+        const res = await fetch('/api/quotes/bootstrap', { cache: 'no-store' });
+        if (!res.ok) {
+          setStepError('Failed to load bootstrap data. Please sign in or check API hosting.');
+          return;
         }
+        const data = (await res.json()) as BootstrapData;
+        setBootstrap(data);
+        const storedHistory = loadHistory();
+        setHistory(storedHistory);
 
-        const propertyMatch = findPropertyById(snapshot.propertyId);
-        if (propertyMatch) {
-          setSelectedCustomerId(propertyMatch.customer.id);
-          setCustomerInput(propertyMatch.customer.name);
-          setSelectedPropertyId(propertyMatch.property.id);
-          setPropertyInput(propertyMatch.property.address);
-          updateArea(snapshot.area ?? propertyMatch.property.area);
-        } else {
-          const customerMatch = findCustomerById(snapshot.customerId) || data.customers[0] || null;
-          if (customerMatch) {
-            setSelectedCustomerId(customerMatch.id);
-            setCustomerInput(customerMatch.name);
-            const defaultProperty = customerMatch.properties.find((p) => p.id === snapshot.propertyId) || customerMatch.properties[0];
-            if (defaultProperty) {
-              setSelectedPropertyId(defaultProperty.id);
-              setPropertyInput(defaultProperty.address);
-              updateArea(snapshot.area ?? defaultProperty.area);
+        const applyFromSnapshot = (snapshot: QuoteSnapshot) => {
+          const templateMatch = findTemplateById(snapshot.templateId) || data.templates[0] || null;
+          if (templateMatch) {
+            setSelectedTemplateId(templateMatch.id);
+            setTemplateInput(templateMatch.name);
+          } else {
+            setSelectedTemplateId('');
+            setTemplateInput(snapshot.templateName || '');
+          }
+
+          const propertyMatch = findPropertyById(snapshot.propertyId);
+          if (propertyMatch) {
+            setSelectedCustomerId(propertyMatch.customer.id);
+            setCustomerInput(propertyMatch.customer.name);
+            setSelectedPropertyId(propertyMatch.property.id);
+            setPropertyInput(propertyMatch.property.address);
+            updateArea(snapshot.area ?? propertyMatch.property.area);
+          } else {
+            const customerMatch = findCustomerById(snapshot.customerId) || data.customers[0] || null;
+            if (customerMatch) {
+              setSelectedCustomerId(customerMatch.id);
+              setCustomerInput(customerMatch.name);
+              const defaultProperty = customerMatch.properties.find((p) => p.id === snapshot.propertyId) || customerMatch.properties[0];
+              if (defaultProperty) {
+                setSelectedPropertyId(defaultProperty.id);
+                setPropertyInput(defaultProperty.address);
+                updateArea(snapshot.area ?? defaultProperty.area);
+              } else {
+                setSelectedPropertyId('');
+                setPropertyInput(snapshot.propertyName || '');
+                updateArea(snapshot.area ?? 0);
+              }
             } else {
+              setSelectedCustomerId('');
+              setCustomerInput(snapshot.customerName || '');
               setSelectedPropertyId('');
               setPropertyInput(snapshot.propertyName || '');
               updateArea(snapshot.area ?? 0);
             }
+          }
+
+          const presetMatch = data.presets.find((p) => p.id === snapshot.presetId);
+          if (presetMatch) {
+            setSelectedPresetId(presetMatch.id);
+            applyPreset(presetMatch);
           } else {
-            setSelectedCustomerId('');
-            setCustomerInput(snapshot.customerName || '');
-            setSelectedPropertyId('');
-            setPropertyInput(snapshot.propertyName || '');
-            updateArea(snapshot.area ?? 0);
+            setSelectedPresetId('');
+            setMode(snapshot.mode);
+            setMarginOrMarkup(snapshot.marginOrMarkup);
+            setHourlyWage(snapshot.hourlyWage);
+            setBurdenPercent(snapshot.burdenPercent);
+            setTaxRate(snapshot.taxRate);
+            setRoundingRule(snapshot.roundingRule);
+            setMinimum(snapshot.minimum);
+            setFees(snapshot.fees);
+            setDiscounts(snapshot.discounts);
+            setTravelFixedMinutes(snapshot.travelFixedMinutes);
+            setTravelMinutesPerMile(snapshot.travelMinutesPerMile);
           }
-        }
 
-        const presetMatch = data.presets.find((p) => p.id === snapshot.presetId);
-        if (presetMatch) {
-          setSelectedPresetId(presetMatch.id);
-          applyPreset(presetMatch);
+          setInterior(snapshot.interior);
+          setExterior(snapshot.exterior);
+          setTravelMiles(snapshot.travelMiles);
+        };
+
+        const lastSnapshot = storedHistory.at(-1);
+        if (lastSnapshot) {
+          applyFromSnapshot(lastSnapshot);
         } else {
-          setSelectedPresetId('');
-          setMode(snapshot.mode);
-          setMarginOrMarkup(snapshot.marginOrMarkup);
-          setHourlyWage(snapshot.hourlyWage);
-          setBurdenPercent(snapshot.burdenPercent);
-          setTaxRate(snapshot.taxRate);
-          setRoundingRule(snapshot.roundingRule);
-          setMinimum(snapshot.minimum);
-          setFees(snapshot.fees);
-          setDiscounts(snapshot.discounts);
-          setTravelFixedMinutes(snapshot.travelFixedMinutes);
-          setTravelMinutesPerMile(snapshot.travelMinutesPerMile);
-        }
-
-        setInterior(snapshot.interior);
-        setExterior(snapshot.exterior);
-        setTravelMiles(snapshot.travelMiles);
-      };
-
-      const lastSnapshot = storedHistory.at(-1);
-      if (lastSnapshot) {
-        applyFromSnapshot(lastSnapshot);
-      } else {
-        if (data.customers[0]) {
-          const firstCustomer = data.customers[0];
-          setSelectedCustomerId(firstCustomer.id);
-          setCustomerInput(firstCustomer.name);
-          if (firstCustomer.properties[0]) {
-            const firstProperty = firstCustomer.properties[0];
-            setSelectedPropertyId(firstProperty.id);
-            setPropertyInput(firstProperty.address);
-            updateArea(firstProperty.area);
+          if (data.customers[0]) {
+            const firstCustomer = data.customers[0];
+            setSelectedCustomerId(firstCustomer.id);
+            setCustomerInput(firstCustomer.name);
+            if (firstCustomer.properties[0]) {
+              const firstProperty = firstCustomer.properties[0];
+              setSelectedPropertyId(firstProperty.id);
+              setPropertyInput(firstProperty.address);
+              updateArea(firstProperty.area);
+            }
+          }
+          if (data.templates[0]) {
+            setSelectedTemplateId(data.templates[0].id);
+            setTemplateInput(data.templates[0].name);
+          }
+          if (data.presets[0]) {
+            setSelectedPresetId(data.presets[0].id);
+            applyPreset(data.presets[0]);
           }
         }
-        if (data.templates[0]) {
-          setSelectedTemplateId(data.templates[0].id);
-          setTemplateInput(data.templates[0].name);
-        }
-        if (data.presets[0]) {
-          setSelectedPresetId(data.presets[0].id);
-          applyPreset(data.presets[0]);
-        }
+      } catch {
+        setStepError('Network error loading bootstrap data.');
       }
     })();
   }, []);
@@ -370,7 +377,7 @@ export default function QuoteWizardPage() {
     return uniquePartial.length === 1 ? uniquePartial[0]?.id ?? '' : '';
   };
 
-  const handleNext = () => {
+  const handleNext = async () => {
     if (current >= wizardSteps.length) return;
 
     if (current === 1) {
@@ -384,11 +391,6 @@ export default function QuoteWizardPage() {
           customerId = resolved;
           handleCustomerSelect(resolved);
         }
-        // Fallback to first available customer when no input is provided
-        if (!customerId && bootstrap.customers[0]) {
-          customerId = bootstrap.customers[0].id;
-          handleCustomerSelect(customerId);
-        }
       }
 
       if (!propertyId) {
@@ -396,15 +398,6 @@ export default function QuoteWizardPage() {
         if (resolved) {
           propertyId = resolved;
           handlePropertySelect(resolved);
-        }
-        // Fallback to first property of selected (or first) customer
-        if (!propertyId) {
-          const customer = customerId ? findCustomerById(customerId) : bootstrap.customers[0] || null;
-          const firstProperty = customer?.properties?.[0];
-          if (firstProperty) {
-            propertyId = firstProperty.id;
-            handlePropertySelect(propertyId);
-          }
         }
       }
 
@@ -414,15 +407,157 @@ export default function QuoteWizardPage() {
           templateId = resolved;
           handleTemplateSelect(resolved);
         }
-        // Fallback to first available template
-        if (!templateId && bootstrap.templates[0]) {
-          templateId = bootstrap.templates[0].id;
-          handleTemplateSelect(templateId);
+      }
+
+      const hasTyped =
+        customerInput.trim().length > 0 &&
+        propertyInput.trim().length > 0 &&
+        templateInput.trim().length > 0;
+
+      if ((!customerId || !propertyId || !templateId) && hasTyped) {
+        try {
+          const res = await fetch('/api/quotes/ensure-entities', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              customerName: customerInput.trim(),
+              propertyAddress: propertyInput.trim(),
+              propertyType: selectedProperty?.propertyType ?? 'Residential',
+              area: Number(area) || 0,
+              templateName: templateInput.trim(),
+            }),
+          });
+
+          if (res.status === 401) {
+            setStepError('Please sign in to create customers, properties, and templates.');
+            return;
+          }
+          if (!res.ok) {
+            setStepError('Could not create records. Check database connection and try again.');
+            return;
+          }
+
+          const data = await res.json();
+          customerId = data.customer.id;
+          propertyId = data.property.id;
+          templateId = data.template.id;
+
+          setBootstrap((prev) => {
+            const nextCustomers = (() => {
+              const existingCustomer = prev.customers.find((customer) => customer.id === data.customer.id);
+              if (!existingCustomer) {
+                return [
+                  ...prev.customers,
+                  {
+                    id: data.customer.id,
+                    name: data.customer.name,
+                    properties: [
+                      {
+                        id: data.property.id,
+                        address: data.property.address,
+                        propertyType: data.property.propertyType,
+                        area: data.property.area ?? 0,
+                      },
+                    ],
+                  },
+                ];
+              }
+
+              const properties = existingCustomer.properties.some((property) => property.id === data.property.id)
+                ? existingCustomer.properties.map((property) =>
+                    property.id === data.property.id
+                      ? {
+                          id: data.property.id,
+                          address: data.property.address,
+                          propertyType: data.property.propertyType,
+                          area: data.property.area ?? 0,
+                        }
+                      : property,
+                  )
+                : [
+                    ...existingCustomer.properties,
+                    {
+                      id: data.property.id,
+                      address: data.property.address,
+                      propertyType: data.property.propertyType,
+                      area: data.property.area ?? 0,
+                    },
+                  ];
+
+              return prev.customers.map((customer) =>
+                customer.id === data.customer.id
+                  ? { ...customer, name: data.customer.name, properties }
+                  : customer,
+              );
+            })();
+
+            const templateDefaults = {
+              id: data.template.id,
+              name: data.template.name,
+              mainUnit: 'ft2' as const,
+              setupTimeHrs: 0.5,
+              timePer1000Hrs: 0.35,
+              minPrice: 95,
+              defaultInfestationMultiplier: 1,
+              defaultComplexityMultiplier: 1,
+              residentialMultiplier: 1,
+              commercialMultiplier: 1.15,
+              tierRules: [] as any[],
+              recipeItems: [] as any[],
+            };
+            const nextTemplates = prev.templates.some((template) => template.id === data.template.id)
+              ? prev.templates.map((template) => (template.id === data.template.id ? { ...template, name: data.template.name } : template))
+              : [...prev.templates, templateDefaults];
+
+            const nextPresets = data.preset?.id
+              ? prev.presets.some((preset) => preset.id === data.preset.id)
+                ? prev.presets.map((preset) => (preset.id === data.preset.id ? { ...preset, name: data.preset.name } : preset))
+                : [
+                    ...prev.presets,
+                    {
+                      id: data.preset.id,
+                      name: data.preset.name,
+                      pricingMode: 'margin' as const,
+                      marginOrMarkup: 0.45,
+                      hourlyWage: 22,
+                      burdenPercent: 0.28,
+                      taxRate: 0.0825,
+                      roundingRule: 'nearest_5' as const,
+                      minimum: 95,
+                      travelFixedMin: 15,
+                      travelMinsPerMile: 1.5,
+                      fees: 0,
+                      discounts: 0,
+                    },
+                  ]
+              : prev.presets;
+
+            return {
+              ...prev,
+              customers: nextCustomers,
+              templates: nextTemplates,
+              presets: nextPresets,
+            };
+          });
+
+          setSelectedCustomerId(customerId);
+          setCustomerInput(data.customer.name);
+          setSelectedPropertyId(propertyId);
+          setPropertyInput(data.property.address);
+          updateArea(data.property.area ?? 0);
+          setSelectedTemplateId(templateId);
+          setTemplateInput(data.template.name);
+          if (data.preset?.id) {
+            setSelectedPresetId(data.preset.id);
+          }
+        } catch {
+          setStepError('Network error creating records.');
+          return;
         }
       }
 
       if (!customerId || !propertyId || !templateId) {
-        setStepError('Select a customer, property, and service template before continuing.');
+        setStepError('Select or create a customer, property, and template before continuing.');
         return;
       }
     }
@@ -931,7 +1066,7 @@ export default function QuoteWizardPage() {
               onClick={(e) => {
                 e.preventDefault();
                 e.stopPropagation();
-                handleNext();
+                void handleNext();
               }}
               disabled={current >= wizardSteps.length}
               className="min-w-[80px] touch-manipulation"
@@ -955,7 +1090,11 @@ export default function QuoteWizardPage() {
               {saving ? 'Saving…' : 'Save quote'}
             </Button>
           </div>
-          {stepError ? <p className="mt-2 text-sm text-red-600">{stepError}</p> : null}
+          {stepError ? (
+            <p role="alert" aria-live="assertive" className="mt-2 text-sm text-red-600">
+              {stepError}
+            </p>
+          ) : null}
           {saveError ? <p className="mt-2 text-sm text-red-600">{saveError}</p> : null}
         </Card>
 
