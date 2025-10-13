@@ -424,11 +424,27 @@ export default function QuoteWizardPage() {
           templateName: templateInput.trim(),
         };
 
+<<<<<<< HEAD
         const createLocalEntities = () => {
           setOfflineMode(true);
           const localCustomerId = customerId || `local:customer:${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
           const localPropertyId = propertyId || `local:property:${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
           const localTemplateId = templateId || `local:template:${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
+=======
+          if (res.status === 401) {
+            // Allow progressing with typed values; creation will be deferred until save
+            setStepError('You are not signed in. Records will be created when you save.');
+          }
+          if (!res.ok && res.status !== 401) {
+            // Allow progressing with typed values; creation will be retried on save
+            setStepError('Could not create records now. You can proceed and save later.');
+          }
+
+          const data = await res.json();
+          customerId = data.customer.id;
+          propertyId = data.property.id;
+          templateId = data.template.id;
+>>>>>>> a555c68 (feat(wizard): allow proceeding to scope with typed values; defer record creation to save)
 
           setBootstrap((prev) => {
             const nextCustomers = (() => {
@@ -632,8 +648,15 @@ export default function QuoteWizardPage() {
       }
 
       if (!customerId || !propertyId || !templateId) {
-        setStepError('Select or create a customer, property, and template before continuing.');
-        return;
+        const hasTypedNames =
+          customerInput.trim().length > 0 &&
+          propertyInput.trim().length > 0 &&
+          templateInput.trim().length > 0;
+        if (!hasTypedNames) {
+          setStepError('Enter a customer, property, and service template before continuing.');
+          return;
+        }
+        // Proceed without IDs; we will ensure/create on save
       }
     }
 
@@ -774,11 +797,171 @@ export default function QuoteWizardPage() {
     });
   }, [selectedTemplate, selectedProperty, area, interior, exterior, hourlyWage, burdenPercent, travelFixedMinutes, travelMinutesPerMile, travelMiles, mode, marginOrMarkup, fees, discounts, taxRate, roundingRule, minimum]);
 
+  const ensureEntitiesIfNeeded = async () => {
+    let customerId = selectedCustomerId;
+    let propertyId = selectedPropertyId;
+    let templateId = selectedTemplateId;
+    const hasTypedNames =
+      customerInput.trim().length > 0 &&
+      propertyInput.trim().length > 0 &&
+      templateInput.trim().length > 0;
+
+    if (customerId && propertyId && templateId) {
+      return { ok: true, customerId, propertyId, templateId } as const;
+    }
+    if (!hasTypedNames) {
+      setSaveError('Enter a customer, property, and service template before saving.');
+      return { ok: false } as const;
+    }
+
+    try {
+      const res = await fetch('/api/quotes/ensure-entities', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          customerName: customerInput.trim(),
+          propertyAddress: propertyInput.trim(),
+          propertyType: selectedProperty?.propertyType ?? 'Residential',
+          area: Number(area) || 0,
+          templateName: templateInput.trim(),
+        }),
+      });
+      if (res.status === 401) {
+        setSaveError('Please sign in to save quotes.');
+        return { ok: false } as const;
+      }
+      if (!res.ok) {
+        setSaveError('Could not create records. Check database connection and try again.');
+        return { ok: false } as const;
+      }
+      const data = await res.json();
+
+      setBootstrap((prev) => {
+        const nextCustomers = (() => {
+          const existingCustomer = prev.customers.find((customer) => customer.id === data.customer.id);
+          if (!existingCustomer) {
+            return [
+              ...prev.customers,
+              {
+                id: data.customer.id,
+                name: data.customer.name,
+                properties: [
+                  {
+                    id: data.property.id,
+                    address: data.property.address,
+                    propertyType: data.property.propertyType,
+                    area: data.property.area ?? 0,
+                  },
+                ],
+              },
+            ];
+          }
+
+          const properties = existingCustomer.properties.some((property) => property.id === data.property.id)
+            ? existingCustomer.properties.map((property) =>
+                property.id === data.property.id
+                  ? {
+                      id: data.property.id,
+                      address: data.property.address,
+                      propertyType: data.property.propertyType,
+                      area: data.property.area ?? 0,
+                    }
+                  : property,
+              )
+            : [
+                ...existingCustomer.properties,
+                {
+                  id: data.property.id,
+                  address: data.property.address,
+                  propertyType: data.property.propertyType,
+                  area: data.property.area ?? 0,
+                },
+              ];
+
+          return prev.customers.map((customer) =>
+            customer.id === data.customer.id ? { ...customer, name: data.customer.name, properties } : customer,
+          );
+        })();
+
+        const templateDefaults = {
+          id: data.template.id,
+          name: data.template.name,
+          mainUnit: 'ft2' as const,
+          setupTimeHrs: 0.5,
+          timePer1000Hrs: 0.35,
+          minPrice: 95,
+          defaultInfestationMultiplier: 1,
+          defaultComplexityMultiplier: 1,
+          residentialMultiplier: 1,
+          commercialMultiplier: 1.15,
+          tierRules: [] as any[],
+          recipeItems: [] as any[],
+        };
+        const nextTemplates = prev.templates.some((template) => template.id === data.template.id)
+          ? prev.templates.map((template) => (template.id === data.template.id ? { ...template, name: data.template.name } : template))
+          : [...prev.templates, templateDefaults];
+
+        const nextPresets = data.preset?.id
+          ? prev.presets.some((preset) => preset.id === data.preset.id)
+            ? prev.presets.map((preset) => (preset.id === data.preset.id ? { ...preset, name: data.preset.name } : preset))
+            : [
+                ...prev.presets,
+                {
+                  id: data.preset.id,
+                  name: data.preset.name,
+                  pricingMode: 'margin' as const,
+                  marginOrMarkup: 0.45,
+                  hourlyWage: 22,
+                  burdenPercent: 0.28,
+                  taxRate: 0.0825,
+                  roundingRule: 'nearest_5' as const,
+                  minimum: 95,
+                  travelFixedMin: 15,
+                  travelMinsPerMile: 1.5,
+                  fees: 0,
+                  discounts: 0,
+                },
+              ]
+          : prev.presets;
+
+        return {
+          ...prev,
+          customers: nextCustomers,
+          templates: nextTemplates,
+          presets: nextPresets,
+        };
+      });
+
+      setSelectedCustomerId(data.customer.id);
+      setCustomerInput(data.customer.name);
+      setSelectedPropertyId(data.property.id);
+      setPropertyInput(data.property.address);
+      updateArea(data.property.area ?? 0);
+      setSelectedTemplateId(data.template.id);
+      setTemplateInput(data.template.name);
+      if (data.preset?.id) {
+        setSelectedPresetId(data.preset.id);
+      }
+
+      return {
+        ok: true,
+        customerId: data.customer.id,
+        propertyId: data.property.id,
+        templateId: data.template.id,
+        property: data.property,
+        template: data.template,
+      } as const;
+    } catch {
+      setSaveError('Network error creating records.');
+      return { ok: false } as const;
+    }
+  };
+
   const onSaveQuote = async () => {
-    if (!selectedTemplate || !selectedProperty) return;
     setSaving(true);
     setSaveError(null);
     try {
+<<<<<<< HEAD
       // If we're in offlineMode and IDs are local placeholders, try to ensure entities first
       let propertyIdToUse = selectedProperty.id;
       let templateIdToUse = selectedTemplate.id;
@@ -805,21 +988,46 @@ export default function QuoteWizardPage() {
         }
       }
 
+=======
+      const ensured = await ensureEntitiesIfNeeded();
+      if (!('ok' in ensured) || !ensured.ok) {
+        return;
+      }
+
+      const propertyIdToUse = ensured.propertyId || selectedPropertyId;
+      const templateIdToUse = ensured.templateId || selectedTemplateId;
+
+      const propertyTypeToUse = selectedProperty?.propertyType || ensured.property?.propertyType || 'Residential';
+      const recipeItems = selectedTemplate?.recipeItems || [];
+      const setupTimeHrs = selectedTemplate?.setupTimeHrs ?? 0.5;
+      const timePer1000Hrs = selectedTemplate?.timePer1000Hrs ?? 0.35;
+      const minPrice = selectedTemplate?.minPrice ?? 95;
+      const residentialMultiplier = selectedTemplate?.residentialMultiplier ?? 1;
+      const commercialMultiplier = selectedTemplate?.commercialMultiplier ?? 1.15;
+      const defaultInfestationMultiplier = selectedTemplate?.defaultInfestationMultiplier ?? 1;
+      const defaultComplexityMultiplier = selectedTemplate?.defaultComplexityMultiplier ?? 1;
+      const mainUnit = selectedTemplate?.mainUnit ?? 'ft2';
+      const tierRules = (selectedTemplate?.tierRules as any) ?? [];
+
+>>>>>>> a555c68 (feat(wizard): allow proceeding to scope with typed values; defer record creation to save)
       const response = await fetch('/api/quotes/create', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           propertyId: propertyIdToUse,
           serviceTemplateId: templateIdToUse,
+<<<<<<< HEAD
           // We will pass the same object used for runPricingEngine
+=======
+>>>>>>> a555c68 (feat(wizard): allow proceeding to scope with typed values; defer record creation to save)
           pricingInput: {
-            propertyType: selectedProperty.propertyType,
+            propertyType: propertyTypeToUse,
             area,
             infestationMultiplier: 1,
             complexityMultiplier: 1,
             interior,
             exterior,
-            chemicals: selectedTemplate.recipeItems.map((ri) => ({
+            chemicals: recipeItems.map((ri) => ({
               id: ri.chemical.id,
               name: ri.chemical.name,
               usageRatePer1000: ri.usageRatePer1000,
@@ -828,8 +1036,8 @@ export default function QuoteWizardPage() {
               wastePercent: ri.chemical.wastePercent,
               useFor: ri.useFor,
             })),
-            setupTime: selectedTemplate.setupTimeHrs,
-            timePer1000: selectedTemplate.timePer1000Hrs,
+            setupTime: setupTimeHrs,
+            timePer1000: timePer1000Hrs,
             hourlyWage,
             burdenPercent,
             travelFixedMinutes,
@@ -843,14 +1051,14 @@ export default function QuoteWizardPage() {
             taxRate,
             roundingRule,
             minimum,
-            tierRules: selectedTemplate.tierRules,
+            tierRules,
             template: {
-              residentialMultiplier: selectedTemplate.residentialMultiplier,
-              commercialMultiplier: selectedTemplate.commercialMultiplier,
-              defaultInfestationMultiplier: selectedTemplate.defaultInfestationMultiplier,
-              defaultComplexityMultiplier: selectedTemplate.defaultComplexityMultiplier,
-              minPrice: selectedTemplate.minPrice,
-              mainUnit: selectedTemplate.mainUnit,
+              residentialMultiplier,
+              commercialMultiplier,
+              defaultInfestationMultiplier,
+              defaultComplexityMultiplier,
+              minPrice,
+              mainUnit,
             },
             currency: 'USD',
             unitsArea: 'ft2',
