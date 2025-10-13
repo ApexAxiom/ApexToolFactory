@@ -113,6 +113,7 @@ export default function QuoteWizardPage() {
   const [burdenPercentInput, setBurdenPercentInput] = useState('28');
   const [taxRateInput, setTaxRateInput] = useState('8.25');
   const [stepError, setStepError] = useState<string | null>(null);
+  const [offlineMode, setOfflineMode] = useState(false);
 
   const numberFormatter = useMemo(() => new Intl.NumberFormat('en-US'), []);
 
@@ -415,85 +416,57 @@ export default function QuoteWizardPage() {
         templateInput.trim().length > 0;
 
       if ((!customerId || !propertyId || !templateId) && hasTyped) {
-        try {
-          const res = await fetch('/api/quotes/ensure-entities', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              customerName: customerInput.trim(),
-              propertyAddress: propertyInput.trim(),
-              propertyType: selectedProperty?.propertyType ?? 'Residential',
-              area: Number(area) || 0,
-              templateName: templateInput.trim(),
-            }),
-          });
+        const payload = {
+          customerName: customerInput.trim(),
+          propertyAddress: propertyInput.trim(),
+          propertyType: selectedProperty?.propertyType ?? 'Residential',
+          area: Number(area) || 0,
+          templateName: templateInput.trim(),
+        };
 
-          if (res.status === 401) {
-            setStepError('Please sign in to create customers, properties, and templates.');
-            return;
-          }
-          if (!res.ok) {
-            setStepError('Could not create records. Check database connection and try again.');
-            return;
-          }
-
-          const data = await res.json();
-          customerId = data.customer.id;
-          propertyId = data.property.id;
-          templateId = data.template.id;
+        const createLocalEntities = () => {
+          setOfflineMode(true);
+          const localCustomerId = customerId || `local:customer:${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
+          const localPropertyId = propertyId || `local:property:${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
+          const localTemplateId = templateId || `local:template:${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
 
           setBootstrap((prev) => {
             const nextCustomers = (() => {
-              const existingCustomer = prev.customers.find((customer) => customer.id === data.customer.id);
+              const existingCustomer = prev.customers.find((c) => c.id === localCustomerId);
               if (!existingCustomer) {
                 return [
                   ...prev.customers,
                   {
-                    id: data.customer.id,
-                    name: data.customer.name,
+                    id: localCustomerId,
+                    name: customerInput.trim() || 'Customer',
                     properties: [
                       {
-                        id: data.property.id,
-                        address: data.property.address,
-                        propertyType: data.property.propertyType,
-                        area: data.property.area ?? 0,
+                        id: localPropertyId,
+                        address: propertyInput.trim() || 'Property',
+                        propertyType: (selectedProperty?.propertyType ?? 'Residential') as 'Residential' | 'Commercial',
+                        area: Number(area) || 0,
                       },
                     ],
                   },
                 ];
               }
-
-              const properties = existingCustomer.properties.some((property) => property.id === data.property.id)
-                ? existingCustomer.properties.map((property) =>
-                    property.id === data.property.id
-                      ? {
-                          id: data.property.id,
-                          address: data.property.address,
-                          propertyType: data.property.propertyType,
-                          area: data.property.area ?? 0,
-                        }
-                      : property,
-                  )
-                : [
-                    ...existingCustomer.properties,
-                    {
-                      id: data.property.id,
-                      address: data.property.address,
-                      propertyType: data.property.propertyType,
-                      area: data.property.area ?? 0,
-                    },
-                  ];
-
-              return prev.customers.map((customer) =>
-                customer.id === data.customer.id
-                  ? { ...customer, name: data.customer.name, properties }
-                  : customer,
-              );
+              if (!existingCustomer.properties.some((p) => p.id === localPropertyId)) {
+                existingCustomer.properties = [
+                  ...existingCustomer.properties,
+                  {
+                    id: localPropertyId,
+                    address: propertyInput.trim() || 'Property',
+                    propertyType: (selectedProperty?.propertyType ?? 'Residential') as 'Residential' | 'Commercial',
+                    area: Number(area) || 0,
+                  },
+                ];
+              }
+              return [...prev.customers];
             })();
 
             const templateDefaults = {
-              id: data.template.id,
-              name: data.template.name,
+              id: localTemplateId,
+              name: templateInput.trim() || 'General Service',
               mainUnit: 'ft2' as const,
               setupTimeHrs: 0.5,
               timePer1000Hrs: 0.35,
@@ -505,54 +478,156 @@ export default function QuoteWizardPage() {
               tierRules: [] as any[],
               recipeItems: [] as any[],
             };
-            const nextTemplates = prev.templates.some((template) => template.id === data.template.id)
-              ? prev.templates.map((template) => (template.id === data.template.id ? { ...template, name: data.template.name } : template))
+            const nextTemplates = prev.templates.some((t) => t.id === localTemplateId)
+              ? prev.templates
               : [...prev.templates, templateDefaults];
 
-            const nextPresets = data.preset?.id
-              ? prev.presets.some((preset) => preset.id === data.preset.id)
-                ? prev.presets.map((preset) => (preset.id === data.preset.id ? { ...preset, name: data.preset.name } : preset))
-                : [
-                    ...prev.presets,
-                    {
-                      id: data.preset.id,
-                      name: data.preset.name,
-                      pricingMode: 'margin' as const,
-                      marginOrMarkup: 0.45,
-                      hourlyWage: 22,
-                      burdenPercent: 0.28,
-                      taxRate: 0.0825,
-                      roundingRule: 'nearest_5' as const,
-                      minimum: 95,
-                      travelFixedMin: 15,
-                      travelMinsPerMile: 1.5,
-                      fees: 0,
-                      discounts: 0,
-                    },
-                  ]
-              : prev.presets;
-
-            return {
-              ...prev,
-              customers: nextCustomers,
-              templates: nextTemplates,
-              presets: nextPresets,
-            };
+            return { ...prev, customers: nextCustomers, templates: nextTemplates };
           });
 
-          setSelectedCustomerId(customerId);
-          setCustomerInput(data.customer.name);
-          setSelectedPropertyId(propertyId);
-          setPropertyInput(data.property.address);
-          updateArea(data.property.area ?? 0);
-          setSelectedTemplateId(templateId);
-          setTemplateInput(data.template.name);
-          if (data.preset?.id) {
-            setSelectedPresetId(data.preset.id);
+          setSelectedCustomerId(localCustomerId);
+          setSelectedPropertyId(localPropertyId);
+          setSelectedTemplateId(localTemplateId);
+          return { customerId: localCustomerId, propertyId: localPropertyId, templateId: localTemplateId };
+        };
+
+        try {
+          const res = await fetch('/api/quotes/ensure-entities', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+          });
+
+          if (!res.ok) {
+            // Fall back to local/offline entities so the flow can continue
+            const ids = createLocalEntities();
+            customerId = ids.customerId;
+            propertyId = ids.propertyId;
+            templateId = ids.templateId;
+          } else {
+            const data = await res.json();
+            customerId = data.customer.id;
+            propertyId = data.property.id;
+            templateId = data.template.id;
+
+            setBootstrap((prev) => {
+              const nextCustomers = (() => {
+                const existingCustomer = prev.customers.find((customer) => customer.id === data.customer.id);
+                if (!existingCustomer) {
+                  return [
+                    ...prev.customers,
+                    {
+                      id: data.customer.id,
+                      name: data.customer.name,
+                      properties: [
+                        {
+                          id: data.property.id,
+                          address: data.property.address,
+                          propertyType: data.property.propertyType,
+                          area: data.property.area ?? 0,
+                        },
+                      ],
+                    },
+                  ];
+                }
+
+                const properties = existingCustomer.properties.some((property) => property.id === data.property.id)
+                  ? existingCustomer.properties.map((property) =>
+                      property.id === data.property.id
+                        ? {
+                            id: data.property.id,
+                            address: data.property.address,
+                            propertyType: data.property.propertyType,
+                            area: data.property.area ?? 0,
+                          }
+                        : property,
+                    )
+                  : [
+                      ...existingCustomer.properties,
+                      {
+                        id: data.property.id,
+                        address: data.property.address,
+                        propertyType: data.property.propertyType,
+                        area: data.property.area ?? 0,
+                      },
+                    ];
+
+                return prev.customers.map((customer) =>
+                  customer.id === data.customer.id
+                    ? { ...customer, name: data.customer.name, properties }
+                    : customer,
+                );
+              })();
+
+              const templateDefaults = {
+                id: data.template.id,
+                name: data.template.name,
+                mainUnit: 'ft2' as const,
+                setupTimeHrs: 0.5,
+                timePer1000Hrs: 0.35,
+                minPrice: 95,
+                defaultInfestationMultiplier: 1,
+                defaultComplexityMultiplier: 1,
+                residentialMultiplier: 1,
+                commercialMultiplier: 1.15,
+                tierRules: [] as any[],
+                recipeItems: [] as any[],
+              };
+              const nextTemplates = prev.templates.some((template) => template.id === data.template.id)
+                ? prev.templates.map((template) => (template.id === data.template.id ? { ...template, name: data.template.name } : template))
+                : [...prev.templates, templateDefaults];
+
+              const nextPresets = data.preset?.id
+                ? prev.presets.some((preset) => preset.id === data.preset.id)
+                  ? prev.presets.map((preset) => (preset.id === data.preset.id ? { ...preset, name: data.preset.name } : preset))
+                  : [
+                      ...prev.presets,
+                      {
+                        id: data.preset.id,
+                        name: data.preset.name,
+                        pricingMode: 'margin' as const,
+                        marginOrMarkup: 0.45,
+                        hourlyWage: 22,
+                        burdenPercent: 0.28,
+                        taxRate: 0.0825,
+                        roundingRule: 'nearest_5' as const,
+                        minimum: 95,
+                        travelFixedMin: 15,
+                        travelMinsPerMile: 1.5,
+                        fees: 0,
+                        discounts: 0,
+                      },
+                    ]
+                : prev.presets;
+
+              return {
+                ...prev,
+                customers: nextCustomers,
+                templates: nextTemplates,
+                presets: nextPresets,
+              };
+            });
+
+            setSelectedCustomerId(customerId);
+            setCustomerInput(data.customer.name);
+            setSelectedPropertyId(propertyId);
+            setPropertyInput(data.property.address);
+            updateArea(data.property.area ?? 0);
+            setSelectedTemplateId(templateId);
+            setTemplateInput(data.template.name);
+            if (data.preset?.id) {
+              setSelectedPresetId(data.preset.id);
+            }
           }
         } catch {
-          setStepError('Network error creating records.');
-          return;
+          // Network failure: fall back to local mode so the user can continue
+          const hadIds = Boolean(customerId && propertyId && templateId);
+          if (!hadIds) {
+            const ids = createLocalEntities();
+            customerId = ids.customerId;
+            propertyId = ids.propertyId;
+            templateId = ids.templateId;
+          }
         }
       }
 
@@ -704,12 +779,38 @@ export default function QuoteWizardPage() {
     setSaving(true);
     setSaveError(null);
     try {
+      // If we're in offlineMode and IDs are local placeholders, try to ensure entities first
+      let propertyIdToUse = selectedProperty.id;
+      let templateIdToUse = selectedTemplate.id;
+      if (offlineMode || propertyIdToUse.startsWith('local:') || templateIdToUse.startsWith('local:')) {
+        try {
+          const res = await fetch('/api/quotes/ensure-entities', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              customerName: customerInput.trim() || 'Customer',
+              propertyAddress: propertyInput.trim() || 'Property',
+              propertyType: selectedProperty?.propertyType ?? 'Residential',
+              area: Number(area) || 0,
+              templateName: templateInput.trim() || 'General Service',
+            }),
+          });
+          if (res.ok) {
+            const data = await res.json();
+            propertyIdToUse = data.property.id;
+            templateIdToUse = data.template.id;
+          }
+        } catch {
+          // ignore, we'll attempt to save with local IDs which will fail gracefully
+        }
+      }
+
       const response = await fetch('/api/quotes/create', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          propertyId: selectedProperty.id,
-          serviceTemplateId: selectedTemplate.id,
+          propertyId: propertyIdToUse,
+          serviceTemplateId: templateIdToUse,
           // We will pass the same object used for runPricingEngine
           pricingInput: {
             propertyType: selectedProperty.propertyType,
