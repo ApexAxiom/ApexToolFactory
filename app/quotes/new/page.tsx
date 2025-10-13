@@ -384,6 +384,11 @@ export default function QuoteWizardPage() {
           customerId = resolved;
           handleCustomerSelect(resolved);
         }
+        // Fallback to first available customer when no input is provided
+        if (!customerId && bootstrap.customers[0]) {
+          customerId = bootstrap.customers[0].id;
+          handleCustomerSelect(customerId);
+        }
       }
 
       if (!propertyId) {
@@ -392,6 +397,15 @@ export default function QuoteWizardPage() {
           propertyId = resolved;
           handlePropertySelect(resolved);
         }
+        // Fallback to first property of selected (or first) customer
+        if (!propertyId) {
+          const customer = customerId ? findCustomerById(customerId) : bootstrap.customers[0] || null;
+          const firstProperty = customer?.properties?.[0];
+          if (firstProperty) {
+            propertyId = firstProperty.id;
+            handlePropertySelect(propertyId);
+          }
+        }
       }
 
       if (!templateId) {
@@ -399,6 +413,11 @@ export default function QuoteWizardPage() {
         if (resolved) {
           templateId = resolved;
           handleTemplateSelect(resolved);
+        }
+        // Fallback to first available template
+        if (!templateId && bootstrap.templates[0]) {
+          templateId = bootstrap.templates[0].id;
+          handleTemplateSelect(templateId);
         }
       }
 
@@ -906,8 +925,19 @@ export default function QuoteWizardPage() {
             )}
           </div>
 
-          <div className="mt-4 flex flex-wrap items-center gap-2 sm:gap-3 pb-2">
-            <Button type="button" onClick={handleNext} disabled={current >= wizardSteps.length} className="min-w-[80px] touch-manipulation">Next</Button>
+          <div className="mt-4 flex flex-wrap items-center gap-2 sm:gap-3 pb-2 sticky bottom-0 z-10 bg-white/60 backdrop-blur rounded-xl p-2">
+            <Button
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                handleNext();
+              }}
+              disabled={current >= wizardSteps.length}
+              className="min-w-[80px] touch-manipulation"
+            >
+              Next
+            </Button>
             <Button
               type="button"
               variant="secondary"

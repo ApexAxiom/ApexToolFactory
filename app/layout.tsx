@@ -12,7 +12,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
     <html lang="en">
       <body className="min-h-screen bg-slate-50 pb-20">
         <div className="mx-auto max-w-7xl space-y-6 p-4 sm:p-6 sm:space-y-8">
-          <header className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between rounded-2xl bg-gradient-to-r from-[color:var(--brand-primary-from)] to-[color:var(--brand-primary-to)] p-4 sm:p-6 text-white shadow-soft">
+          <header className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between rounded-2xl bg-gradient-to-r from-[var(--brand-primary-from)] to-[var(--brand-primary-to)] p-4 sm:p-6 text-white shadow-soft">
             <div>
               <h1 className="text-xl sm:text-2xl font-semibold">PestPro Quotations</h1>
               <p className="text-sm text-white/90">Deliver accurate proposals for every property type.</p>

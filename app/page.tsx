@@ -49,7 +49,7 @@ const ctaLinks = [
 export default function WelcomePage() {
   return (
     <div className="space-y-8 sm:space-y-16">
-      <section className="relative overflow-hidden rounded-2xl sm:rounded-3xl bg-gradient-to-br from-[color:var(--brand-primary-from)]/95 via-[color:var(--brand-primary-to)]/90 to-sky-500/80 p-6 sm:p-10 text-white shadow-soft">
+      <section className="relative overflow-hidden rounded-2xl sm:rounded-3xl bg-gradient-to-br from-[var(--brand-primary-from)] via-[var(--brand-primary-to)] to-sky-600 p-6 sm:p-10 text-white shadow-soft">
         <div className="absolute -right-20 -top-20 h-56 w-56 rounded-full bg-white/10 blur-3xl" aria-hidden="true" />
         <div className="absolute -bottom-24 -left-10 h-72 w-72 rounded-full bg-white/10 blur-3xl" aria-hidden="true" />
         <div className="relative mx-auto max-w-3xl space-y-4 sm:space-y-6 text-center">
