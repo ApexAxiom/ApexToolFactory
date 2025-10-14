@@ -1,5 +1,6 @@
 import { Fragment, type PropsWithChildren, type ReactNode } from 'react';
 import { Dialog, Transition } from '@headlessui/react';
+
 import { Button } from './Button';
 
 export interface ModalProps {

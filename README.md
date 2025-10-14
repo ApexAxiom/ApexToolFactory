@@ -1,82 +1,88 @@
 # PestPro Quotations
 
-PestPro Quotations is a multi-tenant SaaS platform that empowers pest-control companies to build accurate proposals for residential and commercial properties. The stack is designed for deterministic pricing, tenant isolation, and AWS App Runner readiness.
+PestPro Quotations is a production-focused, server-rendered quoting tool for pest-control operators. The app runs on Next.js 14 (App Router) with Prisma ORM and a deterministic pricing engine that executes entirely on the server.
 
-## Features
-- Next.js 14 App Router with Tailwind CSS UI and accessible design system
-- Iron-session authentication with role-based access (Owner, Manager, Estimator, Viewer)
-- Prisma ORM with SQLite (dev) and Aurora PostgreSQL (prod) support
-- Deterministic pricing engine with tier rules, materials, labor, travel, and rounding controls
-- PDF generation via pdfkit and email previews with Nodemailer
-- AWS CDK stacks for App Runner and Amplify Hosting options
-- Vitest unit tests for pricing formulas and utilities
+## Highlights
+- Server-rendered HTML forms for login and quote creation (no SPA wizard state).
+- Iron-session authentication with hardened cookies and per-request rate limiting on the login form.
+- Prisma models scoped by `orgId` with composite uniques, transactional quote creation, and per-tenant quote number sequences.
+- Deterministic pricing engine shared between the UI and persistence layer.
+- JSON structured logs enriched with `x-request-id` from middleware for traceability.
+- Liveness (`/healthz`) and readiness (`/readyz`) probes suitable for AWS App Runner.
 
 ## Getting Started
-1. Install prerequisites: Node.js 20+, pnpm 8+
-2. Install dependencies:
+1. **Install prerequisites** – Node.js 20+ and pnpm 8+.
+2. **Install dependencies**
    ```sh
    pnpm install
    ```
-3. Configure environment:
+3. **Create your environment file**
    ```sh
    cp .env.example .env
    ```
-   Update `SESSION_PASSWORD` and AWS placeholders as needed. Optional: set `NEXT_PUBLIC_E2E=1` locally to exercise the wizard self-test flow.
-4. Generate Prisma client and apply migrations:
+   - For local SQLite, set `DATABASE_PROVIDER=sqlite` and `DATABASE_URL="file:./dev.db"`.
+   - For Postgres, set `DATABASE_PROVIDER=postgresql` and a production-grade `DATABASE_URL`.
+   - Always set `SESSION_PASSWORD` to a random 32+ character string.
+4. **Generate the Prisma client and run migrations**
    ```sh
-   pnpm prisma:generate
-   pnpm prisma:migrate dev --name init
-   pnpm prisma:seed
+   # Postgres (production-style)
+   pnpm prisma generate
+   pnpm prisma migrate dev --name init
+
+   # OR SQLite for local development
+   pnpm prisma:generate:sqlite
+   pnpm prisma:migrate:sqlite --name init
    ```
-5. Run the app locally:
+5. **Seed the database** (idempotent)
+   ```sh
+   pnpm seed
+   ```
+   The seed script prints the admin login (`admin@example.com` / `ChangeMe!2025`).
+6. **Run the app locally**
    ```sh
    pnpm dev
    ```
-6. Log in with seeded credentials: `admin@example.com` / `Password123!`
+   Visit `http://localhost:3000/login` and sign in with the seeded credentials.
 
 ## Scripts
-- `pnpm dev` – Run Next.js locally
-- `pnpm build` – Run Prisma generate/migrate deploy then build the production bundle
-- `pnpm start` – Start the production server (binds to `$PORT`)
-- `pnpm lint` – ESLint with Next.js configuration
-- `pnpm typecheck` – Strict TypeScript compilation
-- `pnpm test` – Vitest unit tests
-- `pnpm prisma:generate`, `pnpm prisma:migrate`, `pnpm prisma:seed` – Database workflows
-- `pnpm infra:cdk:bootstrap`, `pnpm infra:cdk:deploy:apprunner`, `pnpm infra:cdk:deploy:amplify` – AWS CDK utilities
+- `pnpm dev` – Run the Next.js development server.
+- `pnpm build` – Generate Prisma client, apply `migrate deploy`, and build the production bundle.
+- `pnpm start` – Start Next.js in production mode (binds to `$PORT`).
+- `pnpm lint` – ESLint using the Next.js configuration.
+- `pnpm typecheck` – Strict TypeScript type checking.
+- `pnpm test` – Vitest unit test suite.
+- `pnpm seed` – Seed baseline data (safe to run repeatedly).
 
-## Size Gate
-Binary files or assets over 500 KB must use Git LFS. Configure a safety threshold:
-```sh
-git config core.bigFileThreshold 500k
-```
-CI includes a size check to block large files.
+## Database & Multi-tenancy
+- All Prisma models include an `orgId` column with composite uniques (`Customer`, `Property`, `ServiceTemplate`, `Quote`, etc.).
+- Quote creation runs inside a transaction and calls `allocateQuoteNumber` to generate monotonic, per-org IDs (e.g., `Q20240401-0001`).
+- `QuoteSequence` maintains the next serial per organization.
+- Deleting customers or templates is restricted by foreign keys to avoid dangling references.
 
-## Testing
-Run the full quality gate before merging:
-```sh
-pnpm lint
-pnpm typecheck
-pnpm test
-```
+## Security & Guardrails
+- Session cookies (`aa.sid`) are HttpOnly, SameSite=Lax, and secure in production.
+- Login attempts are rate limited (defaults: 10 attempts per 5 minutes) and logged with structured metadata.
+- `requireOrgId` enforces org scoping for every Prisma query invoked by server components and actions.
+- Legacy API routes are disabled (HTTP 410) in favor of the new server-rendered workflows.
 
-## AWS Deployment
-1. Bootstrap CDK environment: `pnpm infra:cdk:bootstrap`
-2. Deploy App Runner stack (container-first): `pnpm infra:cdk:deploy:apprunner`
-3. Alternatively deploy Amplify Hosting: `pnpm infra:cdk:deploy:amplify`
-4. Populate Secrets Manager with `DATABASE_URL`, `SESSION_PASSWORD`, and `ASSET_BUCKET`
-5. App Runner health checks use `GET /healthz`
+## Observability & Ops
+- Middleware assigns/propagates `x-request-id` on every request. Use this value in logs when troubleshooting.
+- `src/lib/log.ts` emits JSON logs with `level`, `msg`, and metadata. App Runner or CloudWatch can parse these directly.
+- Health endpoints:
+  - `GET /healthz` – liveness probe returning `ok`.
+  - `GET /readyz` – readiness probe that pings the database (`SELECT 1`).
+- Quote PDF generation is stubbed (`GET /quotes/:id/pdf` returns 204) with a TODO marker for future integration.
 
-App Runner reads `apprunner.yaml` to install, build, and run `pnpm start` on port 8080.
-
-### AWS App Runner ("Agility" server) readiness
-- The `infra/cdk/lib/apprunner-stack.ts` stack provisions an App Runner service with a VPC connector to private Aurora subnets and injects `DATABASE_URL` from Secrets Manager, so no public database exposure is required.
-- `apprunner.yaml` targets the Node.js managed runtime, installs with `pnpm`, and starts the server on `$PORT`/`0.0.0.0`, matching App Runner’s expectations.
-- Health checks are configured against `/healthz`, and storage writes (PDFs, logos) are prefixed by `organizationId/…` in S3, maintaining tenant isolation.
-- To deploy into another AWS environment (for example, an “Agility” sandbox), point the CDK context at that account/region, ensure Secrets Manager contains the required secrets, and redeploy the App Runner stack—no code changes are needed.
-
-## Observability
-- `/healthz` returns `{ ok: true }` for uptime checks.
-- Application logs flow to App Runner CloudWatch logs. Include pricing snapshot IDs for debugging quotes.
+## Deployment Notes
+- Managed runtime via `apprunner.yaml` (Node.js) is supported; ensure `$PORT` is honored.
+- Provision secrets (e.g., `DATABASE_URL`, `SESSION_PASSWORD`) via AWS Secrets Manager and inject them into the runtime.
+- Run the quality gate before merging or deploying:
+  ```sh
+  pnpm lint
+  pnpm typecheck
+  pnpm test
+  ```
+- Logs emitted by Next.js/Node flow to App Runner’s CloudWatch group; filter by `requestId` for traceability.
 
 ## Rollback
-See [docs/rollback.md](docs/rollback.md) for the rollback procedure.
+Refer to [docs/rollback.md](docs/rollback.md) for step-by-step rollback procedures.

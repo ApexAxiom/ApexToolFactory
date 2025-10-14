@@ -67,7 +67,20 @@ export class AppRunnerStack extends Stack {
           repositoryUrl: 'https://github.com/example/apex-pest-quoting',
           sourceCodeVersion: { type: 'BRANCH', value: 'main' },
           codeConfiguration: {
-            configurationSource: 'REPOSITORY',
+            configurationSource: 'API',
+            codeConfigurationValues: {
+              runtime: 'NODEJS_18',
+              buildCommand: 'npm ci && npm run build',
+              startCommand: 'npm run start',
+              port: '8080',
+              runtimeEnvironmentSecrets: [
+                { name: 'DATABASE_URL', value: cluster.secret!.secretArn },
+              ],
+              runtimeEnvironmentVariables: [
+                { name: 'AWS_REGION', value: Stack.of(this).region },
+                { name: 'ASSET_BUCKET', value: assetBucket.bucketName },
+              ],
+            },
           },
         },
         authenticationConfiguration,
@@ -92,17 +105,6 @@ export class AppRunnerStack extends Stack {
         timeout: 5,
       },
       autoScalingConfigurationArn: autoScaling.attrAutoScalingConfigurationArn,
-      serviceConfiguration: {
-        runtimeConfiguration: {
-          runtimeEnvironmentSecrets: [
-            { name: 'DATABASE_URL', value: cluster.secret!.secretArn },
-          ],
-          runtimeEnvironmentVariables: [
-            { name: 'AWS_REGION', value: Stack.of(this).region },
-            { name: 'ASSET_BUCKET', value: assetBucket.bucketName },
-          ],
-        },
-      },
     });
   }
 }

@@ -1,0 +1,221 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Organization {
+  id               String                @id @default(uuid())
+  name             String
+  createdAt        DateTime              @default(now())
+  updatedAt        DateTime              @updatedAt
+  users            User[]
+  customers        Customer[]
+  properties       Property[]
+  chemicals        Chemical[]
+  serviceTemplates ServiceTemplate[]
+  pricingPresets   PricingPreset[]
+  quotes           Quote[]
+  quoteSequence    QuoteSequence?
+}
+
+model User {
+  id           String        @id @default(uuid())
+  email        String        @unique
+  passwordHash String
+  orgId        String?
+  org          Organization? @relation(fields: [orgId], references: [id], onDelete: SetNull)
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  @@index([orgId])
+}
+
+model Customer {
+  id        String        @id @default(uuid())
+  orgId     String
+  org       Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  name      String
+  email     String?
+  phone     String?
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+  properties Property[]
+  quotes     Quote[]
+
+  @@unique([orgId, name])
+  @@index([orgId, name])
+}
+
+model Property {
+  id           String        @id @default(uuid())
+  orgId        String
+  org          Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  customerId   String
+  customer     Customer     @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  name         String
+  propertyType String
+  area         Float
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  quotes       Quote[]
+
+  @@unique([orgId, name])
+  @@index([orgId, name])
+  @@index([customerId])
+}
+
+model Chemical {
+  id            String                @id @default(uuid())
+  orgId         String
+  org           Organization          @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  name          String
+  packageSize   Float
+  packageUnit   String
+  packageCost   Float
+  wastePercent  Float
+  createdAt     DateTime              @default(now())
+  updatedAt     DateTime              @updatedAt
+  templateLinks ServiceTemplateChemical[]
+
+  @@unique([orgId, name])
+  @@index([orgId, name])
+}
+
+model ServiceTemplate {
+  id                             String                   @id @default(uuid())
+  orgId                          String
+  org                            Organization             @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  name                           String
+  description                    String?
+  mainUnit                       String
+  setupTimeHrs                   Float
+  timePer1000Hrs                 Float
+  minPrice                       Float
+  defaultInfestationMultiplier   Float
+  defaultComplexityMultiplier    Float
+  residentialMultiplier          Float
+  commercialMultiplier           Float
+  tierRules                      String?
+  createdAt                      DateTime                 @default(now())
+  updatedAt                      DateTime                 @updatedAt
+  chemicals                      ServiceTemplateChemical[]
+  quotes                         Quote[]
+
+  @@unique([orgId, name])
+  @@index([orgId, name])
+}
+
+model ServiceTemplateChemical {
+  id               String           @id @default(uuid())
+  orgId            String
+  templateId       String
+  template         ServiceTemplate  @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  chemicalId       String
+  chemical         Chemical         @relation(fields: [chemicalId], references: [id], onDelete: Restrict)
+  useFor           String
+  usageRatePer1000 Float
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+
+  @@index([templateId])
+  @@index([chemicalId])
+  @@unique([templateId, chemicalId, useFor])
+  @@index([orgId])
+}
+
+model PricingPreset {
+  id                String        @id @default(uuid())
+  orgId             String
+  org               Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  name              String
+  pricingMode       String
+  marginOrMarkup    Float
+  hourlyWage        Float
+  burdenPercent     Float
+  travelFixedMinutes Int
+  travelMinutesPerMile Float
+  travelMiles       Float         @default(0)
+  fees              Float         @default(0)
+  discounts         Float         @default(0)
+  taxRate           Float         @default(0)
+  roundingRule      String
+  minimum           Float
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+  quotes            Quote[]
+
+  @@unique([orgId, name])
+  @@index([orgId, name])
+}
+
+model Quote {
+  id                String        @id @default(uuid())
+  orgId             String
+  org               Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  quoteNumber       String
+  customerId        String
+  customer          Customer     @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  propertyId        String
+  property          Property     @relation(fields: [propertyId], references: [id], onDelete: Restrict)
+  serviceTemplateId String
+  serviceTemplate   ServiceTemplate @relation(fields: [serviceTemplateId], references: [id], onDelete: Restrict)
+  pricingPresetId   String?
+  pricingPreset     PricingPreset? @relation(fields: [pricingPresetId], references: [id], onDelete: SetNull)
+  propertyType      String
+  area              Float
+  interior          Boolean
+  exterior          Boolean
+  pricingMode       String
+  marginOrMarkup    Float
+  hourlyWage        Float
+  burdenPercent     Float
+  travelFixedMinutes Int
+  travelMinutesPerMile Float
+  travelMiles       Float
+  fees              Float
+  discounts         Float
+  taxRate           Float
+  roundingRule      String
+  minimum           Float
+  subtotal          Float
+  tax               Float
+  total             Float
+  currency          String        @default("USD")
+  breakdown         String
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+  items             QuoteItem[]
+
+  @@unique([orgId, quoteNumber])
+  @@index([orgId, createdAt])
+  @@index([customerId])
+  @@index([propertyId])
+}
+
+model QuoteItem {
+  id        String        @id @default(uuid())
+  orgId     String
+  quoteId   String
+  quote     Quote        @relation(fields: [quoteId], references: [id], onDelete: Cascade)
+  kind      String
+  label     String
+  amount    Float
+  quantity  Float?
+  unit      String?
+  unitCost  Float?
+  createdAt DateTime      @default(now())
+
+  @@index([quoteId])
+  @@index([orgId, kind])
+  @@index([orgId])
+}
+
+model QuoteSequence {
+  orgId String @id
+  next  Int    @default(1)
+  org   Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+}

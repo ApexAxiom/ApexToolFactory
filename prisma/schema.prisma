@@ -8,273 +8,214 @@ datasource db {
 }
 
 model Organization {
-  id          String   @id @default(cuid())
-  name        String
-  subdomain   String?  @unique
-  createdAt   DateTime @default(now())
-  users       User[]
-  settings    CompanySettings?
-  customers   Customer[]
-  properties  Property[]
-  chemicals   Chemical[]
+  id               String                @id @default(uuid())
+  name             String
+  createdAt        DateTime              @default(now())
+  updatedAt        DateTime              @updatedAt
+  users            User[]
+  customers        Customer[]
+  properties       Property[]
+  chemicals        Chemical[]
   serviceTemplates ServiceTemplate[]
-  tierRules   TierRule[]
-  quotes      Quote[]
-  files       File[]
-  invites     Invite[]
-  auditLogs   AuditLog[]
-  serviceRecipeItems ServiceRecipeItem[]
-  quoteLineItems QuoteLineItem[]
-  quoteCalcSnapshots QuoteCalcSnapshot[]
-  pricingPresets PricingPreset[]
+  pricingPresets   PricingPreset[]
+  quotes           Quote[]
+  quoteSequence    QuoteSequence?
 }
 
 model User {
-  id           String   @id @default(cuid())
-  organization Organization @relation(fields: [organizationId], references: [id])
-  organizationId String
-  email        String
+  id           String        @id @default(uuid())
+  email        String        @unique
   passwordHash String
-  role         Role
-  name         String
-  createdAt    DateTime @default(now())
+  orgId        String?
+  org          Organization? @relation(fields: [orgId], references: [id], onDelete: SetNull)
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
 
-  @@unique([organizationId, email])
-  auditLogs    AuditLog[]
-}
-
-enum Role {
-  Owner
-  Manager
-  Estimator
-  Viewer
-}
-
-model CompanySettings {
-  id                  String   @id @default(cuid())
-  organization        Organization @relation(fields: [organizationId], references: [id])
-  organizationId      String   @unique
-  currency            String
-  taxRate             Float
-  unitsArea           String
-  unitsVolume         String
-  roundingRule        String
-  pricingMode         String
-  targetMargin        Float
-  defaultMarkup       Float
-  hourlyWage          Float
-  burdenPercent       Float
-  crewSize            Int
-  travelFixedMin      Int
-  travelMinsPerMile   Float
-  minJobPrice         Float
-  quoteExpiryDays     Int
-  termsText           String
-  brandPrimaryFrom    String
-  brandPrimaryTo      String
-  brandAccent         String
-  logoUrl             String?
-  address             String?
-  phone               String?
-  createdAt           DateTime @default(now())
-  updatedAt           DateTime @updatedAt
+  @@index([orgId])
 }
 
 model Customer {
-  id           String   @id @default(cuid())
-  organization Organization @relation(fields: [organizationId], references: [id])
-  organizationId String
-  type         String
-  name         String
-  email        String?
-  phone        String?
-  createdAt    DateTime @default(now())
-  properties   Property[]
+  id        String        @id @default(uuid())
+  orgId     String
+  org       Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  name      String
+  email     String?
+  phone     String?
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+  properties Property[]
+  quotes     Quote[]
+
+  @@unique([orgId, name])
+  @@index([orgId, name])
 }
 
 model Property {
-  id             String   @id @default(cuid())
-  organization   Organization @relation(fields: [organizationId], references: [id])
-  organizationId String
-  customer       Customer @relation(fields: [customerId], references: [id])
-  customerId     String
-  propertyType   String
-  address        String
-  area           Float
-  notes          String?
-  createdAt      DateTime @default(now())
-  quotes         Quote[]
+  id           String        @id @default(uuid())
+  orgId        String
+  org          Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  customerId   String
+  customer     Customer     @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  name         String
+  propertyType String
+  area         Float
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  quotes       Quote[]
+
+  @@unique([orgId, name])
+  @@index([orgId, name])
+  @@index([customerId])
 }
 
 model Chemical {
-  id            String   @id @default(cuid())
-  organization  Organization @relation(fields: [organizationId], references: [id])
-  organizationId String
+  id            String                @id @default(uuid())
+  orgId         String
+  org           Organization          @relation(fields: [orgId], references: [id], onDelete: Cascade)
   name          String
-  vendorSku     String?
   packageSize   Float
   packageUnit   String
   packageCost   Float
-  concentration Float?
   wastePercent  Float
-  notes         String?
-  createdAt     DateTime @default(now())
-  recipeItems   ServiceRecipeItem[]
+  createdAt     DateTime              @default(now())
+  updatedAt     DateTime              @updatedAt
+  templateLinks ServiceTemplateChemical[]
 
-  @@unique([organizationId, name], name: "organizationId_name")
-  @@index([organizationId, name])
+  @@unique([orgId, name])
+  @@index([orgId, name])
 }
 
 model ServiceTemplate {
-  id            String   @id @default(cuid())
-  organization  Organization @relation(fields: [organizationId], references: [id])
-  organizationId String
-  name          String
-  description   String?
-  mainUnit      String
-  setupTimeHrs  Float
-  timePer1000Hrs Float
-  minPrice      Float
-  defaultInfestationMultiplier Float
-  defaultComplexityMultiplier Float
-  residentialMultiplier Float
-  commercialMultiplier Float
-  createdAt     DateTime @default(now())
-  recipeItems   ServiceRecipeItem[]
-  tierRules     TierRule[]
-  quotes        Quote[]
+  id                             String                   @id @default(uuid())
+  orgId                          String
+  org                            Organization             @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  name                           String
+  description                    String?
+  mainUnit                       String
+  setupTimeHrs                   Float
+  timePer1000Hrs                 Float
+  minPrice                       Float
+  defaultInfestationMultiplier   Float
+  defaultComplexityMultiplier    Float
+  residentialMultiplier          Float
+  commercialMultiplier           Float
+  tierRules                      String?
+  createdAt                      DateTime                 @default(now())
+  updatedAt                      DateTime                 @updatedAt
+  chemicals                      ServiceTemplateChemical[]
+  quotes                         Quote[]
+
+  @@unique([orgId, name])
+  @@index([orgId, name])
 }
 
-model ServiceRecipeItem {
-  id               String   @id @default(cuid())
-  organization     Organization @relation(fields: [organizationId], references: [id])
-  organizationId   String
-  serviceTemplate  ServiceTemplate @relation(fields: [serviceTemplateId], references: [id])
-  serviceTemplateId String
-  chemical         Chemical @relation(fields: [chemicalId], references: [id])
+model ServiceTemplateChemical {
+  id               String           @id @default(uuid())
+  orgId            String
+  templateId       String
+  template         ServiceTemplate  @relation(fields: [templateId], references: [id], onDelete: Cascade)
   chemicalId       String
+  chemical         Chemical         @relation(fields: [chemicalId], references: [id], onDelete: Restrict)
   useFor           String
   usageRatePer1000 Float
-  notes            String?
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+
+  @@index([templateId])
+  @@index([chemicalId])
+  @@unique([templateId, chemicalId, useFor])
+  @@index([orgId])
 }
 
-model TierRule {
-  id               String   @id @default(cuid())
-  organization     Organization @relation(fields: [organizationId], references: [id])
-  organizationId   String
-  serviceTemplate  ServiceTemplate @relation(fields: [serviceTemplateId], references: [id])
-  serviceTemplateId String
-  propertyType     String
-  fromArea         Float
-  toArea           Float?
-  priceFloor       Float?
-  pricePer1000Override Float?
-}
-
-model Quote {
-  id            String   @id @default(cuid())
-  organization  Organization @relation(fields: [organizationId], references: [id])
-  organizationId String
-  quoteNumber   String
-  property      Property @relation(fields: [propertyId], references: [id])
-  propertyId    String
-  serviceTemplate ServiceTemplate @relation(fields: [serviceTemplateId], references: [id])
-  serviceTemplateId String
-  status        String
-  subtotal      Float
-  tax           Float
-  total         Float
-  pricingModeSnapshot String
-  marginOrMarkupValue Float
-  expiresAt     DateTime
-  pdfKey        String?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-  lineItems     QuoteLineItem[]
-  snapshot      QuoteCalcSnapshot?
-
-  @@unique([organizationId, quoteNumber])
-}
-
-model QuoteLineItem {
-  id            String   @id @default(cuid())
-  organization  Organization @relation(fields: [organizationId], references: [id])
-  organizationId String
-  quote         Quote @relation(fields: [quoteId], references: [id])
-  quoteId       String
-  kind          String
-  label         String
-  qty           Float?
-  unit          String?
-  unitCost      Float?
-  amount        Float
-  isOverride    Boolean?
-  overrideReason String?
-}
-
-model QuoteCalcSnapshot {
-  id            String   @id @default(cuid())
-  organization  Organization @relation(fields: [organizationId], references: [id])
-  organizationId String
-  quote         Quote @relation(fields: [quoteId], references: [id])
-  quoteId       String @unique
-  json          Json
-}
-
-/// Stores reusable pricing configurations users can quickly apply to new quotes.
 model PricingPreset {
-  id                String   @id @default(cuid())
-  organization      Organization @relation(fields: [organizationId], references: [id])
-  organizationId    String
+  id                String        @id @default(uuid())
+  orgId             String
+  org               Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
   name              String
-  pricingMode       String   // 'margin' | 'markup'
+  pricingMode       String
   marginOrMarkup    Float
   hourlyWage        Float
   burdenPercent     Float
-  taxRate           Float
-  roundingRule      String   // 'nearest_1' | 'nearest_5' | 'psychological_9'
+  travelFixedMinutes Int
+  travelMinutesPerMile Float
+  travelMiles       Float         @default(0)
+  fees              Float         @default(0)
+  discounts         Float         @default(0)
+  taxRate           Float         @default(0)
+  roundingRule      String
   minimum           Float
-  travelFixedMin    Int
-  travelMinsPerMile Float
-  fees              Float    @default(0)
-  discounts         Float    @default(0)
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+  quotes            Quote[]
 
-  @@index([organizationId, name])
+  @@unique([orgId, name])
+  @@index([orgId, name])
 }
 
-model File {
-  id           String   @id @default(cuid())
-  organization Organization @relation(fields: [organizationId], references: [id])
-  organizationId String
-  kind         String
-  s3Key        String
-  url          String
-  createdAt    DateTime @default(now())
+model Quote {
+  id                String        @id @default(uuid())
+  orgId             String
+  org               Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  quoteNumber       String
+  customerId        String
+  customer          Customer     @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  propertyId        String
+  property          Property     @relation(fields: [propertyId], references: [id], onDelete: Restrict)
+  serviceTemplateId String
+  serviceTemplate   ServiceTemplate @relation(fields: [serviceTemplateId], references: [id], onDelete: Restrict)
+  pricingPresetId   String?
+  pricingPreset     PricingPreset? @relation(fields: [pricingPresetId], references: [id], onDelete: SetNull)
+  propertyType      String
+  area              Float
+  interior          Boolean
+  exterior          Boolean
+  pricingMode       String
+  marginOrMarkup    Float
+  hourlyWage        Float
+  burdenPercent     Float
+  travelFixedMinutes Int
+  travelMinutesPerMile Float
+  travelMiles       Float
+  fees              Float
+  discounts         Float
+  taxRate           Float
+  roundingRule      String
+  minimum           Float
+  subtotal          Float
+  tax               Float
+  total             Float
+  currency          String        @default("USD")
+  breakdown         String
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+  items             QuoteItem[]
+
+  @@unique([orgId, quoteNumber])
+  @@index([orgId, createdAt])
+  @@index([customerId])
+  @@index([propertyId])
 }
 
-model Invite {
-  id           String   @id @default(cuid())
-  organization Organization @relation(fields: [organizationId], references: [id])
-  organizationId String
-  email        String
-  role         String
-  token        String @unique
-  expiresAt    DateTime
-  acceptedAt   DateTime?
+model QuoteItem {
+  id        String        @id @default(uuid())
+  orgId     String
+  quoteId   String
+  quote     Quote        @relation(fields: [quoteId], references: [id], onDelete: Cascade)
+  kind      String
+  label     String
+  amount    Float
+  quantity  Float?
+  unit      String?
+  unitCost  Float?
+  createdAt DateTime      @default(now())
+
+  @@index([quoteId])
+  @@index([orgId, kind])
+  @@index([orgId])
 }
 
-model AuditLog {
-  id           String   @id @default(cuid())
-  organization Organization @relation(fields: [organizationId], references: [id])
-  organizationId String
-  user          User? @relation(fields: [userId], references: [id])
-  userId        String?
-  action        String
-  entity        String
-  entityId      String
-  before        Json?
-  after         Json?
-  createdAt     DateTime @default(now())
+model QuoteSequence {
+  orgId String @id
+  next  Int    @default(1)
+  org   Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
 }

@@ -1,5 +1,13 @@
-import { NextResponse } from 'next/server';
+const message = 'Legacy API endpoint disabled. Use the server-rendered app flows.';
 
 export async function GET() {
-  return NextResponse.json({ ok: true, timestamp: new Date().toISOString() });
+  return new Response(message, { status: 410 });
+}
+
+export async function POST() {
+  return GET();
+}
+
+export async function PUT() {
+  return GET();
 }

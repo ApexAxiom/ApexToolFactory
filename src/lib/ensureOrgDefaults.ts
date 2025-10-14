@@ -5,7 +5,7 @@ import { prisma } from '@/lib/db';
 /**
  * Ensure that an organization has the minimal defaults needed for quoting.
  *
- * @param organizationId - The identifier for the organization to seed defaults for.
+ * @param orgId - The identifier for the organization to seed defaults for.
  * @returns A promise resolving to the ensured pricing preset and service template.
  *
  * @example
@@ -14,14 +14,12 @@ import { prisma } from '@/lib/db';
  * console.log(preset.name, template.name);
  * ```
  */
-export async function ensureOrgDefaults(
-  organizationId: string,
-): Promise<{ preset: PricingPreset; template: ServiceTemplate }> {
-  let preset = await prisma.pricingPreset.findFirst({ where: { organizationId } });
+export async function ensureOrgDefaults(orgId: string): Promise<{ preset: PricingPreset; template: ServiceTemplate }> {
+  let preset = await prisma.pricingPreset.findFirst({ where: { orgId } });
   if (!preset) {
     preset = await prisma.pricingPreset.create({
       data: {
-        organizationId,
+        orgId,
         name: 'Default',
         pricingMode: 'margin',
         marginOrMarkup: 0.45,
@@ -30,19 +28,20 @@ export async function ensureOrgDefaults(
         taxRate: 0.0825,
         roundingRule: 'nearest_5',
         minimum: 95,
-        travelFixedMin: 15,
-        travelMinsPerMile: 1.5,
+        travelFixedMinutes: 15,
+        travelMinutesPerMile: 1.5,
+        travelMiles: 0,
         fees: 0,
         discounts: 0,
       },
     });
   }
 
-  let template = await prisma.serviceTemplate.findFirst({ where: { organizationId } });
+  let template = await prisma.serviceTemplate.findFirst({ where: { orgId } });
   if (!template) {
     template = await prisma.serviceTemplate.create({
       data: {
-        organizationId,
+        orgId,
         name: 'General Pest (Interior/Exterior)',
         mainUnit: 'ft2',
         setupTimeHrs: 0.5,
@@ -52,6 +51,7 @@ export async function ensureOrgDefaults(
         defaultComplexityMultiplier: 1,
         residentialMultiplier: 1,
         commercialMultiplier: 1.15,
+        tierRules: '[]',
       },
     });
   }

@@ -1,107 +1,92 @@
-import { PrismaClient, Role } from '@prisma/client';
+import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 
 const prisma = new PrismaClient();
 
 async function main() {
-  const passwordHash = await bcrypt.hash('Password123!', 12);
-  const organization = await prisma.organization.upsert({
-    where: { subdomain: 'sample' },
-    update: {},
-    create: {
-      name: 'Sample Pest Control',
-      subdomain: 'sample',
-    },
-  });
+  const orgName = 'Apex Pest Control';
+  let org = await prisma.organization.findFirst({ where: { name: orgName } });
+  if (!org) {
+    org = await prisma.organization.create({
+      data: { name: orgName },
+    });
+  }
 
-  const user = await prisma.user.upsert({
-    where: { organizationId_email: { organizationId: organization.id, email: 'admin@example.com' } },
-    update: {},
+  const adminEmail = 'admin@example.com';
+  const passwordHash = await bcrypt.hash('ChangeMe!2025', 12);
+
+  await prisma.user.upsert({
+    where: { email: adminEmail },
+    update: { orgId: org.id },
     create: {
-      email: 'admin@example.com',
+      email: adminEmail,
       passwordHash,
-      role: Role.Owner,
-      name: 'Jordan Carter',
-      organizationId: organization.id,
+      orgId: org.id,
     },
   });
 
-  await prisma.companySettings.upsert({
-    where: { organizationId: organization.id },
+  const preset = await prisma.pricingPreset.upsert({
+    where: { orgId_name: { orgId: org.id, name: 'Standard Margin' } },
     update: {},
     create: {
-      organizationId: organization.id,
-      currency: 'USD',
-      taxRate: 0.0825,
-      unitsArea: 'ft2',
-      unitsVolume: 'gallon',
-      roundingRule: 'nearest_5',
+      orgId: org.id,
+      name: 'Standard Margin',
       pricingMode: 'margin',
-      targetMargin: 0.45,
-      defaultMarkup: 0.3,
+      marginOrMarkup: 0.45,
       hourlyWage: 22,
       burdenPercent: 0.28,
-      crewSize: 1,
-      travelFixedMin: 15,
-      travelMinsPerMile: 1.5,
-      minJobPrice: 95,
-      quoteExpiryDays: 30,
-      termsText: 'Payment due upon completion.',
-      brandPrimaryFrom: '#3b82f6',
-      brandPrimaryTo: '#10b981',
-      brandAccent: '#0ea5e9',
-      address: '123 Main St, Austin, TX',
+      travelFixedMinutes: 15,
+      travelMinutesPerMile: 1.5,
+      fees: 0,
+      discounts: 0,
+      taxRate: 0.0825,
+      roundingRule: 'nearest_5',
+      minimum: 95,
+    },
+  });
+
+  const customer = await prisma.customer.upsert({
+    where: { orgId_name: { orgId: org.id, name: 'Jordan Carter' } },
+    update: {},
+    create: {
+      orgId: org.id,
+      name: 'Jordan Carter',
+      email: 'jordan@example.com',
       phone: '512-555-0101',
     },
   });
 
-  const customer = await prisma.customer.create({
-    data: {
-      organizationId: organization.id,
-      type: 'person',
+  const property = await prisma.property.upsert({
+    where: { orgId_name: { orgId: org.id, name: 'Jordan Residence' } },
+    update: { customerId: customer.id, propertyType: 'Residential', area: 2400 },
+    create: {
+      orgId: org.id,
       name: 'Jordan Residence',
-      email: 'jordan@example.com',
-      phone: '512-555-0167',
-    },
-  });
-
-  const property = await prisma.property.create({
-    data: {
-      organizationId: organization.id,
       customerId: customer.id,
       propertyType: 'Residential',
-      address: '123 Main St, Austin, TX',
-      area: 2200,
-      notes: 'Two-story home with mild infestation',
+      area: 2400,
     },
   });
 
-  const bifenthrin = await prisma.chemical.create({
-    data: {
-      organizationId: organization.id,
+  const chemical = await prisma.chemical.upsert({
+    where: { orgId_name: { orgId: org.id, name: 'Bifenthrin 7.9%' } },
+    update: { packageSize: 1, packageUnit: 'gal', packageCost: 85, wastePercent: 0.05 },
+    create: {
+      orgId: org.id,
       name: 'Bifenthrin 7.9%',
       packageSize: 1,
-      packageUnit: 'gallon',
+      packageUnit: 'gal',
       packageCost: 85,
       wastePercent: 0.05,
     },
   });
 
-  const deltamethrin = await prisma.chemical.create({
-    data: {
-      organizationId: organization.id,
-      name: 'Deltamethrin WP',
-      packageSize: 1,
-      packageUnit: 'lb',
-      packageCost: 62,
-      wastePercent: 0.05,
-    },
-  });
-
-  const generalPest = await prisma.serviceTemplate.create({
-    data: {
-      organizationId: organization.id,
-      name: 'General Pest (Interior/Exterior)',
+  const template = await prisma.serviceTemplate.upsert({
+    where: { orgId_name: { orgId: org.id, name: 'General Pest Service' } },
+    update: {},
+    create: {
+      orgId: org.id,
+      name: 'General Pest Service',
       mainUnit: 'ft2',
       setupTimeHrs: 0.5,
       timePer1000Hrs: 0.35,
@@ -110,104 +95,43 @@ async function main() {
       defaultComplexityMultiplier: 1,
       residentialMultiplier: 1,
       commercialMultiplier: 1.15,
+      tierRules: '[]',
     },
   });
 
-  await prisma.serviceRecipeItem.createMany({
-    data: [
-      {
-        organizationId: organization.id,
-        serviceTemplateId: generalPest.id,
-        chemicalId: bifenthrin.id,
+  await prisma.serviceTemplateChemical.upsert({
+    where: {
+      templateId_chemicalId_useFor: {
+        templateId: template.id,
+        chemicalId: chemical.id,
         useFor: 'both',
-        usageRatePer1000: 3.2,
       },
-      {
-        organizationId: organization.id,
-        serviceTemplateId: generalPest.id,
-        chemicalId: deltamethrin.id,
-        useFor: 'interior',
-        usageRatePer1000: 1.1,
-      },
-    ],
-  });
-
-  await prisma.tierRule.createMany({
-    data: [
-      {
-        organizationId: organization.id,
-        serviceTemplateId: generalPest.id,
-        propertyType: 'Residential',
-        fromArea: 0,
-        toArea: 1500,
-      },
-      {
-        organizationId: organization.id,
-        serviceTemplateId: generalPest.id,
-        propertyType: 'Residential',
-        fromArea: 1501,
-        toArea: 2500,
-        priceFloor: 125,
-      },
-      {
-        organizationId: organization.id,
-        serviceTemplateId: generalPest.id,
-        propertyType: 'Residential',
-        fromArea: 2501,
-        toArea: 4000,
-        priceFloor: 165,
-      },
-    ],
-  });
-
-  const termite = await prisma.serviceTemplate.create({
-    data: {
-      organizationId: organization.id,
-      name: 'Termite Perimeter',
-      mainUnit: 'linear_ft',
-      setupTimeHrs: 0.75,
-      timePer1000Hrs: 0.45,
-      minPrice: 175,
-      defaultInfestationMultiplier: 1,
-      defaultComplexityMultiplier: 1.1,
-      residentialMultiplier: 1,
-      commercialMultiplier: 1.2,
+    },
+    update: { usageRatePer1000: 3.2 },
+    create: {
+      orgId: org.id,
+      templateId: template.id,
+      chemicalId: chemical.id,
+      useFor: 'both',
+      usageRatePer1000: 3.2,
     },
   });
 
-  await prisma.serviceRecipeItem.create({
-    data: {
-      organizationId: organization.id,
-      serviceTemplateId: termite.id,
-      chemicalId: bifenthrin.id,
-      useFor: 'exterior',
-      usageRatePer1000: 4.5,
-    },
+  await prisma.quoteSequence.upsert({
+    where: { orgId: org.id },
+    update: {},
+    create: { orgId: org.id, next: 1 },
   });
 
-  await prisma.quote.create({
-    data: {
-      organizationId: organization.id,
-      quoteNumber: 'Q-2024-0001',
-      propertyId: property.id,
-      serviceTemplateId: generalPest.id,
-      status: 'Draft',
-      subtotal: 320,
-      tax: 26.4,
-      total: 346.4,
-      pricingModeSnapshot: 'margin',
-      marginOrMarkupValue: 0.45,
-      expiresAt: new Date(Date.now() + 1000 * 60 * 60 * 24 * 30),
-    },
-  });
-
-  console.log(`Seeded organization ${organization.name} with owner ${user.email}`);
+  console.log('Seeded admin user. Login with admin@example.com / ChangeMe!2025');
+  console.log('Default preset:', preset.name);
+  console.log('Customer/property/template ready for quick quoting.');
 }
 
 main()
-  .catch((error) => {
-    console.error(error);
-    process.exit(1);
+  .catch((err) => {
+    console.error('Seed failed', err);
+    process.exitCode = 1;
   })
   .finally(async () => {
     await prisma.$disconnect();

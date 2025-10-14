@@ -1,4 +1,5 @@
 import Link from 'next/link';
+
 import { Form } from '@/components/forms/Form';
 import { FormField } from '@/components/forms/FormField';
 import { Input } from '@/components/ui/Input';
@@ -8,7 +9,7 @@ export default function SignupPage() {
   return (
     <div className="mx-auto max-w-xl">
       <Form
-        title="Create your organization"
+        heading="Create your organization"
         description="Launch a new workspace with a secure multi-tenant environment."
         actions={<Button type="submit">Create account</Button>}
       >
