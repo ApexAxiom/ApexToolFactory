@@ -1,4 +1,5 @@
 import Link from 'next/link';
+
 import { Card } from '@/components/ui/Card';
 
 const features = [

@@ -1,8 +1,9 @@
 import crypto from 'crypto';
+
 import { calculateLaborCost, calculateMaterialCost, calculatePrice, calculateTravelCost } from './formulas';
 import { findTierRule, resolvePropertyMultiplier } from './rules';
 import { normalizeMainQuantity, type AreaUnit, type MainUnit } from './units';
-import { PricingInputSchema, type PricingInput } from './schema';
+import { PricingInputSchema } from './schema';
 
 export interface PricingLineItem {
   kind: 'materials' | 'labor' | 'travel' | 'fee' | 'discount' | 'other' | 'tax';
@@ -99,8 +100,8 @@ export function runPricingEngine(unsafeInput: unknown): PricingResult {
     hourlyWage: input.hourlyWage,
     burdenPercent: input.burdenPercent,
     overrides: {
-      minutes: input.travelOverrideMinutes,
-      amount: input.travelOverrideAmount,
+      ...(input.travelOverrideMinutes !== undefined ? { minutes: input.travelOverrideMinutes } : {}),
+      ...(input.travelOverrideAmount !== undefined ? { amount: input.travelOverrideAmount } : {}),
     },
   });
 
@@ -137,7 +138,7 @@ export function runPricingEngine(unsafeInput: unknown): PricingResult {
       unit: 'hours',
       unitCost: input.hourlyWage,
       isOverride: input.manualLaborAdderHours > 0,
-      overrideReason: input.manualLaborReason,
+      ...(input.manualLaborReason ? { overrideReason: input.manualLaborReason } : {}),
     },
     {
       kind: 'travel',
@@ -147,7 +148,7 @@ export function runPricingEngine(unsafeInput: unknown): PricingResult {
       unit: 'minutes',
       unitCost: (input.hourlyWage * (1 + input.burdenPercent)) / 60,
       isOverride: Boolean(input.travelOverrideAmount || input.travelOverrideMinutes),
-      overrideReason: input.travelOverrideReason,
+      ...(input.travelOverrideReason ? { overrideReason: input.travelOverrideReason } : {}),
     },
   ];
 

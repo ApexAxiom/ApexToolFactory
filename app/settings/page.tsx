@@ -8,7 +8,7 @@ export default function SettingsPage() {
   return (
     <div className="mx-auto max-w-3xl space-y-8">
       <Form
-        title="Company settings"
+        heading="Company settings"
         description="Customize brand, defaults, and pricing controls for your organization."
         actions={<Button type="submit">Save changes</Button>}
       >

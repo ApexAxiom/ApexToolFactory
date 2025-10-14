@@ -1,13 +1,13 @@
-import { NextResponse } from 'next/server';
-import nodemailer from 'nodemailer';
+const message = 'Legacy API endpoint disabled. Use the server-rendered app flows.';
+
+export async function GET() {
+  return new Response(message, { status: 410 });
+}
 
 export async function POST() {
-  const transport = nodemailer.createTransport({ jsonTransport: true });
-  const info = await transport.sendMail({
-    to: 'customer@example.com',
-    from: 'quotes@example.com',
-    subject: 'Your pest-control quote is ready',
-    text: 'Review your quote at https://example.com/quotes/Q-2024-0004',
-  });
-  return NextResponse.json({ preview: info.message });
+  return GET();
+}
+
+export async function PUT() {
+  return GET();
 }
