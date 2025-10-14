@@ -1,61 +1,8 @@
 import crypto from 'crypto';
-import { z } from 'zod';
 import { calculateLaborCost, calculateMaterialCost, calculatePrice, calculateTravelCost } from './formulas';
-import type { TierRule } from './rules';
 import { findTierRule, resolvePropertyMultiplier } from './rules';
 import { normalizeMainQuantity, type AreaUnit, type MainUnit } from './units';
-
-export const PricingInputSchema = z.object({
-  propertyType: z.enum(['Residential', 'Commercial']),
-  area: z.number().positive(),
-  infestationMultiplier: z.number().positive().default(1),
-  complexityMultiplier: z.number().positive().default(1),
-  interior: z.boolean().default(true),
-  exterior: z.boolean().default(true),
-  chemicals: z.array(
-    z.object({
-      id: z.string(),
-      name: z.string(),
-      usageRatePer1000: z.number().nonnegative(),
-      packageSize: z.number().positive(),
-      packageCost: z.number().nonnegative(),
-      wastePercent: z.number().nonnegative(),
-      useFor: z.enum(['interior', 'exterior', 'both']),
-    }),
-  ),
-  setupTime: z.number().nonnegative(),
-  timePer1000: z.number().nonnegative(),
-  hourlyWage: z.number().nonnegative(),
-  burdenPercent: z.number().nonnegative(),
-  travelFixedMinutes: z.number().nonnegative(),
-  travelMinutesPerMile: z.number().nonnegative(),
-  travelMiles: z.number().nonnegative(),
-  travelOverrideMinutes: z.number().nonnegative().optional(),
-  travelOverrideAmount: z.number().nonnegative().optional(),
-  travelOverrideReason: z.string().min(1).optional(),
-  manualLaborAdderHours: z.number().nonnegative().default(0),
-  manualLaborReason: z.string().min(1).optional(),
-  mode: z.enum(['margin', 'markup']),
-  marginOrMarkup: z.number().min(0).max(0.95),
-  fees: z.number().default(0),
-  discounts: z.number().default(0),
-  taxRate: z.number().default(0),
-  roundingRule: z.enum(['nearest_1', 'nearest_5', 'psychological_9']),
-  minimum: z.number().default(0),
-  tierRules: z.array(z.custom<TierRule>()).default([]),
-  template: z.object({
-    residentialMultiplier: z.number(),
-    commercialMultiplier: z.number(),
-    defaultInfestationMultiplier: z.number(),
-    defaultComplexityMultiplier: z.number(),
-    minPrice: z.number().nonnegative(),
-    mainUnit: z.enum(['ft2', 'm2', 'linear_ft', 'each']).default('ft2'),
-  }),
-  currency: z.string().default('USD'),
-  unitsArea: z.enum(['ft2', 'm2']).default('ft2'),
-});
-
-export type PricingInput = z.infer<typeof PricingInputSchema>;
+import { PricingInputSchema, type PricingInput } from './schema';
 
 export interface PricingLineItem {
   kind: 'materials' | 'labor' | 'travel' | 'fee' | 'discount' | 'other' | 'tax';

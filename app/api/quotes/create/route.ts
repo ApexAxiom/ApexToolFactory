@@ -3,7 +3,8 @@ import { z } from 'zod';
 import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/db';
 import { requireSession } from '@/lib/auth';
-import { PricingInputSchema, runPricingEngine } from '@/lib/pricing/engine';
+import { PricingInputSchema } from '@/lib/pricing/schema';
+import { runPricingEngine } from '@/lib/pricing/engine';
 
 export const runtime = 'nodejs';
 

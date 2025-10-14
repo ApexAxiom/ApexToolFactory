@@ -1,3 +1,5 @@
+import { applyRoundingRule } from './round';
+
 export type PropertyType = 'Residential' | 'Commercial';
 export type RoundingRule = 'nearest_1' | 'nearest_5' | 'psychological_9';
 
@@ -34,15 +36,16 @@ export function resolvePropertyMultiplier(
   return propertyType === 'Residential' ? multipliers.residentialMultiplier : multipliers.commercialMultiplier;
 }
 
+/**
+ * Applies the rounding strategy selected for a quote.
+ * @param value The numeric value to round.
+ * @param rule The rounding rule identifier.
+ * @returns The rounded amount.
+ * @example
+ * const rounded = applyRounding(122.4, 'nearest_5');
+ */
 export function applyRounding(value: number, rule: RoundingRule): number {
-  switch (rule) {
-    case 'nearest_1':
-      return Math.round(value);
-    case 'nearest_5':
-      return Math.round(value / 5) * 5;
-    case 'psychological_9':
-      return Math.max(0, Math.floor(value / 10) * 10 + 9);
-    default:
-      return value;
-  }
+  return applyRoundingRule(value, rule);
 }
+
+export { applyRoundingRule };
