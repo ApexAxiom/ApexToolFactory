@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { runPricingEngine } from '@/lib/pricing/engine';
 import { calculatePrice } from '@/lib/pricing/formulas';
 import { applyRounding } from '@/lib/pricing/rules';
+import { applyRoundingRule } from '@/lib/pricing/round';
+import { PricingInputSchema } from '@/lib/pricing/schema';
 
 const baseInput = {
   propertyType: 'Residential' as const,
@@ -110,6 +112,11 @@ describe('pricing engine', () => {
     expect(rounded).toBe(120);
   });
 
+  it('rounds with helper alias', () => {
+    const rounded = applyRoundingRule(101.23, 'psychological_9');
+    expect(rounded).toBe(109);
+  });
+
   it('respects manual labor override hours', () => {
     const result = runPricingEngine({
       ...baseInput,
@@ -135,6 +142,10 @@ describe('pricing engine', () => {
     });
     const materials = result.lineItems.filter((item) => item.kind === 'materials');
     expect(materials.length).toBe(1);
+  });
+
+  it('rejects negative area via schema', () => {
+    expect(() => PricingInputSchema.parse({ ...baseInput, area: -10 })).toThrow();
   });
 
   it('computes linear footage template', () => {

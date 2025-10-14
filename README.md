@@ -21,7 +21,7 @@ PestPro Quotations is a multi-tenant SaaS platform that empowers pest-control co
    ```sh
    cp .env.example .env
    ```
-   Update `SESSION_PASSWORD` and AWS placeholders as needed.
+   Update `SESSION_PASSWORD` and AWS placeholders as needed. Optional: set `NEXT_PUBLIC_E2E=1` locally to exercise the wizard self-test flow.
 4. Generate Prisma client and apply migrations:
    ```sh
    pnpm prisma:generate
@@ -36,7 +36,7 @@ PestPro Quotations is a multi-tenant SaaS platform that empowers pest-control co
 
 ## Scripts
 - `pnpm dev` – Run Next.js locally
-- `pnpm build` – Build the production bundle
+- `pnpm build` – Run Prisma generate/migrate deploy then build the production bundle
 - `pnpm start` – Start the production server (binds to `$PORT`)
 - `pnpm lint` – ESLint with Next.js configuration
 - `pnpm typecheck` – Strict TypeScript compilation

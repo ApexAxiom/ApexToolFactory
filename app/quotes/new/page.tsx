@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { WizardSteps } from '@/components/pricing/WizardSteps';
 import { Card } from '@/components/ui/Card';
 import { FormField } from '@/components/forms/FormField';
@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/Button';
 import { DebugPanel } from '@/components/pricing/DebugPanel';
 import { LineItemTable } from '@/components/pricing/LineItemTable';
 import { runPricingEngine } from '@/lib/pricing/engine';
+import { PricingInput, PricingInputSchema } from '@/lib/pricing/schema';
 import { Modal } from '@/components/ui/Modal';
 
 const wizardSteps = [
@@ -114,6 +115,7 @@ export default function QuoteWizardPage() {
   const [taxRateInput, setTaxRateInput] = useState('8.25');
   const [stepError, setStepError] = useState<string | null>(null);
   const [offlineMode, setOfflineMode] = useState(false);
+  const selfTestTriggered = useRef(false);
 
   const numberFormatter = useMemo(() => new Intl.NumberFormat('en-US'), []);
 
@@ -418,10 +420,10 @@ export default function QuoteWizardPage() {
       if ((!customerId || !propertyId || !templateId) && hasTyped) {
         const payload = {
           customerName: customerInput.trim(),
-          propertyAddress: propertyInput.trim(),
+          propertyName: propertyInput.trim(),
           propertyType: selectedProperty?.propertyType ?? 'Residential',
           area: Number(area) || 0,
-          templateName: templateInput.trim(),
+          serviceTemplateName: templateInput.trim(),
         };
         const createLocalEntities = () => {
           setOfflineMode(true);
@@ -505,12 +507,17 @@ export default function QuoteWizardPage() {
             templateId = ids.templateId;
           } else {
             const data = await res.json();
-            customerId = data.customer.id;
-            propertyId = data.property.id;
-            templateId = data.template.id;
+            const ensuredCustomerId = data.customerId ?? data.customer?.id ?? customerId;
+            const ensuredPropertyId = data.propertyId ?? data.property?.id ?? propertyId;
+            const ensuredTemplateId = data.serviceTemplateId ?? data.serviceTemplate?.id ?? templateId;
+
+            customerId = ensuredCustomerId;
+            propertyId = ensuredPropertyId;
+            templateId = ensuredTemplateId;
 
             setBootstrap((prev) => {
               const nextCustomers = (() => {
+                if (!data.customer) return prev.customers;
                 const existingCustomer = prev.customers.find((customer) => customer.id === data.customer.id);
                 if (!existingCustomer) {
                   return [
@@ -518,17 +525,21 @@ export default function QuoteWizardPage() {
                     {
                       id: data.customer.id,
                       name: data.customer.name,
-                      properties: [
-                        {
-                          id: data.property.id,
-                          address: data.property.address,
-                          propertyType: data.property.propertyType,
-                          area: data.property.area ?? 0,
-                        },
-                      ],
+                      properties: data.property
+                        ? [
+                            {
+                              id: data.property.id,
+                              address: data.property.address,
+                              propertyType: data.property.propertyType,
+                              area: data.property.area ?? 0,
+                            },
+                          ]
+                        : [],
                     },
                   ];
                 }
+
+                if (!data.property) return prev.customers;
 
                 const properties = existingCustomer.properties.some((property) => property.id === data.property.id)
                   ? existingCustomer.properties.map((property) =>
@@ -558,23 +569,32 @@ export default function QuoteWizardPage() {
                 );
               })();
 
-              const templateDefaults = {
-                id: data.template.id,
-                name: data.template.name,
-                mainUnit: 'ft2' as const,
-                setupTimeHrs: 0.5,
-                timePer1000Hrs: 0.35,
-                minPrice: 95,
-                defaultInfestationMultiplier: 1,
-                defaultComplexityMultiplier: 1,
-                residentialMultiplier: 1,
-                commercialMultiplier: 1.15,
-                tierRules: [] as any[],
-                recipeItems: [] as any[],
-              };
-              const nextTemplates = prev.templates.some((template) => template.id === data.template.id)
-                ? prev.templates.map((template) => (template.id === data.template.id ? { ...template, name: data.template.name } : template))
-                : [...prev.templates, templateDefaults];
+              const nextTemplates = (() => {
+                if (!ensuredTemplateId) return prev.templates;
+                const templateNameFromApi = data.serviceTemplate?.name ?? templateInput.trim() || 'General Service';
+                if (prev.templates.some((template) => template.id === ensuredTemplateId)) {
+                  return prev.templates.map((template) =>
+                    template.id === ensuredTemplateId ? { ...template, name: templateNameFromApi } : template,
+                  );
+                }
+                return [
+                  ...prev.templates,
+                  {
+                    id: ensuredTemplateId,
+                    name: templateNameFromApi,
+                    mainUnit: 'ft2' as const,
+                    setupTimeHrs: 0.5,
+                    timePer1000Hrs: 0.35,
+                    minPrice: 95,
+                    defaultInfestationMultiplier: 1,
+                    defaultComplexityMultiplier: 1,
+                    residentialMultiplier: 1,
+                    commercialMultiplier: 1.15,
+                    tierRules: [] as any[],
+                    recipeItems: [] as any[],
+                  },
+                ];
+              })();
 
               const nextPresets = data.preset?.id
                 ? prev.presets.some((preset) => preset.id === data.preset.id)
@@ -607,13 +627,19 @@ export default function QuoteWizardPage() {
               };
             });
 
-            setSelectedCustomerId(customerId);
-            setCustomerInput(data.customer.name);
-            setSelectedPropertyId(propertyId);
-            setPropertyInput(data.property.address);
-            updateArea(data.property.area ?? 0);
-            setSelectedTemplateId(templateId);
-            setTemplateInput(data.template.name);
+            if (data.customer) {
+              setSelectedCustomerId(data.customer.id);
+              setCustomerInput(data.customer.name);
+            }
+            if (data.property) {
+              setSelectedPropertyId(data.property.id);
+              setPropertyInput(data.property.address);
+              updateArea(data.property.area ?? 0);
+            }
+            if (data.serviceTemplate) {
+              setSelectedTemplateId(data.serviceTemplate.id);
+              setTemplateInput(data.serviceTemplate.name);
+            }
             if (data.preset?.id) {
               setSelectedPresetId(data.preset.id);
             }
@@ -730,35 +756,113 @@ export default function QuoteWizardPage() {
     });
   };
 
-  const result = useMemo(() => {
-    if (!selectedTemplate || !selectedProperty) {
-      return { lineItems: [], subtotal: 0, tax: 0, total: 0, snapshot: {} } as ReturnType<typeof runPricingEngine>;
-    }
-    const chemicals = selectedTemplate.recipeItems.map((ri) => ({
-      id: ri.chemical.id,
-      name: ri.chemical.name,
-      usageRatePer1000: ri.usageRatePer1000,
-      packageSize: ri.chemical.packageSize,
-      packageCost: ri.chemical.packageCost,
-      wastePercent: ri.chemical.wastePercent,
-      useFor: ri.useFor,
-    }));
-    return runPricingEngine({
-      propertyType: selectedProperty.propertyType,
+  const buildPricingInput = useCallback(
+    (options?: { strict?: boolean }): PricingInput => {
+      const templateSource = selectedTemplate ?? {
+        mainUnit: 'ft2' as const,
+        setupTimeHrs: 0,
+        timePer1000Hrs: 0,
+        minPrice: 0,
+        defaultInfestationMultiplier: 1,
+        defaultComplexityMultiplier: 1,
+        residentialMultiplier: 1,
+        commercialMultiplier: 1,
+        tierRules: [] as unknown[],
+        recipeItems: [] as Array<{
+          chemical: {
+            id: string;
+            name: string;
+            packageSize: number;
+            packageCost: number;
+            packageUnit?: string | null;
+            wastePercent: number;
+          };
+          useFor: 'interior' | 'exterior' | 'both';
+          usageRatePer1000: number;
+        }>,
+      };
+
+      const strictArea = options?.strict ?? false;
+      if (strictArea && (!Number.isFinite(area) || area <= 0)) {
+        throw new Error('Area must be positive before continuing.');
+      }
+
+      const fallbackArea = selectedProperty?.area ?? 1;
+      const finalArea = strictArea
+        ? area
+        : Number.isFinite(area) && area > 0
+          ? area
+          : Math.max(fallbackArea, 1);
+
+      const propertyTypeToUse = selectedProperty?.propertyType ?? 'Residential';
+      const burden = Math.min(Math.max(burdenPercent, 0), 1);
+      const hourly = Math.max(hourlyWage, 0);
+      const travelFixed = Math.max(travelFixedMinutes, 0);
+      const travelPerMile = Math.max(travelMinutesPerMile, 0);
+      const travelDistance = Math.max(travelMiles, 0);
+      const marginValue = Math.min(Math.max(marginOrMarkup, 0), 0.95);
+      const currency = bootstrap.settings?.currency === 'EUR' ? 'EUR' : 'USD';
+      const unitsArea = bootstrap.settings?.unitsArea === 'm2' ? 'm2' : 'ft2';
+
+      const chemicals = (templateSource.recipeItems ?? []).map((ri) => ({
+        id: ri.chemical.id,
+        name: ri.chemical.name,
+        usageRatePer1000: ri.usageRatePer1000,
+        packageSize: ri.chemical.packageSize,
+        packageUnit: (ri.chemical.packageUnit ?? 'each') as PricingInput['chemicals'][number]['packageUnit'],
+        packageCost: ri.chemical.packageCost,
+        wastePercent: ri.chemical.wastePercent,
+        useFor: ri.useFor,
+      }));
+
+      const payload: PricingInput = PricingInputSchema.parse({
+        propertyType: propertyTypeToUse,
+        area: finalArea,
+        infestationMultiplier: templateSource.defaultInfestationMultiplier ?? 1,
+        complexityMultiplier: templateSource.defaultComplexityMultiplier ?? 1,
+        interior,
+        exterior,
+        chemicals,
+        setupTime: templateSource.setupTimeHrs ?? 0,
+        timePer1000: templateSource.timePer1000Hrs ?? 0,
+        hourlyWage: hourly,
+        burdenPercent: burden,
+        travelFixedMinutes: travelFixed,
+        travelMinutesPerMile: travelPerMile,
+        travelMiles: travelDistance,
+        manualLaborAdderHours: 0,
+        mode,
+        marginOrMarkup: marginValue,
+        fees: Math.max(fees, 0),
+        discounts: Math.max(discounts, 0),
+        taxRate: Math.max(taxRate, 0),
+        roundingRule,
+        minimum: Math.max(minimum, 0),
+        tierRules: (templateSource.tierRules as PricingInput['tierRules']) ?? [],
+        template: {
+          mainUnit: templateSource.mainUnit,
+          minPrice: templateSource.minPrice ?? 0,
+          residentialMultiplier: templateSource.residentialMultiplier ?? 1,
+          commercialMultiplier: templateSource.commercialMultiplier ?? 1,
+          defaultInfestationMultiplier: templateSource.defaultInfestationMultiplier ?? 1,
+          defaultComplexityMultiplier: templateSource.defaultComplexityMultiplier ?? 1,
+        },
+        currency,
+        unitsArea,
+      });
+
+      return payload;
+    }, [
+      selectedTemplate,
+      selectedProperty,
       area,
-      infestationMultiplier: 1,
-      complexityMultiplier: 1,
       interior,
       exterior,
-      chemicals,
-      setupTime: selectedTemplate.setupTimeHrs,
-      timePer1000: selectedTemplate.timePer1000Hrs,
       hourlyWage,
       burdenPercent,
       travelFixedMinutes,
       travelMinutesPerMile,
       travelMiles,
-      manualLaborAdderHours: 0,
       mode,
       marginOrMarkup,
       fees,
@@ -766,19 +870,17 @@ export default function QuoteWizardPage() {
       taxRate,
       roundingRule,
       minimum,
-      tierRules: selectedTemplate.tierRules as any,
-      template: {
-        residentialMultiplier: selectedTemplate.residentialMultiplier,
-        commercialMultiplier: selectedTemplate.commercialMultiplier,
-        defaultInfestationMultiplier: selectedTemplate.defaultInfestationMultiplier,
-        defaultComplexityMultiplier: selectedTemplate.defaultComplexityMultiplier,
-        minPrice: selectedTemplate.minPrice,
-        mainUnit: selectedTemplate.mainUnit,
-      },
-      currency: 'USD',
-      unitsArea: 'ft2',
-    });
-  }, [selectedTemplate, selectedProperty, area, interior, exterior, hourlyWage, burdenPercent, travelFixedMinutes, travelMinutesPerMile, travelMiles, mode, marginOrMarkup, fees, discounts, taxRate, roundingRule, minimum]);
+      bootstrap.settings,
+    ]);
+
+  const result = useMemo(() => {
+    try {
+      const payload = buildPricingInput();
+      return runPricingEngine(payload);
+    } catch {
+      return { lineItems: [], subtotal: 0, tax: 0, total: 0, snapshot: {} } as ReturnType<typeof runPricingEngine>;
+    }
+  }, [buildPricingInput]);
 
   const ensureEntitiesIfNeeded = async () => {
     let customerId = selectedCustomerId;
@@ -803,10 +905,10 @@ export default function QuoteWizardPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           customerName: customerInput.trim(),
-          propertyAddress: propertyInput.trim(),
+          propertyName: propertyInput.trim(),
           propertyType: selectedProperty?.propertyType ?? 'Residential',
           area: Number(area) || 0,
-          templateName: templateInput.trim(),
+          serviceTemplateName: templateInput.trim(),
         }),
       });
       if (res.status === 401) {
@@ -819,8 +921,13 @@ export default function QuoteWizardPage() {
       }
       const data = await res.json();
 
+      const ensuredCustomerId = data.customerId ?? data.customer?.id ?? customerId;
+      const ensuredPropertyId = data.propertyId ?? data.property?.id ?? propertyId;
+      const ensuredTemplateId = data.serviceTemplateId ?? data.serviceTemplate?.id ?? templateId;
+
       setBootstrap((prev) => {
         const nextCustomers = (() => {
+          if (!data.customer) return prev.customers;
           const existingCustomer = prev.customers.find((customer) => customer.id === data.customer.id);
           if (!existingCustomer) {
             return [
@@ -828,17 +935,21 @@ export default function QuoteWizardPage() {
               {
                 id: data.customer.id,
                 name: data.customer.name,
-                properties: [
-                  {
-                    id: data.property.id,
-                    address: data.property.address,
-                    propertyType: data.property.propertyType,
-                    area: data.property.area ?? 0,
-                  },
-                ],
+                properties: data.property
+                  ? [
+                      {
+                        id: data.property.id,
+                        address: data.property.address,
+                        propertyType: data.property.propertyType,
+                        area: data.property.area ?? 0,
+                      },
+                    ]
+                  : [],
               },
             ];
           }
+
+          if (!data.property) return prev.customers;
 
           const properties = existingCustomer.properties.some((property) => property.id === data.property.id)
             ? existingCustomer.properties.map((property) =>
@@ -866,23 +977,32 @@ export default function QuoteWizardPage() {
           );
         })();
 
-        const templateDefaults = {
-          id: data.template.id,
-          name: data.template.name,
-          mainUnit: 'ft2' as const,
-          setupTimeHrs: 0.5,
-          timePer1000Hrs: 0.35,
-          minPrice: 95,
-          defaultInfestationMultiplier: 1,
-          defaultComplexityMultiplier: 1,
-          residentialMultiplier: 1,
-          commercialMultiplier: 1.15,
-          tierRules: [] as any[],
-          recipeItems: [] as any[],
-        };
-        const nextTemplates = prev.templates.some((template) => template.id === data.template.id)
-          ? prev.templates.map((template) => (template.id === data.template.id ? { ...template, name: data.template.name } : template))
-          : [...prev.templates, templateDefaults];
+        const nextTemplates = (() => {
+          if (!ensuredTemplateId) return prev.templates;
+          const templateNameFromApi = data.serviceTemplate?.name ?? templateInput.trim() || 'General Service';
+          if (prev.templates.some((template) => template.id === ensuredTemplateId)) {
+            return prev.templates.map((template) =>
+              template.id === ensuredTemplateId ? { ...template, name: templateNameFromApi } : template,
+            );
+          }
+          return [
+            ...prev.templates,
+            {
+              id: ensuredTemplateId,
+              name: templateNameFromApi,
+              mainUnit: 'ft2' as const,
+              setupTimeHrs: 0.5,
+              timePer1000Hrs: 0.35,
+              minPrice: 95,
+              defaultInfestationMultiplier: 1,
+              defaultComplexityMultiplier: 1,
+              residentialMultiplier: 1,
+              commercialMultiplier: 1.15,
+              tierRules: [] as any[],
+              recipeItems: [] as any[],
+            },
+          ];
+        })();
 
         const nextPresets = data.preset?.id
           ? prev.presets.some((preset) => preset.id === data.preset.id)
@@ -915,24 +1035,30 @@ export default function QuoteWizardPage() {
         };
       });
 
-      setSelectedCustomerId(data.customer.id);
-      setCustomerInput(data.customer.name);
-      setSelectedPropertyId(data.property.id);
-      setPropertyInput(data.property.address);
-      updateArea(data.property.area ?? 0);
-      setSelectedTemplateId(data.template.id);
-      setTemplateInput(data.template.name);
+      if (data.customer) {
+        setSelectedCustomerId(data.customer.id);
+        setCustomerInput(data.customer.name);
+      }
+      if (data.property) {
+        setSelectedPropertyId(data.property.id);
+        setPropertyInput(data.property.address);
+        updateArea(data.property.area ?? 0);
+      }
+      if (data.serviceTemplate) {
+        setSelectedTemplateId(data.serviceTemplate.id);
+        setTemplateInput(data.serviceTemplate.name);
+      }
       if (data.preset?.id) {
         setSelectedPresetId(data.preset.id);
       }
 
       return {
         ok: true,
-        customerId: data.customer.id,
-        propertyId: data.property.id,
-        templateId: data.template.id,
-        property: data.property,
-        template: data.template,
+        customerId: ensuredCustomerId ?? '',
+        propertyId: ensuredPropertyId ?? '',
+        templateId: ensuredTemplateId ?? '',
+        property: data.property ?? null,
+        template: data.serviceTemplate ?? null,
       } as const;
     } catch {
       setSaveError('Network error creating records.');
@@ -952,66 +1078,14 @@ export default function QuoteWizardPage() {
       const propertyIdToUse = ensured.propertyId || selectedPropertyId;
       const templateIdToUse = ensured.templateId || selectedTemplateId;
 
-      const propertyTypeToUse = selectedProperty?.propertyType || ensured.property?.propertyType || 'Residential';
-      const recipeItems = selectedTemplate?.recipeItems || [];
-      const setupTimeHrs = selectedTemplate?.setupTimeHrs ?? 0.5;
-      const timePer1000Hrs = selectedTemplate?.timePer1000Hrs ?? 0.35;
-      const minPrice = selectedTemplate?.minPrice ?? 95;
-      const residentialMultiplier = selectedTemplate?.residentialMultiplier ?? 1;
-      const commercialMultiplier = selectedTemplate?.commercialMultiplier ?? 1.15;
-      const defaultInfestationMultiplier = selectedTemplate?.defaultInfestationMultiplier ?? 1;
-      const defaultComplexityMultiplier = selectedTemplate?.defaultComplexityMultiplier ?? 1;
-      const mainUnit = selectedTemplate?.mainUnit ?? 'ft2';
-      const tierRules = (selectedTemplate?.tierRules as any) ?? [];
+      const pricingInput = buildPricingInput({ strict: true });
       const response = await fetch('/api/quotes/create', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           propertyId: propertyIdToUse,
           serviceTemplateId: templateIdToUse,
-          pricingInput: {
-            propertyType: propertyTypeToUse,
-            area,
-            infestationMultiplier: 1,
-            complexityMultiplier: 1,
-            interior,
-            exterior,
-            chemicals: recipeItems.map((ri) => ({
-              id: ri.chemical.id,
-              name: ri.chemical.name,
-              usageRatePer1000: ri.usageRatePer1000,
-              packageSize: ri.chemical.packageSize,
-              packageCost: ri.chemical.packageCost,
-              wastePercent: ri.chemical.wastePercent,
-              useFor: ri.useFor,
-            })),
-            setupTime: setupTimeHrs,
-            timePer1000: timePer1000Hrs,
-            hourlyWage,
-            burdenPercent,
-            travelFixedMinutes,
-            travelMinutesPerMile,
-            travelMiles,
-            manualLaborAdderHours: 0,
-            mode,
-            marginOrMarkup,
-            fees,
-            discounts,
-            taxRate,
-            roundingRule,
-            minimum,
-            tierRules,
-            template: {
-              residentialMultiplier,
-              commercialMultiplier,
-              defaultInfestationMultiplier,
-              defaultComplexityMultiplier,
-              minPrice,
-              mainUnit,
-            },
-            currency: 'USD',
-            unitsArea: 'ft2',
-          },
+          pricingInput,
         }),
       });
       if (response.status === 401 || response.status === 403) {
@@ -1027,6 +1101,32 @@ export default function QuoteWizardPage() {
       setSaving(false);
     }
   };
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    if (process.env.NEXT_PUBLIC_E2E !== '1') return;
+    if (selfTestTriggered.current) return;
+    if (!bootstrap.templates.length) return;
+    selfTestTriggered.current = true;
+    setSelectedCustomerId('');
+    setSelectedPropertyId('');
+    setSelectedTemplateId('');
+    setCustomerInput('Test Customer');
+    setPropertyInput('123 Test St');
+    setTemplateInput('General Spray');
+    updateArea(1800);
+    setInterior(true);
+    setExterior(false);
+    void (async () => {
+      try {
+        await handleNext();
+        await handleNext();
+        await onSaveQuote();
+      } catch (error) {
+        console.warn('Wizard self-test failed', error);
+      }
+    })();
+  }, [bootstrap.templates.length, handleNext, onSaveQuote]);
 
   const onSavePreset = async () => {
     try {
