@@ -46,7 +46,7 @@ PestPro Quotations is a production-focused, server-rendered quoting tool for pes
 
 ## Scripts
 - `pnpm dev` – Run the Next.js development server.
-- `pnpm build` – Generate Prisma client, run `migrate deploy` when `DATABASE_URL` is set, and build the production bundle.
+- `pnpm build` – Generate Prisma client, apply `migrate deploy`, and build the production bundle.
 - `pnpm start` – Start Next.js in production mode (binds to `$PORT`).
 - `pnpm lint` – ESLint using the Next.js configuration.
 - `pnpm typecheck` – Strict TypeScript type checking.
@@ -76,7 +76,6 @@ PestPro Quotations is a production-focused, server-rendered quoting tool for pes
 ## Deployment Notes
 - Managed runtime via `apprunner.yaml` (Node.js) is supported; ensure `$PORT` is honored.
 - Provision secrets (e.g., `DATABASE_URL`, `SESSION_PASSWORD`) via AWS Secrets Manager and inject them into the runtime.
-- The build script calls `scripts/prisma-generate-if-env.mjs` and `scripts/prisma-migrate-if-env.mjs`; these helpers inject placeholder connection strings and skip migrations when `DATABASE_URL` is absent so Amplify/App Runner builds succeed without secrets.
 - Run the quality gate before merging or deploying:
   ```sh
   pnpm lint

@@ -26,7 +26,6 @@ function setFlash(payload: FlashPayload) {
 }
 
 async function loginAction(formData: FormData) {
-  'use server';
   const headersList = headers();
   const ip = headersList.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown';
   const rate = await rateLimitKey(`login:${ip}`);

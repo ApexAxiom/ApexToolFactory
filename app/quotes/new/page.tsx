@@ -138,7 +138,6 @@ function setQuoteFlash(payload: QuoteFormFlash) {
 }
 
 async function createQuote(formData: FormData) {
-  'use server';
   const headersList = headers();
   await requireUser();
   const orgId = await requireOrgId();
