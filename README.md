@@ -76,6 +76,7 @@ PestPro Quotations is a production-focused, server-rendered quoting tool for pes
 ## Deployment Notes
 - Managed runtime via `apprunner.yaml` (Node.js) is supported; ensure `$PORT` is honored.
 - Provision secrets (e.g., `DATABASE_URL`, `SESSION_PASSWORD`) via AWS Secrets Manager and inject them into the runtime.
+- The build script calls `scripts/prisma-generate-if-env.mjs` and `scripts/prisma-migrate-if-env.mjs`; these helpers inject placeholder connection strings and skip migrations when `DATABASE_URL` is absent so Amplify/App Runner builds succeed without secrets.
 - Run the quality gate before merging or deploying:
   ```sh
   pnpm lint

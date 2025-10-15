@@ -9,4 +9,4 @@
 - Required env vars:
   - `DATABASE_URL`
   - `SESSION_PASSWORD`
-- Build runs: `prisma generate`, `prisma migrate deploy`, `next build`.
+- Build runs: `node scripts/prisma-generate-if-env.mjs`, `node scripts/prisma-migrate-if-env.mjs`, `next build` (helpers skip migrations when `DATABASE_URL` is not provided).
