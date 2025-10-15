@@ -7,8 +7,8 @@ export type ChemicalCsvRow = {
   packageUnit: string;
   packageCost: number;
   wastePercent: number;
-  vendorSku?: string;
-  concentration?: number;
+  vendorSku?: string | undefined;
+  concentration?: number | undefined;
 };
 
 /**

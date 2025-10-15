@@ -1,4 +1,5 @@
 import { notFound } from 'next/navigation';
+
 import { Form } from '@/components/forms/Form';
 import { FormField } from '@/components/forms/FormField';
 import { Input } from '@/components/ui/Input';
@@ -15,7 +16,7 @@ export default function InvitePage({ params }: InvitePageProps) {
   return (
     <div className="mx-auto max-w-xl">
       <Form
-        title="Accept invitation"
+        heading="Accept invitation"
         description="Join your pest-control workspace as a teammate."
         actions={<Button type="submit">Activate</Button>}
       >

@@ -1,17 +1,17 @@
 import type { FormHTMLAttributes, PropsWithChildren, ReactNode } from 'react';
 
-export interface FormProps extends FormHTMLAttributes<HTMLFormElement> {
-  title?: ReactNode;
+export interface FormProps extends Omit<FormHTMLAttributes<HTMLFormElement>, 'title'> {
+  heading?: ReactNode;
   description?: ReactNode;
   actions?: ReactNode;
 }
 
-export function Form({ title, description, actions, children, ...props }: PropsWithChildren<FormProps>) {
+export function Form({ heading, description, actions, children, ...props }: PropsWithChildren<FormProps>) {
   return (
     <form className="space-y-6" {...props}>
-      {(title || description) && (
+      {(heading || description) && (
         <header className="space-y-1">
-          {title ? <h2 className="text-lg font-semibold text-slate-900">{title}</h2> : null}
+          {heading ? <h2 className="text-lg font-semibold text-slate-900">{heading}</h2> : null}
           {description ? <p className="text-sm text-slate-600">{description}</p> : null}
         </header>
       )}
