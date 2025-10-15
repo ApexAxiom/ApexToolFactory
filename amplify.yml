@@ -7,7 +7,7 @@ applications:
           commands:
             - corepack enable
             - pnpm install --frozen-lockfile
-            - npx prisma generate
+            - node ./scripts/prisma-generate-if-env.mjs
         build:
           commands:
             - |
