@@ -80,10 +80,6 @@ See `.gitattributes` for enforced patterns.
 ## Deployment
 Push to the tracked branch (e.g. `reset/pestimator-s3` or `main`) and Amplify Hosting builds with the included `amplify.yml`. For AWS App Runner environments, reuse the provided `apprunner.yaml`.
 
-### Amplify troubleshooting
-- **Root cause (Oct 2025):** The initial deployment failed because `pnpm install --frozen-lockfile` ran without a committed `pnpm-lock.yaml`, which Amplify treats as an error.
-- **Fix:** `amplify.yml` now uses `pnpm install --no-frozen-lockfile` until we capture a lockfile. Once registry access is restored locally, run `pnpm install` to generate `pnpm-lock.yaml`, commit it, and switch the build step back to `--frozen-lockfile` for deterministic installs.
-
 ## Health check
 The app responds to `GET /healthz` with `200 OK` once the server is running.
 

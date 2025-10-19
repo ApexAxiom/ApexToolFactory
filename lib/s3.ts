@@ -1,8 +1,9 @@
-import { S3Client, PutObjectCommand, type PutObjectCommandInput, GetObjectCommand, ListObjectsV2Command, DeleteObjectCommand } from "@aws-sdk/client-s3";
+import { S3Client, PutObjectCommand, GetObjectCommand, ListObjectsV2Command, DeleteObjectCommand } from "@aws-sdk/client-s3";
+import { fromEnv } from "@aws-sdk/credential-providers";
 
 const REGION = process.env.AWS_REGION!;
 const BUCKET = process.env.S3_BUCKET!;
-export const s3 = new S3Client({ region: REGION }); // use Amplify role
+export const s3 = new S3Client({ region: REGION, credentials: process.env.AWS_ACCESS_KEY_ID ? fromEnv() : undefined }); // use Amplify role
 const enc = (o:any)=>Buffer.from(JSON.stringify(o));
 
 /**
@@ -94,8 +95,7 @@ export async function withLock(orgId:string, fn:()=>Promise<void>) {
   const key = `orgs/${orgId}/locks/meta.lock`;
   for (let i=0;i<20;i++){
     try {
-      const params: PutObjectCommandInput = { Bucket: BUCKET, Key: key, Body: enc({ts:Date.now()}), ContentType:"application/json" };
-      await s3.send(new PutObjectCommand({ ...params, ...( { IfNoneMatch: "*" } as Record<string, string>) }));
+      await s3.send(new PutObjectCommand({ Bucket: BUCKET, Key: key, Body: enc({ts:Date.now()}), ContentType:"application/json", /* @ts-ignore */ IfNoneMatch: "*" }));
       break;
     } catch { await new Promise(r=>setTimeout(r, 100 + Math.random()*250)); }
   }

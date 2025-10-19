@@ -3,8 +3,6 @@ import { cookies } from "next/headers";
 
 const sessionName = "aa.sid";
 export interface Sess { authed?: boolean; orgId?: string; }
-type CookieArg = Parameters<typeof getIronSession>[0];
-type CookieStore = Extract<CookieArg, { get: (name: string) => unknown }>;
 
 /**
  * Retrieves or initializes the iron-session for the current request.
@@ -19,13 +17,7 @@ type CookieStore = Extract<CookieArg, { get: (name: string) => unknown }>;
  */
 export async function session(): Promise<IronSession<Sess>> {
   const password = requireEnv("SESSION_PASSWORD");
-  const cookieStore = cookies() as unknown as CookieStore;
-  return getIronSession<Sess>(cookieStore, {
-    cookieName: sessionName,
-    password,
-    ttl: 60 * 60 * 8,
-    cookieOptions: { httpOnly: true, secure: true, sameSite: "lax" }
-  });
+  return getIronSession<Sess>(cookies(), { cookieName: sessionName, password, ttl: 60*60*8, cookieOptions: { httpOnly: true, secure: true, sameSite: "lax" }});
 }
 
 /**
