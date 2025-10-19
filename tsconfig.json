@@ -12,10 +12,16 @@
     "skipLibCheck": true,
     "incremental": true,
     "jsx": "preserve",
+    "allowJs": true,
+    "esModuleInterop": true,
+    "isolatedModules": true,
     "types": ["node", "vite/client"],
     "baseUrl": ".",
     "paths": {
       "@/*": ["./*"]
-    }
-  }
+    },
+    "plugins": [{ "name": "next" }]
+  },
+  "include": ["next-env.d.ts", ".next/types/**/*.ts", "**/*.ts", "**/*.tsx"],
+  "exclude": ["node_modules"]
 }
