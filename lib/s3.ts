@@ -1,9 +1,10 @@
 import { S3Client, PutObjectCommand, GetObjectCommand, ListObjectsV2Command, DeleteObjectCommand } from "@aws-sdk/client-s3";
-import { fromEnv } from "@aws-sdk/credential-providers";
 
 const REGION = process.env.AWS_REGION!;
 const BUCKET = process.env.S3_BUCKET!;
-export const s3 = new S3Client({ region: REGION, credentials: process.env.AWS_ACCESS_KEY_ID ? fromEnv() : undefined }); // use Amplify role
+// The AWS SDK automatically discovers credentials from the environment or the
+// hosting IAM role, so we rely on the default credential provider chain.
+export const s3 = new S3Client({ region: REGION });
 const enc = (o:any)=>Buffer.from(JSON.stringify(o));
 
 /**
