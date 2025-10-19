@@ -56,9 +56,11 @@ Grant the Amplify service role permissions scoped to the bucket:
 cp .env.example .env
 pnpm install
 pnpm dev
+# or to run the production server locally
+# PORT=4000 pnpm start
 ```
 
-The dev server runs on `http://localhost:3000`.
+The dev server runs on `http://localhost:3000`. The production server script (`pnpm start`) defaults to port `3000` but respects the `PORT` environment variable so it works in AWS App Runner and other managed platforms.
 
 ## Testing & quality gates
 Run the required checks before committing:

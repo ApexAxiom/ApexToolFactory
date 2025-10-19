@@ -1,5 +1,6 @@
-import { getIronSession, IronSession } from "iron-session";
+import { getIronSession, type IronSession } from "iron-session";
 import { cookies } from "next/headers";
+import type { RequestCookies } from "next/dist/server/web/spec-extension/cookies";
 
 const sessionName = "aa.sid";
 export interface Sess { authed?: boolean; orgId?: string; }
@@ -17,7 +18,22 @@ export interface Sess { authed?: boolean; orgId?: string; }
  */
 export async function session(): Promise<IronSession<Sess>> {
   const password = requireEnv("SESSION_PASSWORD");
-  return getIronSession<Sess>(cookies(), { cookieName: sessionName, password, ttl: 60*60*8, cookieOptions: { httpOnly: true, secure: true, sameSite: "lax" }});
+  const cookieStore = cookies();
+
+  if (typeof (cookieStore as Partial<RequestCookies>).set !== "function") {
+    throw new Error("Unable to access mutable cookies. Ensure session() is called within a Route Handler or Server Action.");
+  }
+
+  return getIronSession<Sess>(cookieStore as unknown as RequestCookies, {
+    cookieName: sessionName,
+    password,
+    ttl: 60 * 60 * 8,
+    cookieOptions: {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+    },
+  });
 }
 
 /**

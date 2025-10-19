@@ -9,6 +9,6 @@ build:
     build:
       - pnpm build
 run:
-  command: npx next start -p $PORT
+  command: node scripts/start.js
   network:
     port: 8080
