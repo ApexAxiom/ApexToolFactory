@@ -1,7 +1,13 @@
+import { NextResponse } from "next/server";
+
 /**
- * Lightweight deployment health check.
- * @returns An HTTP 200 response when the app is ready.
+ * Health check endpoint used by AWS App Runner.
+ * @returns JSON payload confirming service availability.
+ * @example
+ * ```ts
+ * const response = await GET();
+ * ```
  */
-export async function GET() {
-  return new Response('ok', { status: 200 });
+export function GET() {
+  return NextResponse.json({ ok: true });
 }

@@ -2,51 +2,9 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  --brand-primary-from: #2563eb; /* slightly darker for contrast */
-  --brand-primary-to: #059669;   /* slightly darker for contrast */
-  --brand-accent: #0ea5e9;
-  color-scheme: light;
-}
-
-body {
-  @apply bg-slate-50 text-slate-900;
-  font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  /* Prevent iOS zoom on input focus */
-  -webkit-text-size-adjust: 100%;
-}
-
-/* Ensure touch targets are accessible */
-.touch-manipulation {
-  touch-action: manipulation;
-  -webkit-tap-highlight-color: transparent;
-}
-
-a {
-  @apply text-brand-accent;
-}
-
-.gradient-button {
-  @apply rounded-xl bg-gradient-to-r from-[var(--brand-primary-from)] to-[var(--brand-primary-to)] px-4 py-2.5 font-semibold text-white shadow-soft transition hover:opacity-90 focus:outline-none focus-visible:ring focus-visible:ring-brand-accent touch-manipulation;
-  min-height: 44px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  text-align: center;
-}
-
-.card {
-  @apply rounded-xl bg-white p-4 sm:p-6 shadow-soft;
-}
-
-@media print {
-  body {
-    background: #fff !important;
-  }
-  .no-print {
-    display: none !important;
-  }
-  @page {
-    margin: 12mm;
-  }
-}
+:root { --card: 255 255 255; }
+body { @apply bg-slate-50 text-slate-900; }
+.card { @apply rounded-2xl bg-white shadow-sm border border-slate-200; }
+.btn { @apply inline-flex items-center justify-center rounded-full px-4 py-2 font-medium border border-slate-300 hover:bg-slate-100; }
+.btn-primary { @apply bg-slate-900 text-white hover:bg-black; }
+.input { @apply w-full rounded-xl border border-slate-300 px-3 py-2 focus:outline-none focus:ring focus:ring-slate-200; }
