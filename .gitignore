@@ -1,13 +1,6 @@
 node_modules
 .next
+out
+dist
 .env
-.env.local
-.env.production
-.storage
-storage
-!storage/.gitkeep
-coverage
-.eslintcache
-.tsbuildinfo
-pnpm-debug.log
-.DS_Store
+.pnpm-store
