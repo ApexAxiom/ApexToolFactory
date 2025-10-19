@@ -3,10 +3,12 @@ runtime: nodejs18
 build:
   commands:
     pre-build:
+      - corepack enable
+      - corepack prepare pnpm@8.15.4 --activate
       - pnpm install --frozen-lockfile
     build:
       - pnpm build
 run:
-  command: pnpm start
+  command: npx next start -p $PORT
   network:
     port: 8080

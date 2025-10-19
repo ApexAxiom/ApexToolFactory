@@ -1,30 +1,20 @@
 version: 1
-applications:
-  - appRoot: .
-    frontend:
-      phases:
-        preBuild:
-          commands:
-            - corepack enable
-            - pnpm install --frozen-lockfile
-            - node ./scripts/prisma-generate-if-env.mjs
-        build:
-          commands:
-            - |
-              if [ -n "$DATABASE_URL" ]; then
-                echo "Running prisma migrate deploy"
-                npx prisma migrate deploy
-              else
-                echo "Skipping prisma migrate deploy: DATABASE_URL not set"
-              fi
-            - pnpm build
-      artifacts:
-        baseDirectory: .next
-        files:
-          - '**/*'
-      cache:
-        paths:
-          - node_modules/**/*
-    environment:
-      variables:
-        NODE_OPTIONS: '--max-old-space-size=4096'
+frontend:
+  phases:
+    preBuild:
+      commands:
+        - corepack enable
+        - corepack prepare pnpm@8.15.4 --activate
+        - pnpm install --no-frozen-lockfile
+    build:
+      commands:
+        - pnpm build
+  artifacts:
+    # Amplify detects Next.js SSR; artifacts block can be present but is ignored for SSR
+    baseDirectory: .next
+    files:
+      - '**/*'
+  cache:
+    paths:
+      - node_modules/**/*
+      - .pnpm-store/**/*
