@@ -20,7 +20,8 @@ export async function session(): Promise<IronSession<Sess>> {
   const password = requireEnv("SESSION_PASSWORD");
   const cookieStore = cookies();
 
-  if (typeof (cookieStore as Partial<RequestCookies>).set !== "function") {
+  // Check if we have mutable cookies (Route Handler or Server Action context)
+  if (typeof (cookieStore as unknown as any).set !== "function") {
     throw new Error("Unable to access mutable cookies. Ensure session() is called within a Route Handler or Server Action.");
   }
 
