@@ -1,0 +1,112 @@
+================================================================================
+                    AWS AMPLIFY DEPLOYMENT - QUICK START
+================================================================================
+
+🎯 GOAL: Get your app deployed in 10 minutes
+
+📋 CHECKLIST:
+
+[x] S3 bucket created: pestimator-data-1760984255
+[x] Environment variables added to Amplify
+[x] Code fixes ready (lib/auth.ts, lib/s3.ts)
+[ ] IAM permissions added ← DO THIS FIRST
+[ ] Code committed and pushed ← DO THIS SECOND
+[ ] Deployment completes ← WAIT 3-5 MINUTES
+
+================================================================================
+                            STEP 1: IAM POLICY
+================================================================================
+
+1. Open: https://console.aws.amazon.com/iam/
+2. Roles → Search "amplify"
+3. Click your Amplify role
+4. Add permissions → Create inline policy → JSON tab
+5. Paste this:
+
+{
+    "Version": "2012-10-17",
+    "Statement": [{
+        "Effect": "Allow",
+        "Action": [
+            "s3:GetObject",
+            "s3:PutObject",
+            "s3:DeleteObject",
+            "s3:ListBucket"
+        ],
+        "Resource": [
+            "arn:aws:s3:::pestimator-data-1760984255",
+            "arn:aws:s3:::pestimator-data-1760984255/*"
+        ]
+    }]
+}
+
+6. Review → Name: S3Access → Create
+
+================================================================================
+                         STEP 2: COMMIT & PUSH
+================================================================================
+
+Open PowerShell and run:
+
+    cd H:\Pestimator.com
+    .\COMPLETE_FIX.bat
+
+Press ENTER when prompted.
+
+================================================================================
+                         STEP 3: WATCH DEPLOYMENT
+================================================================================
+
+1. Go to AWS Amplify Console
+2. New deployment starts automatically
+3. Watch build logs
+4. Should complete in 3-5 minutes
+5. Status: "Deployment completed successfully" ✅
+
+================================================================================
+                              TEST YOUR APP
+================================================================================
+
+1. Click "View app" in Amplify Console
+2. Go to /login
+3. Password: ApexPest2024!Secure#Admin
+4. Create a test quote
+5. Success! 🎉
+
+================================================================================
+                            ENVIRONMENT VARIABLES
+================================================================================
+
+Should be set in Amplify Console:
+
+✅ S3_BUCKET = pestimator-data-1760984255
+✅ ADMIN_PASSPHRASE = ApexPest2024!Secure#Admin
+✅ SESSION_PASSWORD = (your existing value)
+❌ AWS_REGION = DO NOT ADD (auto-provided)
+
+================================================================================
+                            IF SOMETHING FAILS
+================================================================================
+
+1. Check: TROUBLESHOOTING_CHECKLIST.md
+2. Review: Build logs in Amplify Console
+3. Verify: All 3 steps above completed
+4. Confirm: IAM policy bucket name is correct
+
+================================================================================
+                              TIMELINE
+================================================================================
+
+00:00 - Add IAM policy (5 min)
+00:05 - Run COMPLETE_FIX.bat (1 min)
+00:06 - Deployment starts automatically
+00:09 - Deployment completes (3-5 min build)
+00:10 - Test and celebrate! 🎉
+
+================================================================================
+
+Need detailed help? Open: FINAL_DEPLOYMENT_STEPS.md
+
+Ready? GO! 🚀
+
+
