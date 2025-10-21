@@ -67,3 +67,4 @@ Ensure these are set in AWS Amplify:
 - `S3_BUCKET` - S3 bucket name for data storage
 - `NODE_ENV` - Should be "production"
 
+

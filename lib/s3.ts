@@ -1,6 +1,7 @@
 import { S3Client, PutObjectCommand, GetObjectCommand, ListObjectsV2Command, DeleteObjectCommand } from "@aws-sdk/client-s3";
 
-const REGION = process.env.AWS_REGION!;
+// AWS_REGION is auto-provided by AWS Amplify, but fallback to us-east-1 for local dev
+const REGION = process.env.AWS_REGION || process.env.AWS_DEFAULT_REGION || "us-east-1";
 const BUCKET = process.env.S3_BUCKET!;
 // The AWS SDK automatically discovers credentials from the environment or the
 // hosting IAM role, so we rely on the default credential provider chain.

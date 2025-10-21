@@ -1,6 +1,5 @@
 import { getIronSession, type IronSession } from "iron-session";
 import { cookies } from "next/headers";
-import type { RequestCookies } from "next/dist/server/web/spec-extension/cookies";
 
 const sessionName = "aa.sid";
 export interface Sess { authed?: boolean; orgId?: string; }
@@ -21,11 +20,12 @@ export async function session(): Promise<IronSession<Sess>> {
   const cookieStore = cookies();
 
   // Check if we have mutable cookies (Route Handler or Server Action context)
-  if (typeof (cookieStore as unknown as any).set !== "function") {
+  if (typeof (cookieStore as any).set !== "function") {
     throw new Error("Unable to access mutable cookies. Ensure session() is called within a Route Handler or Server Action.");
   }
 
-  return getIronSession<Sess>(cookieStore as unknown as RequestCookies, {
+  // Pass cookieStore directly - iron-session handles the type internally
+  return getIronSession<Sess>(cookieStore as any, {
     cookieName: sessionName,
     password,
     ttl: 60 * 60 * 8,
