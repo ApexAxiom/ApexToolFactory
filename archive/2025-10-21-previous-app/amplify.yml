@@ -1,0 +1,22 @@
+version: 1
+frontend:
+  phases:
+    preBuild:
+      commands:
+        - nvm install 20
+        - nvm use 20
+        - corepack enable
+        - corepack prepare pnpm@8.15.4 --activate
+        - pnpm install --no-frozen-lockfile
+    build:
+      commands:
+        - pnpm build
+  artifacts:
+    # Amplify detects Next.js SSR; artifacts block can be present but is ignored for SSR
+    baseDirectory: .next
+    files:
+      - '**/*'
+  cache:
+    paths:
+      - node_modules/**/*
+      - .pnpm-store/**/*
