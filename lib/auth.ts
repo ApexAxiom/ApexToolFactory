@@ -1,53 +1,38 @@
-import { getIronSession, type IronSession } from "iron-session";
+import { getIronSession, type IronSession, type CookieStore } from "iron-session";
 import { cookies } from "next/headers";
 
 const sessionName = "aa.sid";
-export interface Sess { authed?: boolean; orgId?: string; }
 
-/**
- * Retrieves or initializes the iron-session for the current request.
- * @returns Iron session instance containing authentication state.
- * @example
- * ```ts
- * const sess = await session();
- * if (sess.authed) {
- *   // authenticated
- * }
- * ```
- */
+export interface Sess {
+  authed?: boolean;
+  orgId?: string;
+}
+
+export function requireEnv(name: string) {
+  const v = process.env[name];
+  if (!v) throw new Error(`Missing env: ${name}`);
+  return v;
+}
+
 export async function session(): Promise<IronSession<Sess>> {
   const password = requireEnv("SESSION_PASSWORD");
-  const cookieStore = cookies();
+  const store = cookies();
 
-  // Check if we have mutable cookies (Route Handler or Server Action context)
-  if (typeof (cookieStore as any).set !== "function") {
-    throw new Error("Unable to access mutable cookies. Ensure session() is called within a Route Handler or Server Action.");
+  // Must be called in a Route Handler or Server Action so cookies are mutable
+  if (typeof (store as any).set !== "function") {
+    throw new Error(
+      "Unable to access mutable cookies. Ensure session() is called within a Route Handler or Server Action."
+    );
   }
 
-  // Pass cookieStore directly - iron-session handles the type internally
-  return getIronSession<Sess>(cookieStore as any, {
+  return getIronSession<Sess>(store as unknown as CookieStore, {
     cookieName: sessionName,
     password,
     ttl: 60 * 60 * 8,
     cookieOptions: {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
-    },
+      sameSite: "lax"
+    }
   });
-}
-
-/**
- * Ensures the specified environment variable is set.
- * @param name - Environment variable key to fetch.
- * @returns The environment variable value.
- * @example
- * ```ts
- * const bucket = requireEnv("S3_BUCKET");
- * ```
- */
-export function requireEnv(name:string) {
-  const v = process.env[name];
-  if (!v) throw new Error(`Missing env: ${name}`);
-  return v;
 }
