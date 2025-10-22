@@ -172,7 +172,7 @@
       const rowId = `row_${pid}`;
       const cost = pestPricing[pid]?.cost ?? 0;
       host.insertAdjacentHTML("beforeend", `
-        <div id="${rowId}" class="grid md:grid-cols-2 gap-2">
+        <div id="${rowId}" class="grid grid-cols-1 sm:grid-cols-2 gap-2">
           <div class="py-2">${meta.label}</div>
           <div class="grid grid-cols-[auto_1fr] items-center gap-2">
             <span class="text-slate-600">$</span>

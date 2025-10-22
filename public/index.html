@@ -20,11 +20,43 @@
         border-radius: 0.75rem;     /* rounded-xl */
         padding: 0.5rem 0.75rem;
         background: #fff; color: #0f172a;
+        font-size: 16px; /* Prevent zoom on iOS */
       }
       input:focus, select:focus, textarea:focus {
         outline: none;
         border-color: #4f46e5;      /* indigo-600 */
         box-shadow: 0 0 0 2px rgba(79,70,229,0.25);
+      }
+
+      /* Mobile-friendly improvements */
+      @media (max-width: 768px) {
+        /* Larger touch targets */
+        button, input, select, textarea {
+          min-height: 44px;
+          font-size: 16px;
+        }
+        
+        /* Better spacing on mobile */
+        .card { margin-bottom: 1rem; }
+        
+        /* Stack buttons vertically on mobile */
+        .mobile-stack { flex-direction: column; }
+        .mobile-stack button { width: 100%; margin-bottom: 0.5rem; }
+        
+        /* Full width inputs on mobile */
+        input, select, textarea { width: 100%; }
+        
+        /* Better grid layouts for mobile */
+        .mobile-grid-1 { grid-template-columns: 1fr !important; }
+        .mobile-grid-2 { grid-template-columns: repeat(2, 1fr) !important; }
+        
+        /* Compact header on mobile */
+        header .flex { flex-wrap: wrap; gap: 0.5rem; }
+        header .text-2xl { font-size: 1.25rem; }
+        header .text-xs { font-size: 0.625rem; }
+        
+        /* Better table scrolling */
+        .overflow-x-auto { -webkit-overflow-scrolling: touch; }
       }
 
       /* Avoid awkward PDF breaks */
@@ -86,9 +118,9 @@
     </header>
 
     <main class="mx-auto max-w-6xl px-4 py-6">
-      <div class="grid gap-6 md:grid-cols-2">
+      <div class="grid gap-6 lg:grid-cols-2">
         <!-- Company Profile (hidden in print) -->
-        <section class="card rounded-2xl bg-white shadow-soft p-6 md:col-span-2 avoid-break no-print">
+        <section class="card rounded-2xl bg-white shadow-soft p-6 lg:col-span-2 avoid-break no-print">
           <div class="flex items-start gap-4 mb-4">
             <img id="companyLogoOutput" class="h-16 w-auto rounded" alt="Company logo" />
             <div class="flex-1">
@@ -108,7 +140,7 @@
               </div>
             </div>
           </div>
-          <div class="grid gap-4 md:grid-cols-3">
+          <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             <div class="grid gap-2">
               <label class="text-sm text-slate-600">Company Name</label>
               <input id="companyName" class="rounded-xl border-slate-300 p-2" placeholder="Acme Pest Co.">
@@ -133,7 +165,7 @@
               <label class="text-sm text-slate-600">Website</label>
               <input id="companyWebsite" class="rounded-xl border-slate-300 p-2" placeholder="acme.com">
             </div>
-            <div class="grid gap-2 md:col-span-3">
+            <div class="grid gap-2 sm:col-span-2 lg:col-span-3">
               <label class="text-sm text-slate-600">Logo (optional)</label>
               <input id="companyLogo" type="file" accept="image/*" class="rounded-xl border-slate-300 p-2">
               <img id="companyLogoPreview" class="mt-2 h-10" alt="" />
@@ -172,7 +204,7 @@
               </select>
             </div>
             <!-- Termite-only inputs -->
-            <div id="termiteRow" class="grid grid-cols-2 gap-4 hidden">
+            <div id="termiteRow" class="grid grid-cols-1 sm:grid-cols-2 gap-4 hidden">
               <div class="grid gap-2">
                 <label class="text-sm text-slate-600">Perimeter (linear ft)</label>
                 <input id="linearFt" type="number" min="0" step="1" value="0"
@@ -226,7 +258,7 @@
               </div>
             </div>
 
-            <div class="grid grid-cols-2 gap-4">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div class="grid gap-2">
                 <label class="text-sm text-slate-600">Labor Rate ($/hr)</label>
                 <input id="laborRate" type="number" min="0" step="1" value="0" class="rounded-xl border-slate-300 focus:ring-2 focus:ring-indigo-500 p-2"/>
@@ -236,7 +268,7 @@
                 <input id="hours" type="number" min="0" step="0.5" value="0" class="rounded-xl border-slate-300 focus:ring-2 focus:ring-indigo-500 p-2"/>
               </div>
             </div>
-            <div class="grid grid-cols-3 gap-4">
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div class="grid gap-2">
                 <label class="text-sm text-slate-600">Materials ($)</label>
                 <input id="materials" type="number" min="0" step="1" value="0" class="rounded-xl border-slate-300 focus:ring-2 focus:ring-indigo-500 p-2"/>
@@ -256,7 +288,7 @@
             </div>
 
             <!-- Travel miles x rate -->
-            <div class="grid grid-cols-2 gap-4">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div class="grid gap-2">
                 <label class="text-sm text-slate-600">Travel (miles)</label>
                 <input id="travelMiles" type="number" min="0" step="1" value="0"
@@ -271,7 +303,7 @@
 
             <!-- Commercial-only adders -->
             <div id="commercialBlock" class="grid gap-4 hidden">
-              <div class="grid grid-cols-4 gap-4">
+              <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 <div class="grid gap-2">
                   <label class="text-sm text-slate-600">Rodent stations (#)</label>
                   <input id="rodentStations" type="number" min="0" step="1" value="0" class="rounded-xl border-slate-300 p-2"/>
@@ -297,7 +329,7 @@
             </div>
 
             <!-- Global adders -->
-            <div class="grid grid-cols-3 gap-4">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div class="grid gap-2">
                 <label class="text-sm text-slate-600">After-hours Surcharge (%)</label>
                 <input id="afterHoursPct" type="number" min="0" step="1" value="0" class="rounded-xl border-slate-300 p-2"/>
@@ -311,10 +343,10 @@
         </section>
 
         <!-- Summary -->
-        <section class="card rounded-2xl bg-white shadow-soft p-6 md:col-span-2 no-print">
+        <section class="card rounded-2xl bg-white shadow-soft p-6 lg:col-span-2 no-print">
           <div class="flex items-center justify-between mb-4">
             <h2 class="text-lg font-semibold">Quote Summary</h2>
-            <div class="flex gap-2 no-print">
+            <div class="flex flex-wrap gap-2 no-print mobile-stack sm:flex-row">
               <button id="btnCalc" class="rounded-xl bg-emerald-600 text-white px-4 py-2 shadow hover:bg-emerald-700">Calculate</button>
               <button id="btnPrint" class="rounded-xl bg-indigo-600 text-white px-4 py-2 shadow hover:bg-indigo-700">Print / Save PDF</button>
               <button id="btnSave" class="rounded-xl bg-slate-200 px-4 py-2 shadow hover:bg-slate-300">Save Locally</button>
@@ -323,11 +355,11 @@
             </div>
           </div>
 
-          <div class="grid gap-4 md:grid-cols-3">
+          <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             <div class="rounded-2xl border border-slate-200 p-4">
               <div class="text-sm text-slate-500">Base</div>
               <div id="baseOut" class="text-2xl font-semibold">$0.00</div>
-              <div class="text-xs text-slate-500">Per-sqft base + severity</div>
+              <div class="text-xs text-slate-500">Per-sqft base</div>
             </div>
             <div class="rounded-2xl border border-slate-200 p-4">
               <div class="text-sm text-slate-500">Labor + Fees</div>
