@@ -406,6 +406,7 @@
     // buttons
     $("btnPrint")?.addEventListener("click", () => window.print());
     $("btnSave")?.addEventListener("click", saveQuote);
+    $("btnCalc")?.addEventListener("click", () => { compute(); saveQuote(); alert("Calculated."); });
     $("btnExport")?.addEventListener("click", () => {
       const blob = new Blob([JSON.stringify(serialize(), null, 2)], {type:"application/json"});
       const a = document.createElement("a"); a.href = URL.createObjectURL(blob);
