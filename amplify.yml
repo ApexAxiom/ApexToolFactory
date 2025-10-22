@@ -2,13 +2,14 @@ version: 1
 frontend:
   phases:
     preBuild:
-      commands: []
+      commands:
+        - echo "Static site - no preBuild needed"
     build:
-      commands: []
+      commands:
+        - echo "Static site - no build needed"
   artifacts:
     baseDirectory: public
     files:
       - "**/*"
   cache:
     paths: []
-

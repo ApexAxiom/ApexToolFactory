@@ -1,0 +1,10 @@
+{
+  "name": "pestimator-static",
+  "version": "1.0.0",
+  "description": "Static pest control quote calculator",
+  "private": true,
+  "scripts": {
+    "build": "echo 'No build required - static site'"
+  }
+}
+
