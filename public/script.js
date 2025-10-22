@@ -26,8 +26,7 @@
     "travelMiles","perMile",
     "rodentStations","rodentRate","iltCount","iltRate","complianceFee",
     "afterHoursPct","discountPct",
-    "linearFt","lfRate",
-    "companyName","companyAddress","companyPhone","companyEmail","companyWebsite","companyLicense"
+    "linearFt","lfRate"
   ];
 
   // Visit multipliers
@@ -59,8 +58,6 @@
     fields.forEach(f => d[f] = ($(f)?.value ?? ""));
     d.selectedPests = selectedPests;
     d.pestPricing = pestPricing;
-    // persist logo preview as data URL for print
-    d.companyLogoDataUrl = $("companyLogoPreview")?.src || $("companyLogoOutput")?.src || "";
     return d;
   }
 
@@ -72,10 +69,6 @@
       fields.forEach(f => { if (d[f]!=null && $(f)) $(f).value = d[f]; });
       selectedPests = Array.isArray(d.selectedPests) ? d.selectedPests : [];
       pestPricing = d.pestPricing || {};
-      if (d.companyLogoDataUrl) {
-        if ($("companyLogoPreview")) $("companyLogoPreview").src = d.companyLogoDataUrl;
-        if ($("companyLogoOutput"))  $("companyLogoOutput").src  = d.companyLogoDataUrl;
-      }
     } catch {}
   }
 
@@ -112,6 +105,7 @@
       if (profile.companyLogoDataUrl) {
         if ($("companyLogoPreview")) $("companyLogoPreview").src = profile.companyLogoDataUrl;
         if ($("companyLogoOutput"))  $("companyLogoOutput").src  = profile.companyLogoDataUrl;
+        if ($("printLogo")) $("printLogo").src = profile.companyLogoDataUrl;
       }
       if (profile.defaults) {
         ["laborRate","markupPct","taxPct"].forEach(k => { if ($(k) && profile.defaults[k]!=null) $(k).value = profile.defaults[k]; });
@@ -421,11 +415,18 @@
     $("btnAuthConfirm")?.addEventListener("click", async () => {
       const pass = $("passphrase")?.value.trim();
       if (!pass) return alert("Enter a passphrase.");
-      const salt = crypto.getRandomValues(new Uint8Array(16));
+      let saltB64 = localStorage.getItem("pestimator.auth.salt");
+      let salt;
+      if (saltB64) {
+        salt = Uint8Array.from(atob(saltB64), c => c.charCodeAt(0));
+      } else {
+        salt = crypto.getRandomValues(new Uint8Array(16));
+        localStorage.setItem("pestimator.auth.salt", b64(salt));
+      }
       sessionKey = await deriveKey(pass, salt);
-      localStorage.setItem("pestimator.auth.salt", b64(salt));
       modal?.classList.add("hidden");
-      alert("Signed in — profile saves will be encrypted.");
+      // Try auto-load encrypted profile on successful sign-in
+      await loadProfile();
     });
 
     compute();
