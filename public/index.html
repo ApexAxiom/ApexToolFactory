@@ -14,6 +14,13 @@
     </script>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2232%22 height=%2232%22><text y=%2224%22 font-size=%2224%22>🐜</text></svg>">
     <style>
+      *, *::before, *::after {
+        box-sizing: border-box;
+      }
+      html, body {
+        width: 100%;
+        overflow-x: hidden;
+      }
       /* High-contrast fields (applies to all inputs/selects/textareas) */
       input[type="text"], input[type="number"], input[type="email"], input[type="tel"], input[type="password"], select, textarea {
         border: 1px solid #64748b; /* slate-500 */
@@ -45,11 +52,21 @@
         
         /* Full width inputs on mobile */
         input, select, textarea { width: 100%; }
-        
+
+        header select,
+        header button {
+          width: 100%;
+        }
+
+        header .mx-auto > .flex:last-child {
+          width: 100%;
+          justify-content: space-between;
+        }
+
         /* Better grid layouts for mobile */
         .mobile-grid-1 { grid-template-columns: 1fr !important; }
         .mobile-grid-2 { grid-template-columns: repeat(2, 1fr) !important; }
-        
+
         /* Compact header on mobile */
         header .flex { flex-wrap: wrap; gap: 0.5rem; }
         header .text-2xl { font-size: 1.25rem; }
@@ -77,6 +94,16 @@
         }
         #pestPicker label {
           font-size: 14px;
+        }
+      }
+
+      @media (max-width: 480px) {
+        #pestPicker {
+          grid-template-columns: 1fr;
+        }
+
+        .card {
+          padding: 1.25rem;
         }
       }
 
