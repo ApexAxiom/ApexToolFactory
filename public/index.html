@@ -24,13 +24,86 @@
   <body class="bg-slate-50 text-slate-900">
     <header class="sticky top-0 z-10 bg-white/80 backdrop-blur border-b border-slate-200">
       <div class="mx-auto max-w-6xl px-4 py-3 flex items-center justify-between">
-        <h1 class="text-xl font-semibold tracking-tight">Pestimator</h1>
-        <div class="text-sm text-slate-500">Simple, reliable quotes</div>
+        <div class="flex items-center gap-3">
+          <!-- Simple shield+ant logomark -->
+          <svg width="32" height="32" viewBox="0 0 64 64" aria-hidden="true" class="rounded-xl">
+            <defs>
+              <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0" stop-color="#10b981"/><stop offset="1" stop-color="#0ea5e9"/>
+              </linearGradient>
+            </defs>
+            <path d="M32 4l20 6v14c0 12-7.8 22.8-20 26-12.2-3.2-20-14-20-26V10l20-6z" fill="url(#g)"/>
+            <!-- little ant -->
+            <circle cx="28" cy="28" r="3" fill="#fff"/><circle cx="34" cy="28" r="4.2" fill="#fff"/>
+            <circle cx="41" cy="28" r="3.2" fill="#fff"/><path d="M26 22l4 4M38 22l-4 4" stroke="#fff" stroke-width="2" stroke-linecap="round"/>
+          </svg>
+          <div>
+            <div class="text-xl font-semibold tracking-tight">Pestimator</div>
+            <div class="text-xs text-slate-500">Simple, reliable quotes</div>
+          </div>
+        </div>
+
+        <div class="flex items-center gap-3">
+          <!-- Res/Com toggle -->
+          <label class="text-sm text-slate-600" for="bizType">Customer:</label>
+          <select id="bizType" class="rounded-xl border-slate-300 focus:ring-2 focus:ring-indigo-500 p-2">
+            <option value="res">Residential</option>
+            <option value="com">Commercial</option>
+          </select>
+
+          <button id="btnAuth" class="no-print rounded-xl bg-slate-900 text-white px-3 py-2 shadow hover:bg-black">Sign in</button>
+        </div>
       </div>
     </header>
 
     <main class="mx-auto max-w-6xl px-4 py-6">
       <div class="grid gap-6 md:grid-cols-2">
+        <!-- Company Profile -->
+        <section class="card rounded-2xl bg-white shadow-soft p-6 md:col-span-2">
+          <div class="flex items-center justify-between mb-4">
+            <h2 class="text-lg font-semibold">Company Profile</h2>
+            <div class="flex gap-2 no-print">
+              <button id="btnProfileSave" class="rounded-xl bg-indigo-600 text-white px-3 py-2">Save (secured)</button>
+              <button id="btnProfileLoad" class="rounded-xl bg-slate-200 px-3 py-2">Load</button>
+              <button id="btnProfileExport" class="rounded-xl bg-slate-200 px-3 py-2">Export</button>
+              <label class="rounded-xl bg-slate-200 px-3 py-2 cursor-pointer">
+                Import <input id="profileImport" type="file" accept="application/json" class="hidden">
+              </label>
+            </div>
+          </div>
+          <div class="grid gap-4 md:grid-cols-3">
+            <div class="grid gap-2">
+              <label class="text-sm text-slate-600">Company Name</label>
+              <input id="companyName" class="rounded-xl border-slate-300 p-2" placeholder="Acme Pest Co.">
+            </div>
+            <div class="grid gap-2">
+              <label class="text-sm text-slate-600">Address</label>
+              <input id="companyAddress" class="rounded-xl border-slate-300 p-2" placeholder="123 Main St, City, ST">
+            </div>
+            <div class="grid gap-2">
+              <label class="text-sm text-slate-600">License #</label>
+              <input id="companyLicense" class="rounded-xl border-slate-300 p-2" placeholder="TX-XXXXXX">
+            </div>
+            <div class="grid gap-2">
+              <label class="text-sm text-slate-600">Phone</label>
+              <input id="companyPhone" class="rounded-xl border-slate-300 p-2" placeholder="(555) 555-5555">
+            </div>
+            <div class="grid gap-2">
+              <label class="text-sm text-slate-600">Email</label>
+              <input id="companyEmail" class="rounded-xl border-slate-300 p-2" placeholder="hello@acme.com">
+            </div>
+            <div class="grid gap-2">
+              <label class="text-sm text-slate-600">Website</label>
+              <input id="companyWebsite" class="rounded-xl border-slate-300 p-2" placeholder="acme.com">
+            </div>
+            <div class="grid gap-2 md:col-span-3">
+              <label class="text-sm text-slate-600">Logo (optional)</label>
+              <input id="companyLogo" type="file" accept="image/*" class="rounded-xl border-slate-300 p-2">
+              <img id="companyLogoPreview" class="mt-2 h-10" alt="" />
+            </div>
+          </div>
+        </section>
+
         <!-- Job Details -->
         <section class="card rounded-2xl bg-white shadow-soft p-6">
           <h2 class="text-lg font-semibold mb-4">Job Details</h2>
@@ -72,6 +145,19 @@
                 <option value="quarterly">Quarterly</option>
               </select>
             </div>
+            <!-- Termite-only inputs -->
+            <div id="termiteRow" class="grid grid-cols-2 gap-4 hidden">
+              <div class="grid gap-2">
+                <label class="text-sm text-slate-600">Perimeter (linear ft)</label>
+                <input id="linearFt" type="number" min="0" step="1" value="0"
+                       class="rounded-xl border-slate-300 p-2"/>
+              </div>
+              <div class="grid gap-2">
+                <label class="text-sm text-slate-600">Rate ($/linear ft)</label>
+                <input id="lfRate" type="number" min="0" step="0.1" value="7"
+                       class="rounded-xl border-slate-300 p-2"/>
+              </div>
+            </div>
           </div>
         </section>
 
@@ -106,6 +192,59 @@
             <div class="grid gap-2">
               <label class="text-sm text-slate-600">Tax Rate (%)</label>
               <input id="taxPct" type="number" min="0" step="0.1" value="0" class="rounded-xl border-slate-300 focus:ring-2 focus:ring-indigo-500 p-2"/>
+            </div>
+
+            <!-- Travel miles x rate -->
+            <div class="grid grid-cols-2 gap-4">
+              <div class="grid gap-2">
+                <label class="text-sm text-slate-600">Travel (miles)</label>
+                <input id="travelMiles" type="number" min="0" step="1" value="0"
+                       class="rounded-xl border-slate-300 p-2"/>
+              </div>
+              <div class="grid gap-2">
+                <label class="text-sm text-slate-600">Mileage Rate ($/mi)</label>
+                <input id="perMile" type="number" min="0" step="0.01" value="0.65"
+                       class="rounded-xl border-slate-300 p-2"/>
+              </div>
+            </div>
+
+            <!-- Commercial-only adders -->
+            <div id="commercialBlock" class="grid gap-4 hidden">
+              <div class="grid grid-cols-4 gap-4">
+                <div class="grid gap-2">
+                  <label class="text-sm text-slate-600">Rodent stations (#)</label>
+                  <input id="rodentStations" type="number" min="0" step="1" value="0" class="rounded-xl border-slate-300 p-2"/>
+                </div>
+                <div class="grid gap-2">
+                  <label class="text-sm text-slate-600">Rate ($/station)</label>
+                  <input id="rodentRate" type="number" min="0" step="0.1" value="3" class="rounded-xl border-slate-300 p-2"/>
+                </div>
+                <div class="grid gap-2">
+                  <label class="text-sm text-slate-600">ILTs (#)</label>
+                  <input id="iltCount" type="number" min="0" step="1" value="0" class="rounded-xl border-slate-300 p-2"/>
+                </div>
+                <div class="grid gap-2">
+                  <label class="text-sm text-slate-600">Rate ($/ILT)</label>
+                  <input id="iltRate" type="number" min="0" step="0.1" value="5" class="rounded-xl border-slate-300 p-2"/>
+                </div>
+              </div>
+
+              <div class="grid gap-2">
+                <label class="text-sm text-slate-600">Compliance / audit docs ($)</label>
+                <input id="complianceFee" type="number" min="0" step="1" value="0" class="rounded-xl border-slate-300 p-2"/>
+              </div>
+            </div>
+
+            <!-- Global adders -->
+            <div class="grid grid-cols-3 gap-4">
+              <div class="grid gap-2">
+                <label class="text-sm text-slate-600">After-hours Surcharge (%)</label>
+                <input id="afterHoursPct" type="number" min="0" step="1" value="0" class="rounded-xl border-slate-300 p-2"/>
+              </div>
+              <div class="grid gap-2">
+                <label class="text-sm text-slate-600">Discount (%)</label>
+                <input id="discountPct" type="number" min="0" step="1" value="0" class="rounded-xl border-slate-300 p-2"/>
+              </div>
             </div>
           </div>
         </section>
@@ -143,6 +282,8 @@
           <div class="mt-6 overflow-x-auto rounded-2xl border border-slate-200">
             <table class="min-w-full divide-y divide-slate-200">
               <tbody class="divide-y divide-slate-200">
+                <tr><td class="p-3 text-slate-600">Company</td><td class="p-3 font-medium" id="compOut">—</td></tr>
+                <tr><td class="p-3 text-slate-600">Contact</td><td class="p-3 font-medium" id="contactOut">—</td></tr>
                 <tr><td class="p-3 text-slate-600">Customer</td><td class="p-3 font-medium" id="custOut">—</td></tr>
                 <tr><td class="p-3 text-slate-600">Address</td><td class="p-3 font-medium" id="addrOut">—</td></tr>
                 <tr><td class="p-3 text-slate-600">Service</td><td class="p-3 font-medium" id="svcOut">—</td></tr>
@@ -157,6 +298,20 @@
         </section>
       </div>
     </main>
+
+    <!-- Auth modal -->
+    <div id="authModal" class="no-print hidden fixed inset-0 z-50 bg-black/40">
+      <div class="mx-auto mt-32 max-w-md rounded-2xl bg-white p-6 shadow-soft">
+        <h3 class="text-lg font-semibold mb-2">Sign in</h3>
+        <p class="text-sm text-slate-600 mb-3">Set or enter a passphrase to encrypt/decrypt your company profile and pricing defaults (local to this browser).</p>
+        <input id="passphrase" type="password" placeholder="Enter passphrase"
+               class="w-full rounded-xl border-slate-300 p-2 mb-4"/>
+        <div class="flex justify-end gap-2">
+          <button id="btnAuthCancel" class="rounded-xl bg-slate-200 px-3 py-2">Cancel</button>
+          <button id="btnAuthConfirm" class="rounded-xl bg-indigo-600 text-white px-3 py-2">Continue</button>
+        </div>
+      </div>
+    </div>
 
     <script src="./script.js"></script>
   </body>
