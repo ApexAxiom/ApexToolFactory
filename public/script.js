@@ -179,7 +179,7 @@
           </label>
           <div class="grid grid-cols-[auto_1fr] items-center gap-2">
             <span class="text-slate-600">$</span>
-            <input type="number" id="cost_${pid}" min="0" step="1" value="${cost}">
+            <input type="number" id="cost_${pid}" min="0" step="1" value="${cost}" placeholder="Cost for ${meta.label}" aria-label="Cost for ${meta.label}">
           </div>
         </div>`);
       $("inc_"+pid).addEventListener("change", e => {
@@ -197,6 +197,32 @@
         ? $("termiteRow").classList.remove("hidden")
         : $("termiteRow").classList.add("hidden");
     }
+    ensureAccessibleLabels();
+  }
+
+  // Ensure all controls have an accessible name for linters/a11y
+  function ensureAccessibleLabels(){
+    const ctrls = document.querySelectorAll('input, select, textarea');
+    ctrls.forEach(ctrl => {
+      // Skip if already labelled
+      if (ctrl.hasAttribute('aria-label') || ctrl.hasAttribute('title') || ctrl.hasAttribute('placeholder')) return;
+      if (ctrl.id && document.querySelector(`label[for="${ctrl.id}"]`)) return;
+      // Try to infer from nearest label in the same container
+      let labelText = '';
+      let container = ctrl.parentElement;
+      if (container) {
+        const lbl = container.querySelector('label');
+        if (lbl) labelText = (lbl.textContent || '').trim();
+      }
+      if (!labelText) {
+        let prev = ctrl.previousElementSibling;
+        while (prev && prev.tagName.toLowerCase() !== 'label') prev = prev.previousElementSibling;
+        if (prev) labelText = (prev.textContent || '').trim();
+      }
+      if (labelText) ctrl.setAttribute('aria-label', labelText);
+      else if (ctrl.id) ctrl.setAttribute('title', ctrl.id);
+      else ctrl.setAttribute('title', 'field');
+    });
   }
 
   // ---- UI dynamics & compute ----

@@ -205,7 +205,7 @@
             <!-- Base Rate -->
             <div class="grid gap-2">
               <label class="text-sm text-slate-600">Base Rate ($/sqft)</label>
-              <input id="baseRateSqft" type="number" min="0" step="0.001" value="0">
+              <input id="baseRateSqft" type="number" min="0" step="0.001" value="0" placeholder="Base rate per sqft" aria-label="Base Rate per square foot">
             </div>
 
             <!-- Pest Charges -->
@@ -220,14 +220,14 @@
               <div class="grid gap-2">
                 <label class="text-sm text-slate-600">Residential Program (Quarterly)</label>
                 <div class="flex items-center gap-3 flex-wrap">
-                  <select id="resTierPlan">
+                  <select id="resTierPlan" aria-label="Residential tier plan">
                     <option value="0">None (0)</option>
                     <option value="50">0–1000 sqft ($50)</option>
                     <option value="70">1000–4000 sqft ($70)</option>
                     <option value="150">4000–6000 sqft ($150)</option>
                     <option value="custom">6000+ (custom)</option>
                   </select>
-                  <input id="resTierCustom" type="number" min="0" step="1" value="0" class="hidden" placeholder="Custom amount"/>
+                  <input id="resTierCustom" type="number" min="0" step="1" value="0" class="hidden" placeholder="Custom amount" aria-label="Custom tier amount"/>
                 </div>
               </div>
             </div>
