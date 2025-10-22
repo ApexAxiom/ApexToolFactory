@@ -184,6 +184,10 @@
         compute(); saveQuote();
       });
     });
+    const chargesBlock = $("pestChargesBlock");
+    if (chargesBlock) {
+      chargesBlock.classList.toggle("hidden", selectedPests.length === 0);
+    }
     // Termite triggers linear-foot UI
     if ($("termiteRow")) {
       selectedPests.includes("termite")
