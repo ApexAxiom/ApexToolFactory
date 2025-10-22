@@ -6,11 +6,17 @@
     <title>Pestimator — Simple Quote</title>
     <meta name="description" content="Fast, simple pest-control quote calculator." />
     <!-- Tailwind CDN (no build step) -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-      tailwind.config = { theme: { extend: {
-        boxShadow: { 'soft': '0 10px 25px rgba(0,0,0,0.08)' }
-      }}}; 
+    <script src="https://cdn.tailwindcss.com?plugins=forms"></script>
+    <script type="text/javascript">
+      if (typeof tailwind !== 'undefined') {
+        tailwind.config = { 
+          theme: { 
+            extend: {
+              boxShadow: { 'soft': '0 10px 25px rgba(0,0,0,0.08)' }
+            }
+          }
+        }; 
+      }
     </script>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2232%22 height=%2232%22><text y=%2224%22 font-size=%2224%22>🐜</text></svg>">
     <style>
@@ -449,7 +455,20 @@
       </div>
     </div>
 
-    <script src="./script.js"></script>
+    <script src="./script.js" defer></script>
+    <script type="text/javascript">
+      // Ensure script loads and runs
+      window.addEventListener('error', function(e) {
+        if (e.filename && e.filename.includes('script.js')) {
+          console.error('Script loading error:', e.message);
+        }
+      });
+      
+      // Verify DOMContentLoaded fires
+      document.addEventListener('DOMContentLoaded', function() {
+        console.log('DOM fully loaded and parsed');
+      });
+    </script>
   </body>
 </html>
 
