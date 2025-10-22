@@ -413,6 +413,20 @@
     r.readAsDataURL(file);
   }
 
+  // Debug function to test all buttons
+  function testAllButtons() {
+    const buttons = [
+      "btnCalc", "btnPrint", "btnSave", "btnExport", "btnReset",
+      "btnProfileSave", "btnProfileLoad", "btnProfileExport",
+      "btnAuth", "btnAuthCancel", "btnAuthConfirm"
+    ];
+    console.log("Testing button availability:");
+    buttons.forEach(id => {
+      const btn = $(id);
+      console.log(`${id}: ${btn ? '✓ Found' : '✗ Missing'}`);
+    });
+  }
+
   // ---- wire up ----
   document.addEventListener("DOMContentLoaded", () => {
     renderPestPicker();
@@ -429,7 +443,7 @@
 
     $("bizType")?.addEventListener("change", () => { refreshBlocks(); compute(); saveQuote(); });
 
-    // buttons
+    // buttons - Quote Summary section
     $("btnPrint")?.addEventListener("click", (e) => { e.preventDefault(); window.print(); });
     $("btnSave")?.addEventListener("click", (e) => { e.preventDefault(); saveQuote(); });
     $("btnCalc")?.addEventListener("click", (e) => { e.preventDefault(); compute(); saveQuote(); });
@@ -458,16 +472,18 @@
     document.addEventListener("click", (ev) => {
       const btn = ev.target.closest("button");
       if (!btn) return;
+      ev.preventDefault();
       switch (btn.id) {
-        case "btnCalc": ev.preventDefault(); compute(); saveQuote(); break;
-        case "btnPrint": ev.preventDefault(); window.print(); break;
-        case "btnSave": ev.preventDefault(); saveQuote(); break;
-        case "btnExport": ev.preventDefault(); {
+        // Quote Summary buttons
+        case "btnCalc": compute(); saveQuote(); break;
+        case "btnPrint": window.print(); break;
+        case "btnSave": saveQuote(); break;
+        case "btnExport": {
           const blob = new Blob([JSON.stringify(serialize(), null, 2)], {type:"application/json"});
           const a = document.createElement("a"); a.href = URL.createObjectURL(blob);
           a.download = `quote-${Date.now()}.json`; a.click(); URL.revokeObjectURL(a.href);
         } break;
-        case "btnReset": ev.preventDefault();
+        case "btnReset":
           localStorage.removeItem("pestimator.quote");
           ["sqft","baseRateSqft","laborRate","hours","materials","travel","markupPct","taxPct","travelMiles","perMile",
            "rodentStations","rodentRate","iltCount","iltRate","complianceFee","afterHoursPct","discountPct","linearFt","lfRate","resTierCustom"].forEach(id=>{ if($(id)) $(id).value = "0"; });
@@ -478,14 +494,38 @@
           renderPestChargeRows();
           compute();
           break;
+        // Profile buttons
+        case "btnProfileSave": saveProfile(); break;
+        case "btnProfileLoad": loadProfile(); break;
+        case "btnProfileExport": exportProfile(); break;
+        // Auth modal buttons
+        case "btnAuth": modal?.classList.remove("hidden"); break;
+        case "btnAuthCancel": modal?.classList.add("hidden"); break;
+        case "btnAuthConfirm": {
+          const pass = $("passphrase")?.value.trim();
+          if (!pass) return alert("Enter a passphrase.");
+          let saltB64 = localStorage.getItem("pestimator.auth.salt");
+          let salt;
+          if (saltB64) {
+            salt = Uint8Array.from(atob(saltB64), c => c.charCodeAt(0));
+          } else {
+            salt = crypto.getRandomValues(new Uint8Array(16));
+            localStorage.setItem("pestimator.auth.salt", b64(salt));
+          }
+          deriveKey(pass, salt).then(key => {
+            sessionKey = key;
+            modal?.classList.add("hidden");
+            loadProfile();
+          });
+        } break;
       }
     });
 
     // profile buttons
-    $("btnProfileSave")?.addEventListener("click", () => saveProfile());
-    $("btnProfileLoad")?.addEventListener("click", () => loadProfile());
-    $("btnProfileExport")?.addEventListener("click", () => exportProfile());
-    $("profileImport")?.addEventListener("change", (e) => importProfile(e.target.files?.[0]));
+    $("btnProfileSave")?.addEventListener("click", (e) => { e.preventDefault(); saveProfile(); });
+    $("btnProfileLoad")?.addEventListener("click", (e) => { e.preventDefault(); loadProfile(); });
+    $("btnProfileExport")?.addEventListener("click", (e) => { e.preventDefault(); exportProfile(); });
+    $("profileImport")?.addEventListener("change", (e) => { e.preventDefault(); importProfile(e.target.files?.[0]); });
 
     $("companyLogo")?.addEventListener("change", (e) => logoPreview(e.target.files?.[0]));
     $("resTierPlan")?.addEventListener("change", ()=>{
@@ -499,9 +539,10 @@
 
     // auth modal
     const modal = $("authModal");
-    $("btnAuth")?.addEventListener("click", () => modal?.classList.remove("hidden"));
-    $("btnAuthCancel")?.addEventListener("click", () => modal?.classList.add("hidden"));
-    $("btnAuthConfirm")?.addEventListener("click", async () => {
+    $("btnAuth")?.addEventListener("click", (e) => { e.preventDefault(); modal?.classList.remove("hidden"); });
+    $("btnAuthCancel")?.addEventListener("click", (e) => { e.preventDefault(); modal?.classList.add("hidden"); });
+    $("btnAuthConfirm")?.addEventListener("click", async (e) => {
+      e.preventDefault();
       const pass = $("passphrase")?.value.trim();
       if (!pass) return alert("Enter a passphrase.");
       let saltB64 = localStorage.getItem("pestimator.auth.salt");
@@ -519,5 +560,8 @@
     });
 
     compute();
+    
+    // Debug: Test all buttons on load
+    testAllButtons();
   });
 })();
