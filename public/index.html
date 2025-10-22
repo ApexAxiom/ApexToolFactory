@@ -33,10 +33,13 @@
       /* Print rules: no app chrome; company-first, crisp borders */
       @media print {
         .no-print { display: none !important; }
+        .print-only { display: block !important; }
         header { display: none !important; }       /* Hide Pestimator brand in PDF */
         body { background: #fff; }
         .card { box-shadow: none !important; border: 1px solid #e5e7eb !important; }
+        main { max-width: 100% !important; }
       }
+      .print-only { display: none; }
     </style>
   </head>
   <body class="bg-slate-50 text-slate-900">
@@ -131,7 +134,7 @@
         </section>
 
         <!-- Job Details -->
-        <section class="card rounded-2xl bg-white shadow-soft p-6">
+        <section class="card rounded-2xl bg-white shadow-soft p-6 no-print">
           <h2 class="text-lg font-semibold mb-4">Job Details</h2>
           <div class="grid gap-4">
             <div class="grid gap-2">
@@ -179,11 +182,16 @@
                        class="rounded-xl border-slate-300 p-2"/>
               </div>
             </div>
+            <!-- Comments/Notes -->
+            <div class="grid gap-2">
+              <label class="text-sm text-slate-600">Comments / Notes</label>
+              <textarea id="comments" rows="3" class="rounded-xl border-slate-300 p-2" placeholder="Special instructions, areas of concern, access notes..."></textarea>
+            </div>
           </div>
         </section>
 
         <!-- Pricing -->
-        <section class="card rounded-2xl bg-white shadow-soft p-6">
+        <section class="card rounded-2xl bg-white shadow-soft p-6 no-print">
           <h2 class="text-lg font-semibold mb-4">Pricing Parameters</h2>
           <div class="grid gap-4">
             <!-- Base Rate -->
@@ -310,7 +318,7 @@
         </section>
 
         <!-- Summary -->
-        <section class="card rounded-2xl bg-white shadow-soft p-6 md:col-span-2">
+        <section class="card rounded-2xl bg-white shadow-soft p-6 md:col-span-2 no-print">
           <div class="flex items-center justify-between mb-4">
             <h2 class="text-lg font-semibold">Quote Summary</h2>
             <div class="flex gap-2 no-print">
@@ -356,6 +364,74 @@
 
           <p class="mt-4 text-xs text-slate-500">All estimates are subject to site verification and product availability.</p>
         </section>
+      </div>
+
+      <!-- PRINT-ONLY QUOTE -->
+      <div class="print-only mx-auto max-w-4xl px-6 py-8">
+        <!-- Company Header -->
+        <div class="flex items-start gap-6 mb-8 pb-6 border-b-2 border-slate-300">
+          <img id="printLogo" class="h-20 w-auto" alt="Company logo" />
+          <div class="flex-1">
+            <h1 id="printCompanyName" class="text-3xl font-bold mb-2">Company Name</h1>
+            <div id="printCompanyInfo" class="text-sm text-slate-600">
+              <div id="printAddress"></div>
+              <div id="printContact"></div>
+            </div>
+          </div>
+          <div class="text-right">
+            <div class="text-xs text-slate-500 uppercase tracking-wide">Quote</div>
+            <div id="printQuoteDate" class="text-sm font-medium"></div>
+          </div>
+        </div>
+
+        <!-- Customer Info -->
+        <div class="mb-8">
+          <h2 class="text-lg font-semibold mb-3">Customer Information</h2>
+          <div class="grid grid-cols-2 gap-4 text-sm">
+            <div><span class="font-medium">Name:</span> <span id="printCustName"></span></div>
+            <div><span class="font-medium">Address:</span> <span id="printCustAddr"></span></div>
+          </div>
+        </div>
+
+        <!-- Service Details -->
+        <div class="mb-8">
+          <h2 class="text-lg font-semibold mb-3">Service Details</h2>
+          <div class="text-sm mb-2" id="printServiceDesc"></div>
+          <div class="text-sm"><span class="font-medium">Square Footage:</span> <span id="printSqft"></span></div>
+        </div>
+
+        <!-- Line Items -->
+        <div class="mb-8">
+          <h2 class="text-lg font-semibold mb-3">Quote Breakdown</h2>
+          <table class="w-full text-sm border-collapse">
+            <thead>
+              <tr class="border-b-2 border-slate-300">
+                <th class="text-left py-2">Description</th>
+                <th class="text-right py-2 w-32">Amount</th>
+              </tr>
+            </thead>
+            <tbody id="printLineItems" class="divide-y divide-slate-200">
+              <!-- Populated by JavaScript -->
+            </tbody>
+            <tfoot class="border-t-2 border-slate-300">
+              <tr><td class="py-2 font-medium">Subtotal</td><td class="text-right" id="printSubtotal"></td></tr>
+              <tr id="printTaxRow"><td class="py-1">Tax</td><td class="text-right" id="printTax"></td></tr>
+              <tr class="text-lg font-bold"><td class="pt-2">Total</td><td class="text-right pt-2" id="printTotal"></td></tr>
+            </tfoot>
+          </table>
+        </div>
+
+        <!-- Comments -->
+        <div id="printCommentsSection" class="mb-8">
+          <h2 class="text-lg font-semibold mb-3">Notes</h2>
+          <div id="printComments" class="text-sm whitespace-pre-wrap bg-slate-50 p-4 rounded border border-slate-200"></div>
+        </div>
+
+        <!-- Footer -->
+        <div class="mt-12 pt-6 border-t border-slate-300 text-xs text-slate-500">
+          <p>All estimates are subject to site verification and product availability.</p>
+          <p class="mt-2">This quote is valid for 30 days from the date above.</p>
+        </div>
       </div>
     </main>
 

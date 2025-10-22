@@ -20,7 +20,7 @@
 
   // Persisted quote + profile fields
   const fields = [
-    "bizType","custName","address","sqft","severity","visitType",
+    "bizType","custName","address","sqft","severity","visitType","comments",
     "baseRateSqft","useTieredRes","tier_0_1000","tier_1000_4000","tier_4000_6000","tier_6000_plus",
     "laborRate","hours","materials","travel","markupPct","taxPct",
     "travelMiles","perMile",
@@ -309,6 +309,65 @@
     if ($("grandOut")) $("grandOut").textContent= currency(total);
 
     renderCompany();
+    renderPrintQuote(baseTotal, pestAdder, termiteAdder, labor, materials, travelFlat, travelAuto, deviceCost, afterHours, discount, subtotal, tax, total);
+  }
+
+  function renderPrintQuote(baseTotal, pestAdder, termiteAdder, labor, materials, travelFlat, travelAuto, deviceCost, afterHours, discount, subtotal, tax, total) {
+    // Company header
+    if ($("printLogo")) $("printLogo").src = $("companyLogoOutput")?.src || "";
+    if ($("printCompanyName")) $("printCompanyName").textContent = $("companyName")?.value || "Company Name";
+    if ($("printAddress")) $("printAddress").textContent = $("companyAddress")?.value || "";
+    const phone = $("companyPhone")?.value || "";
+    const email = $("companyEmail")?.value || "";
+    const license = $("companyLicense")?.value || "";
+    if ($("printContact")) $("printContact").textContent = [phone, email, license ? `License: ${license}` : ""].filter(Boolean).join(" • ");
+    if ($("printQuoteDate")) $("printQuoteDate").textContent = new Date().toLocaleDateString();
+
+    // Customer info
+    if ($("printCustName")) $("printCustName").textContent = $("custName")?.value || "—";
+    if ($("printCustAddr")) $("printCustAddr").textContent = $("address")?.value || "—";
+
+    // Service details
+    const sqft = num($("sqft")?.value || "0");
+    const severity = num($("severity")?.value || "3");
+    const visitType = $("visitType")?.value || "one";
+    if ($("printServiceDesc")) $("printServiceDesc").textContent = describeService(severity, visitType);
+    if ($("printSqft")) $("printSqft").textContent = sqft ? `${sqft.toLocaleString()} sq ft` : "—";
+
+    // Line items
+    const lineItems = [];
+    if (baseTotal > 0) lineItems.push({ desc: "Base Service Fee", amount: baseTotal });
+    if (pestAdder > 0) lineItems.push({ desc: "Additional Pest Services", amount: pestAdder });
+    if (termiteAdder > 0) lineItems.push({ desc: "Termite Treatment (Linear Ft)", amount: termiteAdder });
+    if (labor > 0) lineItems.push({ desc: `Labor (${$("hours")?.value || "0"} hrs @ ${currency(num($("laborRate")?.value || "0"))}/hr)`, amount: labor });
+    if (materials > 0) lineItems.push({ desc: "Materials & Supplies", amount: materials });
+    if (travelFlat > 0) lineItems.push({ desc: "Travel Fee", amount: travelFlat });
+    if (travelAuto > 0) lineItems.push({ desc: `Mileage (${$("travelMiles")?.value || "0"} mi)`, amount: travelAuto });
+    if (deviceCost > 0) lineItems.push({ desc: "Monitoring Devices & Compliance", amount: deviceCost });
+    if (afterHours > 0) lineItems.push({ desc: "After-Hours Surcharge", amount: afterHours });
+    if (discount > 0) lineItems.push({ desc: "Discount", amount: -discount });
+
+    const tbody = $("printLineItems");
+    if (tbody) {
+      tbody.innerHTML = "";
+      lineItems.forEach(item => {
+        tbody.insertAdjacentHTML("beforeend", `<tr><td class="py-2">${item.desc}</td><td class="text-right">${currency(item.amount)}</td></tr>`);
+      });
+    }
+
+    if ($("printSubtotal")) $("printSubtotal").textContent = currency(subtotal);
+    if ($("printTax")) $("printTax").textContent = currency(tax);
+    if ($("printTotal")) $("printTotal").textContent = currency(total);
+
+    // Hide tax row if zero
+    const taxRow = $("printTaxRow");
+    if (taxRow) taxRow.style.display = tax > 0 ? "" : "none";
+
+    // Comments
+    const comments = $("comments")?.value || "";
+    const commentsSection = $("printCommentsSection");
+    if (commentsSection) commentsSection.style.display = comments ? "" : "none";
+    if ($("printComments")) $("printComments").textContent = comments;
   }
 
   function logoPreview(file){
