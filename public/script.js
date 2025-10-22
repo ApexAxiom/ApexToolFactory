@@ -227,14 +227,10 @@
   function currency(n){ return (isFinite(n)? n:0).toLocaleString(undefined,{style:"currency",currency:"USD",maximumFractionDigits:2}); }
 
   function tierPriceForSqft(sqft){
-    const t0 = num($("tier_0_1000")?.value || "50");
-    const t1 = num($("tier_1000_4000")?.value || "70");
-    const t2 = num($("tier_4000_6000")?.value || "150");
-    const t3 = num($("tier_6000_plus")?.value || "0");
-    if (sqft <= 1000) return t0;
-    if (sqft <= 4000) return t1;
-    if (sqft <= 6000) return t2;
-    return t3; // custom for >6000
+    const sel = $("resTierPlan");
+    const val = sel ? sel.value : "0";
+    if (val === "custom") return num($("resTierCustom")?.value || "0");
+    return num(val || "0");
   }
 
   function compute(){
@@ -398,7 +394,19 @@
       const a = document.createElement("a"); a.href = URL.createObjectURL(blob);
       a.download = `quote-${Date.now()}.json`; a.click(); URL.revokeObjectURL(a.href);
     });
-    $("btnReset")?.addEventListener("click", () => { localStorage.removeItem("pestimator.quote"); location.reload(); });
+    $("btnReset")?.addEventListener("click", () => {
+      localStorage.removeItem("pestimator.quote");
+      // Reset all inputs to 0 or defaults
+      ["sqft","baseRateSqft","laborRate","hours","materials","travel","markupPct","taxPct","travelMiles","perMile",
+       "rodentStations","rodentRate","iltCount","iltRate","complianceFee","afterHoursPct","discountPct","linearFt","lfRate","resTierCustom"].forEach(id=>{ if($(id)) $(id).value = "0"; });
+      if($("resTierPlan")) $("resTierPlan").value = "0";
+      if($("useTieredRes")) $("useTieredRes").checked = false;
+      // Clear pests
+      selectedPests = []; pestPricing = {};
+      document.querySelectorAll('#pestPicker input[type="checkbox"]').forEach(el=>{ el.checked = false; });
+      renderPestChargeRows();
+      compute();
+    });
 
     // profile buttons
     $("btnProfileSave")?.addEventListener("click", () => saveProfile());
@@ -407,6 +415,13 @@
     $("profileImport")?.addEventListener("change", (e) => importProfile(e.target.files?.[0]));
 
     $("companyLogo")?.addEventListener("change", (e) => logoPreview(e.target.files?.[0]));
+    $("resTierPlan")?.addEventListener("change", ()=>{
+      const v = $("resTierPlan").value;
+      const custom = $("resTierCustom");
+      if(custom) custom.classList.toggle("hidden", v !== "custom");
+      compute(); saveQuote();
+    });
+    $("resTierCustom")?.addEventListener("input", ()=>{ compute(); saveQuote(); });
 
     // auth modal
     const modal = $("authModal");
