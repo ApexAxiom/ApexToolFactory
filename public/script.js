@@ -404,15 +404,17 @@
     $("bizType")?.addEventListener("change", () => { refreshBlocks(); compute(); saveQuote(); });
 
     // buttons
-    $("btnPrint")?.addEventListener("click", () => window.print());
-    $("btnSave")?.addEventListener("click", saveQuote);
-    $("btnCalc")?.addEventListener("click", () => { compute(); saveQuote(); alert("Calculated."); });
-    $("btnExport")?.addEventListener("click", () => {
+    $("btnPrint")?.addEventListener("click", (e) => { e.preventDefault(); window.print(); });
+    $("btnSave")?.addEventListener("click", (e) => { e.preventDefault(); saveQuote(); });
+    $("btnCalc")?.addEventListener("click", (e) => { e.preventDefault(); compute(); saveQuote(); });
+    $("btnExport")?.addEventListener("click", (e) => {
+      e.preventDefault();
       const blob = new Blob([JSON.stringify(serialize(), null, 2)], {type:"application/json"});
       const a = document.createElement("a"); a.href = URL.createObjectURL(blob);
       a.download = `quote-${Date.now()}.json`; a.click(); URL.revokeObjectURL(a.href);
     });
-    $("btnReset")?.addEventListener("click", () => {
+    $("btnReset")?.addEventListener("click", (e) => {
+      e.preventDefault();
       localStorage.removeItem("pestimator.quote");
       // Reset all inputs to 0 or defaults
       ["sqft","baseRateSqft","laborRate","hours","materials","travel","markupPct","taxPct","travelMiles","perMile",
@@ -424,6 +426,33 @@
       document.querySelectorAll('#pestPicker input[type="checkbox"]').forEach(el=>{ el.checked = false; });
       renderPestChargeRows();
       compute();
+    });
+
+    // Button delegation fallback (safety net if individual listeners fail)
+    document.addEventListener("click", (ev) => {
+      const btn = ev.target.closest("button");
+      if (!btn) return;
+      switch (btn.id) {
+        case "btnCalc": ev.preventDefault(); compute(); saveQuote(); break;
+        case "btnPrint": ev.preventDefault(); window.print(); break;
+        case "btnSave": ev.preventDefault(); saveQuote(); break;
+        case "btnExport": ev.preventDefault(); {
+          const blob = new Blob([JSON.stringify(serialize(), null, 2)], {type:"application/json"});
+          const a = document.createElement("a"); a.href = URL.createObjectURL(blob);
+          a.download = `quote-${Date.now()}.json`; a.click(); URL.revokeObjectURL(a.href);
+        } break;
+        case "btnReset": ev.preventDefault();
+          localStorage.removeItem("pestimator.quote");
+          ["sqft","baseRateSqft","laborRate","hours","materials","travel","markupPct","taxPct","travelMiles","perMile",
+           "rodentStations","rodentRate","iltCount","iltRate","complianceFee","afterHoursPct","discountPct","linearFt","lfRate","resTierCustom"].forEach(id=>{ if($(id)) $(id).value = "0"; });
+          if($("resTierPlan")) $("resTierPlan").value = "0";
+          if($("useTieredRes")) $("useTieredRes").checked = false;
+          selectedPests = []; pestPricing = {};
+          document.querySelectorAll('#pestPicker input[type="checkbox"]').forEach(el=>{ el.checked = false; });
+          renderPestChargeRows();
+          compute();
+          break;
+      }
     });
 
     // profile buttons
