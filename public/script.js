@@ -413,20 +413,6 @@
     r.readAsDataURL(file);
   }
 
-  // Debug function to test all buttons
-  function testAllButtons() {
-    const buttons = [
-      "btnCalc", "btnPrint", "btnSave", "btnExport", "btnReset",
-      "btnProfileSave", "btnProfileLoad", "btnProfileExport",
-      "btnAuth", "btnAuthCancel", "btnAuthConfirm"
-    ];
-    console.log("Testing button availability:");
-    buttons.forEach(id => {
-      const btn = $(id);
-      console.log(`${id}: ${btn ? '✓ Found' : '✗ Missing'}`);
-    });
-  }
-
   // ---- wire up ----
   document.addEventListener("DOMContentLoaded", () => {
     renderPestPicker();
@@ -434,134 +420,240 @@
     renderPestChargeRows();
     refreshBlocks();
 
-    // inputs
-    fields.forEach(f => $(f)?.addEventListener("input", () => { compute(); saveQuote(); }));
-    // Also update on change for selects that may not fire input consistently across browsers
-    ["bizType","visitType","severity"].forEach(id => $(id)?.addEventListener("change", () => { compute(); saveQuote(); }));
-    ["useTieredRes","tier_0_1000","tier_1000_4000","tier_4000_6000","tier_6000_plus","baseRateSqft"]
-      .forEach(id => $(id)?.addEventListener("input", () => { compute(); saveQuote(); }));
-
-    $("bizType")?.addEventListener("change", () => { refreshBlocks(); compute(); saveQuote(); });
-
-    // buttons - Quote Summary section
-    $("btnPrint")?.addEventListener("click", (e) => { e.preventDefault(); window.print(); });
-    $("btnSave")?.addEventListener("click", (e) => { e.preventDefault(); saveQuote(); });
-    $("btnCalc")?.addEventListener("click", (e) => { e.preventDefault(); compute(); saveQuote(); });
-    $("btnExport")?.addEventListener("click", (e) => {
-      e.preventDefault();
-      const blob = new Blob([JSON.stringify(serialize(), null, 2)], {type:"application/json"});
-      const a = document.createElement("a"); a.href = URL.createObjectURL(blob);
-      a.download = `quote-${Date.now()}.json`; a.click(); URL.revokeObjectURL(a.href);
+    // Wire inputs
+    fields.forEach(f => {
+      const el = $(f);
+      if (el) el.addEventListener("input", () => { compute(); saveQuote(); });
     });
-    $("btnReset")?.addEventListener("click", (e) => {
-      e.preventDefault();
-      localStorage.removeItem("pestimator.quote");
-      // Reset all inputs to 0 or defaults
-      ["sqft","baseRateSqft","laborRate","hours","materials","travel","markupPct","taxPct","travelMiles","perMile",
-       "rodentStations","rodentRate","iltCount","iltRate","complianceFee","afterHoursPct","discountPct","linearFt","lfRate","resTierCustom"].forEach(id=>{ if($(id)) $(id).value = "0"; });
-      if($("resTierPlan")) $("resTierPlan").value = "0";
-      if($("useTieredRes")) $("useTieredRes").checked = false;
-      // Clear pests
-      selectedPests = []; pestPricing = {};
-      document.querySelectorAll('#pestPicker input[type="checkbox"]').forEach(el=>{ el.checked = false; });
-      renderPestChargeRows();
-      compute();
+    
+    ["bizType","visitType","severity"].forEach(id => {
+      const el = $(id);
+      if (el) el.addEventListener("change", () => { 
+        if (id === "bizType") refreshBlocks();
+        compute(); 
+        saveQuote(); 
+      });
     });
 
-    // Button delegation fallback (safety net if individual listeners fail)
-    document.addEventListener("click", (ev) => {
-      const btn = ev.target.closest("button");
-      if (!btn) return;
-      ev.preventDefault();
-      switch (btn.id) {
-        // Quote Summary buttons
-        case "btnCalc": compute(); saveQuote(); break;
-        case "btnPrint": window.print(); break;
-        case "btnSave": saveQuote(); break;
-        case "btnExport": {
-          const blob = new Blob([JSON.stringify(serialize(), null, 2)], {type:"application/json"});
-          const a = document.createElement("a"); a.href = URL.createObjectURL(blob);
-          a.download = `quote-${Date.now()}.json`; a.click(); URL.revokeObjectURL(a.href);
-        } break;
-        case "btnReset":
-          localStorage.removeItem("pestimator.quote");
-          ["sqft","baseRateSqft","laborRate","hours","materials","travel","markupPct","taxPct","travelMiles","perMile",
-           "rodentStations","rodentRate","iltCount","iltRate","complianceFee","afterHoursPct","discountPct","linearFt","lfRate","resTierCustom"].forEach(id=>{ if($(id)) $(id).value = "0"; });
-          if($("resTierPlan")) $("resTierPlan").value = "0";
-          if($("useTieredRes")) $("useTieredRes").checked = false;
-          selectedPests = []; pestPricing = {};
-          document.querySelectorAll('#pestPicker input[type="checkbox"]').forEach(el=>{ el.checked = false; });
-          renderPestChargeRows();
-          compute();
-          break;
-        // Profile buttons
-        case "btnProfileSave": saveProfile(); break;
-        case "btnProfileLoad": loadProfile(); break;
-        case "btnProfileExport": exportProfile(); break;
-        // Auth modal buttons
-        case "btnAuth": modal?.classList.remove("hidden"); break;
-        case "btnAuthCancel": modal?.classList.add("hidden"); break;
-        case "btnAuthConfirm": {
-          const pass = $("passphrase")?.value.trim();
-          if (!pass) return alert("Enter a passphrase.");
-          let saltB64 = localStorage.getItem("pestimator.auth.salt");
-          let salt;
-          if (saltB64) {
-            salt = Uint8Array.from(atob(saltB64), c => c.charCodeAt(0));
-          } else {
-            salt = crypto.getRandomValues(new Uint8Array(16));
-            localStorage.setItem("pestimator.auth.salt", b64(salt));
-          }
-          deriveKey(pass, salt).then(key => {
-            sessionKey = key;
-            modal?.classList.add("hidden");
-            loadProfile();
+    const tierPlan = $("resTierPlan");
+    if (tierPlan) {
+      tierPlan.addEventListener("change", () => {
+        const custom = $("resTierCustom");
+        if (custom) custom.classList.toggle("hidden", tierPlan.value !== "custom");
+        compute(); 
+        saveQuote();
+      });
+    }
+
+    const tierCustom = $("resTierCustom");
+    if (tierCustom) {
+      tierCustom.addEventListener("input", () => { compute(); saveQuote(); });
+    }
+
+    const companyLogo = $("companyLogo");
+    if (companyLogo) {
+      companyLogo.addEventListener("change", (e) => {
+        const file = e.target.files?.[0];
+        if (file) logoPreview(file);
+      });
+    }
+
+    const profileImport = $("profileImport");
+    if (profileImport) {
+      profileImport.addEventListener("change", (e) => {
+        const file = e.target.files?.[0];
+        if (file) importProfile(file);
+      });
+    }
+
+    // ============ BUTTON HANDLERS ============
+    // Each button gets its own dedicated handler
+    
+    // Calculate button
+    const btnCalc = $("btnCalc");
+    if (btnCalc) {
+      btnCalc.addEventListener("click", function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        console.log("Calculate clicked");
+        compute();
+        saveQuote();
+        alert("Quote calculated and saved!");
+      });
+    }
+
+    // Print button
+    const btnPrint = $("btnPrint");
+    if (btnPrint) {
+      btnPrint.addEventListener("click", function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        console.log("Print clicked");
+        window.print();
+      });
+    }
+
+    // Save button
+    const btnSave = $("btnSave");
+    if (btnSave) {
+      btnSave.addEventListener("click", function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        console.log("Save clicked");
+        saveQuote();
+        alert("Quote saved locally!");
+      });
+    }
+
+    // Export button
+    const btnExport = $("btnExport");
+    if (btnExport) {
+      btnExport.addEventListener("click", function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        console.log("Export clicked");
+        const data = serialize();
+        const blob = new Blob([JSON.stringify(data, null, 2)], {type:"application/json"});
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `quote-${Date.now()}.json`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      });
+    }
+
+    // Reset button
+    const btnReset = $("btnReset");
+    if (btnReset) {
+      btnReset.addEventListener("click", function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        console.log("Reset clicked");
+        if (!confirm("Reset all fields to zero?")) return;
+        
+        localStorage.removeItem("pestimator.quote");
+        
+        ["sqft","baseRateSqft","laborRate","hours","materials","travel","markupPct","taxPct",
+         "travelMiles","perMile","rodentStations","rodentRate","iltCount","iltRate",
+         "complianceFee","afterHoursPct","discountPct","linearFt","lfRate","resTierCustom",
+         "custName","address","comments"]
+          .forEach(id => {
+            const el = $(id);
+            if (el) el.value = "0";
           });
-        } break;
-      }
-    });
+        
+        const plan = $("resTierPlan");
+        if (plan) plan.value = "0";
+        
+        selectedPests = [];
+        pestPricing = {};
+        
+        const checks = document.querySelectorAll('#pestPicker input[type="checkbox"]');
+        checks.forEach(c => c.checked = false);
+        
+        renderPestChargeRows();
+        compute();
+      });
+    }
 
-    // profile buttons
-    $("btnProfileSave")?.addEventListener("click", (e) => { e.preventDefault(); saveProfile(); });
-    $("btnProfileLoad")?.addEventListener("click", (e) => { e.preventDefault(); loadProfile(); });
-    $("btnProfileExport")?.addEventListener("click", (e) => { e.preventDefault(); exportProfile(); });
-    $("profileImport")?.addEventListener("change", (e) => { e.preventDefault(); importProfile(e.target.files?.[0]); });
+    // Profile Save button
+    const btnProfileSave = $("btnProfileSave");
+    if (btnProfileSave) {
+      btnProfileSave.addEventListener("click", function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        console.log("Profile Save clicked");
+        saveProfile();
+      });
+    }
 
-    $("companyLogo")?.addEventListener("change", (e) => logoPreview(e.target.files?.[0]));
-    $("resTierPlan")?.addEventListener("change", ()=>{
-      const v = $("resTierPlan").value;
-      const custom = $("resTierCustom");
-      if(custom) custom.classList.toggle("hidden", v !== "custom");
-      compute(); saveQuote();
-    });
-    $("resTierCustom")?.addEventListener("input", ()=>{ compute(); saveQuote(); });
-    $("resTierCustom")?.addEventListener("change", ()=>{ compute(); saveQuote(); });
+    // Profile Load button
+    const btnProfileLoad = $("btnProfileLoad");
+    if (btnProfileLoad) {
+      btnProfileLoad.addEventListener("click", function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        console.log("Profile Load clicked");
+        loadProfile();
+      });
+    }
 
-    // auth modal
-    const modal = $("authModal");
-    $("btnAuth")?.addEventListener("click", (e) => { e.preventDefault(); modal?.classList.remove("hidden"); });
-    $("btnAuthCancel")?.addEventListener("click", (e) => { e.preventDefault(); modal?.classList.add("hidden"); });
-    $("btnAuthConfirm")?.addEventListener("click", async (e) => {
-      e.preventDefault();
-      const pass = $("passphrase")?.value.trim();
-      if (!pass) return alert("Enter a passphrase.");
-      let saltB64 = localStorage.getItem("pestimator.auth.salt");
-      let salt;
-      if (saltB64) {
-        salt = Uint8Array.from(atob(saltB64), c => c.charCodeAt(0));
-      } else {
-        salt = crypto.getRandomValues(new Uint8Array(16));
-        localStorage.setItem("pestimator.auth.salt", b64(salt));
-      }
-      sessionKey = await deriveKey(pass, salt);
-      modal?.classList.add("hidden");
-      // Try auto-load encrypted profile on successful sign-in
-      await loadProfile();
-    });
+    // Profile Export button
+    const btnProfileExport = $("btnProfileExport");
+    if (btnProfileExport) {
+      btnProfileExport.addEventListener("click", function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        console.log("Profile Export clicked");
+        exportProfile();
+      });
+    }
 
+    // Auth Sign in button
+    const btnAuth = $("btnAuth");
+    const authModal = $("authModal");
+    if (btnAuth && authModal) {
+      btnAuth.addEventListener("click", function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        console.log("Sign in clicked");
+        authModal.classList.remove("hidden");
+      });
+    }
+
+    // Auth Cancel button
+    const btnAuthCancel = $("btnAuthCancel");
+    if (btnAuthCancel && authModal) {
+      btnAuthCancel.addEventListener("click", function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        console.log("Auth Cancel clicked");
+        authModal.classList.add("hidden");
+      });
+    }
+
+    // Auth Confirm button
+    const btnAuthConfirm = $("btnAuthConfirm");
+    if (btnAuthConfirm && authModal) {
+      btnAuthConfirm.addEventListener("click", async function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        console.log("Auth Confirm clicked");
+        
+        const passField = $("passphrase");
+        const pass = passField?.value.trim();
+        if (!pass) {
+          alert("Enter a passphrase.");
+          return;
+        }
+        
+        let saltB64 = localStorage.getItem("pestimator.auth.salt");
+        let salt;
+        if (saltB64) {
+          salt = Uint8Array.from(atob(saltB64), c => c.charCodeAt(0));
+        } else {
+          salt = crypto.getRandomValues(new Uint8Array(16));
+          localStorage.setItem("pestimator.auth.salt", b64(salt));
+        }
+        
+        sessionKey = await deriveKey(pass, salt);
+        authModal.classList.add("hidden");
+        await loadProfile();
+      });
+    }
+
+    // Initial compute
     compute();
     
-    // Debug: Test all buttons on load
-    testAllButtons();
+    // Log button status
+    console.log("=== Button Status ===");
+    ["btnCalc","btnPrint","btnSave","btnExport","btnReset",
+     "btnProfileSave","btnProfileLoad","btnProfileExport",
+     "btnAuth","btnAuthCancel","btnAuthConfirm"].forEach(id => {
+      console.log(`${id}: ${$(id) ? "✓" : "✗"}`);
+    });
   });
 })();
