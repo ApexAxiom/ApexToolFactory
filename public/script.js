@@ -20,7 +20,7 @@
 
   // Persisted quote + profile fields
   const fields = [
-    "bizType","custName","address","sqft","severity","visitType","comments",
+    "bizType","custName","address","sqft","visitType","comments",
     "baseRateSqft","useTieredRes","tier_0_1000","tier_1000_4000","tier_4000_6000","tier_6000_plus",
     "laborRate","hours","materials","travel","markupPct","taxPct",
     "travelMiles","perMile",
@@ -153,7 +153,7 @@
         const pid = chk.dataset.pest;
         if (chk.checked) {
           if (!selectedPests.includes(pid)) selectedPests.push(pid);
-          if (!pestPricing[pid]) pestPricing[pid] = {included:true, cost:0};
+          if (!pestPricing[pid]) pestPricing[pid] = {cost:0};
         } else {
           selectedPests = selectedPests.filter(x => x!==pid);
           delete pestPricing[pid];
@@ -169,23 +169,15 @@
     selectedPests.forEach(pid => {
       const meta = pestCatalog.find(p=>p.id===pid);
       const rowId = `row_${pid}`;
-      const included = pestPricing[pid]?.included ?? true;
       const cost = pestPricing[pid]?.cost ?? 0;
       host.insertAdjacentHTML("beforeend", `
-        <div id="${rowId}" class="grid md:grid-cols-3 gap-2">
+        <div id="${rowId}" class="grid md:grid-cols-2 gap-2">
           <div class="py-2">${meta.label}</div>
-          <label class="flex items-center gap-2">
-            <input type="checkbox" id="inc_${pid}" ${included?"checked":""}> <span>Included</span>
-          </label>
           <div class="grid grid-cols-[auto_1fr] items-center gap-2">
             <span class="text-slate-600">$</span>
             <input type="number" id="cost_${pid}" min="0" step="1" value="${cost}" placeholder="Cost for ${meta.label}" aria-label="Cost for ${meta.label}">
           </div>
         </div>`);
-      $("inc_"+pid).addEventListener("change", e => {
-        pestPricing[pid].included = e.target.checked;
-        compute(); saveQuote();
-      });
       $("cost_"+pid).addEventListener("input", e => {
         pestPricing[pid].cost = parseFloat(e.target.value || "0");
         compute(); saveQuote();
@@ -242,11 +234,11 @@
     if ($("contactOut")) $("contactOut").textContent = [addr, phone, email || web].filter(Boolean).join(" • ") || "—";
   }
 
-  function describeService(severity, visitType) {
+  function describeService(visitType) {
     const visit = {one:"One-time", monthly:"Monthly", quarterly:"Quarterly"}[visitType] || visitType;
     const cust = ($("bizType")?.value === "com") ? "Commercial" : "Residential";
     const pestList = selectedPests.map(pid => pestCatalog.find(p=>p.id===pid)?.label).filter(Boolean).join(", ") || "None";
-    return `${cust} · Pests: ${pestList} • Severity ${severity} • ${visit}`;
+    return `${cust} · Pests: ${pestList} • ${visit}`;
   }
 
   function num(v){ const n = parseFloat(v); return isFinite(n) ? n : 0; }
@@ -261,7 +253,6 @@
 
   function compute(){
     const sqft = num($("sqft")?.value || "0");
-    const severity = num($("severity")?.value || "3");
     const visitType = $("visitType")?.value || "one";
     const bizType = $("bizType")?.value || "res";
 
@@ -276,15 +267,14 @@
       const perSq = num($("baseRateSqft")?.value || "0.06");
       const visitM = visitMult[visitType] || 1.0;
       const base = sqft * perSq * visitM;
-      const sevAdj = base * ((severity - 1) * 0.07);
-      baseTotal = base + sevAdj;
+      baseTotal = base;
     }
 
     // ---- added per-pest charges
     let pestAdder = 0;
     selectedPests.forEach(pid => {
       const cfg = pestPricing[pid]; if (!cfg) return;
-      if (!cfg.included) pestAdder += num(cfg.cost);
+      pestAdder += num(cfg.cost);
     });
 
     // termite linear-foot adder if selected
@@ -321,7 +311,7 @@
 
     if ($("custOut")) $("custOut").textContent = $("custName")?.value || "—";
     if ($("addrOut")) $("addrOut").textContent = $("address")?.value || "—";
-    if ($("svcOut")) $("svcOut").textContent  = describeService(severity, visitType);
+    if ($("svcOut")) $("svcOut").textContent  = describeService(visitType);
     if ($("subOut")) $("subOut").textContent  = currency(subtotal);
     if ($("taxOut")) $("taxOut").textContent  = currency(tax);
     if ($("grandOut")) $("grandOut").textContent= currency(total);
@@ -347,9 +337,8 @@
 
     // Service details
     const sqft = num($("sqft")?.value || "0");
-    const severity = num($("severity")?.value || "3");
     const visitType = $("visitType")?.value || "one";
-    if ($("printServiceDesc")) $("printServiceDesc").textContent = describeService(severity, visitType);
+    if ($("printServiceDesc")) $("printServiceDesc").textContent = describeService(visitType);
     if ($("printSqft")) $("printSqft").textContent = sqft ? `${sqft.toLocaleString()} sq ft` : "—";
 
     // Line items
@@ -360,13 +349,17 @@
     const isTier = ($("bizType")?.value === "res") && tierVal > 0;
     if (baseTotal > 0) lineItems.push({ desc: isTier ? "Residential Quarterly Program" : "Base Service Fee", amount: baseTotal });
 
-    // Per-pest added costs as individual lines when not Included
+    // Per-pest added costs as individual lines
     selectedPests.forEach(pid => {
       const cfg = pestPricing[pid];
       const meta = pestCatalog.find(p=>p.id===pid);
-      if (!cfg || cfg.included) return;
+      if (!cfg || !meta) return;
       const amt = num(cfg.cost);
-      if (amt > 0 && meta) lineItems.push({ desc: meta.label, amount: amt });
+      if (amt > 0) {
+        lineItems.push({ desc: meta.label, amount: amt });
+      } else {
+        lineItems.push({ desc: `${meta.label} (Included)`, amount: 0 });
+      }
     });
     if (termiteAdder > 0) lineItems.push({ desc: "Termite Treatment (Linear Ft)", amount: termiteAdder });
     if (labor > 0) lineItems.push({ desc: `Labor (${$("hours")?.value || "0"} hrs @ ${currency(num($("laborRate")?.value || "0"))}/hr)`, amount: labor });
@@ -425,7 +418,7 @@
       if (el) el.addEventListener("input", () => { compute(); saveQuote(); });
     });
     
-    ["bizType","visitType","severity"].forEach(id => {
+    ["bizType","visitType"].forEach(id => {
       const el = $(id);
       if (el) el.addEventListener("change", () => { 
         if (id === "bizType") refreshBlocks();
