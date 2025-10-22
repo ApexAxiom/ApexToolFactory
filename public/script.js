@@ -12,7 +12,8 @@
     {id:"mosquito", label:"Mosquito"},
     {id:"fleas", label:"Fleas/Ticks"},
     {id:"bedbug", label:"Bed Bugs"},
-    {id:"termite", label:"Termite"}
+    {id:"termite", label:"Termite"},
+    {id:"birds", label:"Birds"}
   ];
 
   let selectedPests = [];            // array of ids
