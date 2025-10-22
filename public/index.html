@@ -57,6 +57,27 @@
         
         /* Better table scrolling */
         .overflow-x-auto { -webkit-overflow-scrolling: touch; }
+        
+        /* Fix profile buttons - stack vertically on mobile */
+        .card .flex.gap-2.no-print {
+          flex-direction: column;
+          width: 100%;
+        }
+        .card .flex.gap-2.no-print button,
+        .card .flex.gap-2.no-print label {
+          width: 100%;
+          text-align: center;
+        }
+        
+        /* Fix pest picker - better spacing */
+        #pestPicker {
+          display: grid !important;
+          grid-template-columns: repeat(2, 1fr);
+          gap: 0.75rem;
+        }
+        #pestPicker label {
+          font-size: 14px;
+        }
       }
 
       /* Avoid awkward PDF breaks */
