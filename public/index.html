@@ -191,7 +191,11 @@
           width: 100%;
         }
         #pestPicker {
-          grid-template-columns: repeat(2, minmax(0, 1fr));
+          grid-template-columns: 1fr;
+          justify-items: start;
+        }
+        #pestPicker label {
+          justify-content: flex-start;
         }
       }
 
@@ -387,7 +391,7 @@
             </div>
 
             <!-- Pest Charges -->
-            <div id="pestChargesBlock" class="grid gap-2">
+            <div id="pestChargesBlock" class="grid gap-2 hidden">
               <div class="text-sm font-medium">Pest Coverage Pricing</div>
               <div id="pestChargeRows" class="grid gap-2"></div>
               <div class="text-xs text-slate-500">Mark "Included" to charge $0 for that pest; otherwise enter an added cost.</div>
