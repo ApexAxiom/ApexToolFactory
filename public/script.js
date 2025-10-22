@@ -264,7 +264,6 @@
     const severity = num($("severity")?.value || "3");
     const visitType = $("visitType")?.value || "one";
     const bizType = $("bizType")?.value || "res";
-    const useTier = ($("useTieredRes")?.checked && bizType === "res") ? true : false;
 
     // ---- base / service price
     let baseTotal = 0;
