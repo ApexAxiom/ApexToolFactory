@@ -242,8 +242,11 @@
 
     // ---- base / service price
     let baseTotal = 0;
+    const tierSel = $("resTierPlan")?.value || "0";
+    const tierVal = tierSel === "custom" ? num($("resTierCustom")?.value || "0") : num(tierSel);
+    const useTier = (bizType === "res") && tierVal > 0;
     if (useTier) {
-      baseTotal = tierPriceForSqft(sqft);
+      baseTotal = tierVal;
     } else {
       const perSq = num($("baseRateSqft")?.value || "0.06");
       const visitM = visitMult[visitType] || 1.0;
@@ -326,8 +329,20 @@
 
     // Line items
     const lineItems = [];
-    if (baseTotal > 0) lineItems.push({ desc: "Base Service Fee", amount: baseTotal });
-    if (pestAdder > 0) lineItems.push({ desc: "Additional Pest Services", amount: pestAdder });
+    // Base or tiered program
+    const tierSel = $("resTierPlan")?.value || "0";
+    const tierVal = tierSel === "custom" ? num($("resTierCustom")?.value || "0") : num(tierSel);
+    const isTier = ($("bizType")?.value === "res") && tierVal > 0;
+    if (baseTotal > 0) lineItems.push({ desc: isTier ? "Residential Quarterly Program" : "Base Service Fee", amount: baseTotal });
+
+    // Per-pest added costs as individual lines when not Included
+    selectedPests.forEach(pid => {
+      const cfg = pestPricing[pid];
+      const meta = pestCatalog.find(p=>p.id===pid);
+      if (!cfg || cfg.included) return;
+      const amt = num(cfg.cost);
+      if (amt > 0 && meta) lineItems.push({ desc: meta.label, amount: amt });
+    });
     if (termiteAdder > 0) lineItems.push({ desc: "Termite Treatment (Linear Ft)", amount: termiteAdder });
     if (labor > 0) lineItems.push({ desc: `Labor (${$("hours")?.value || "0"} hrs @ ${currency(num($("laborRate")?.value || "0"))}/hr)`, amount: labor });
     if (materials > 0) lineItems.push({ desc: "Materials & Supplies", amount: materials });
@@ -381,6 +396,8 @@
 
     // inputs
     fields.forEach(f => $(f)?.addEventListener("input", () => { compute(); saveQuote(); }));
+    // Also update on change for selects that may not fire input consistently across browsers
+    ["bizType","visitType","severity"].forEach(id => $(id)?.addEventListener("change", () => { compute(); saveQuote(); }));
     ["useTieredRes","tier_0_1000","tier_1000_4000","tier_4000_6000","tier_6000_plus","baseRateSqft"]
       .forEach(id => $(id)?.addEventListener("input", () => { compute(); saveQuote(); }));
 
@@ -422,6 +439,7 @@
       compute(); saveQuote();
     });
     $("resTierCustom")?.addEventListener("input", ()=>{ compute(); saveQuote(); });
+    $("resTierCustom")?.addEventListener("change", ()=>{ compute(); saveQuote(); });
 
     // auth modal
     const modal = $("authModal");
