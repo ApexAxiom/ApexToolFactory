@@ -40,7 +40,15 @@
     return crypto.subtle.deriveKey({ name: "PBKDF2", salt: saltB, iterations: 150000, hash: "SHA-256" },
                                    km, { name: "AES-GCM", length: 256 }, false, ["encrypt","decrypt"]);
   }
-  const b64 = (buf) => btoa(String.fromCharCode(...new Uint8Array(buf)));
+  // Safe base64 encoding that handles large buffers
+  const b64 = (buf) => {
+    const bytes = new Uint8Array(buf);
+    let binary = '';
+    for (let i = 0; i < bytes.length; i++) {
+      binary += String.fromCharCode(bytes[i]);
+    }
+    return btoa(binary);
+  };
   const unb64 = (str) => Uint8Array.from(atob(str), c => c.charCodeAt(0));
   async function encryptJson(obj, key) {
     const iv = crypto.getRandomValues(new Uint8Array(12));
