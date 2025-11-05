@@ -1,28 +1,47 @@
-# Pestimator - Static Quote Calculator
+# Pestimator — Landing Experience & Quoting Studio
 
-A simple, fast, and reliable pest control quote calculator that runs entirely in the browser.
+Pestimator now ships with a premium marketing homepage, Amplify-ready authentication, and the full quoting workspace—all delivered as a static bundle.
 
 ## Features
 
-- 🐜 **Zero Dependencies** - Pure HTML/CSS/JavaScript with Tailwind CDN
-- 💾 **Auto-Save** - Quotes persist in browser localStorage
-- 🖨️ **Print Ready** - Generate PDF quotes directly from browser
-- 📦 **Export** - Download quotes as JSON for integration
-- 📱 **Responsive** - Works on all devices
+- 🐜 **Showcase homepage** – A modern, mobile-first marketing page for Pestimator.com.
+- 🔐 **Amplify-aware auth** – Dedicated sign-in screen that integrates with AWS Amplify (Cognito) or falls back to an offline demo.
+- 💼 **Quoting studio** – Existing calculator preserved in `tool.html` with secure profile storage when authenticated.
+- 💾 **Auto-save** – Quotes persist in browser storage; encrypted profile vault when signed in.
+- 🖨️ **Print ready** – Export polished, white-labeled PDFs directly from the browser.
 
 ## Deployment
 
-This is a static site deployed via AWS Amplify with zero build steps.
+The site remains a static bundle (no build step) and is suitable for AWS Amplify hosting.
 
-- **Live Site:** Deployed automatically on push to `main`
-- **Previous App:** See `archive/2025-10-21-previous-app/` for the old Next.js version
+- **Live Site:** Deploy contents of `public/`.
+- **Previous App:** Historical Next.js version lives under `archive/2025-10-21-previous-app/`.
+
+## Structure
+
+```
+public/
+├── index.html     # Marketing homepage
+├── login.html     # Amplify-ready sign-in experience
+├── tool.html      # Quoting studio (formerly index.html)
+├── auth.js        # Shared authentication helper (Amplify + demo fallback)
+├── config.js      # Placeholder for Amplify configuration
+└── script.js      # Calculator logic powering tool.html
+```
+
+### Amplify configuration
+
+1. Copy your Amplify-generated web config into `public/config.js` (or inject at deploy time).
+2. Required keys typically include `aws_project_region`, `aws_cognito_region`, `aws_user_pools_id`, and `aws_user_pools_web_client_id`.
+3. Never commit secrets—reference them via AWS Secrets Manager/SSM when deploying.
+
+Without configuration, the sign-in page operates in **offline demo mode** and simply stores a session locally.
 
 ## Local Development
 
-Simply open `public/index.html` in a browser. No build process required.
+Open any of the HTML files directly, or serve them locally:
 
 ```bash
-# Serve locally (optional)
 cd public
 python -m http.server 8000
 # or
@@ -55,9 +74,9 @@ Total = Subtotal + (Subtotal × TaxPercent)
 
 ```
 public/
-├── index.html    # UI and layout
-└── script.js     # Calculator logic
+├── tool.html  # App UI and layout
+└── script.js  # Calculator logic
 ```
 
-No transpilation, no bundling, no frameworks - just clean, fast HTML.
+No transpilation, no bundling, no frameworks—just clean, fast HTML enhanced with Tailwind CDN and AWS Amplify JS.
 
