@@ -56,29 +56,47 @@
         <div class="w-full max-w-md space-y-8">
           <div>
             <h2 class="font-display text-3xl font-semibold text-night">Sign in</h2>
-            <p class="mt-2 text-sm text-slate-500">Use your AWS Amplify credentials or switch to demo mode.</p>
+            <p class="mt-2 text-sm text-night/70">Use one of the curated studio accounts or connect your AWS Amplify credentials.</p>
           </div>
-          <form id="loginForm" class="space-y-6 rounded-3xl border border-slate-200 bg-white/70 p-8 shadow-[0_35px_60px_-50px_rgba(15,23,42,0.35)] backdrop-blur">
-            <div class="space-y-2">
-              <label for="email" class="text-xs font-semibold uppercase tracking-[0.3em] text-slate-500">Email</label>
-              <input id="email" name="email" type="email" autocomplete="username" required class="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-night shadow-inner focus:border-lagoon focus:outline-none focus:ring-2 focus:ring-lagoon/40" placeholder="you@company.com" />
+          <div class="rounded-3xl border border-slate-200/80 bg-white/70 p-6 shadow-[0_30px_50px_-45px_rgba(14,165,233,0.6)] backdrop-blur">
+            <div class="mb-5 grid gap-3 sm:grid-cols-2">
+              <button type="button" data-username="Roeland" data-password="Demo123" class="accountBtn group flex items-center justify-between rounded-2xl border border-night/5 bg-night text-left px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-night/30 transition hover:-translate-y-0.5 hover:shadow-night/40">
+                <span class="flex flex-col">
+                  <span class="text-base">Roeland</span>
+                  <span class="text-xs font-normal text-white/70">Owner • Demo Account</span>
+                </span>
+                <span class="rounded-full bg-white/10 px-3 py-1 text-xs font-medium text-white/80 transition group-hover:bg-white/20">Select</span>
+              </button>
+              <button type="button" data-username="Joe" data-password="Demo123" class="accountBtn group flex items-center justify-between rounded-2xl border border-night/5 bg-night text-left px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-night/30 transition hover:-translate-y-0.5 hover:shadow-night/40">
+                <span class="flex flex-col">
+                  <span class="text-base">Joe</span>
+                  <span class="text-xs font-normal text-white/70">Field Lead • Demo Account</span>
+                </span>
+                <span class="rounded-full bg-white/10 px-3 py-1 text-xs font-medium text-white/80 transition group-hover:bg-white/20">Select</span>
+              </button>
             </div>
-            <div class="space-y-2">
-              <label for="password" class="text-xs font-semibold uppercase tracking-[0.3em] text-slate-500">Password</label>
-              <input id="password" name="password" type="password" autocomplete="current-password" required class="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-night shadow-inner focus:border-lagoon focus:outline-none focus:ring-2 focus:ring-lagoon/40" placeholder="••••••••" />
-            </div>
-            <div class="flex items-center justify-between text-xs text-slate-500">
-              <label class="inline-flex items-center gap-2">
-                <input id="remember" type="checkbox" class="h-4 w-4 rounded border-slate-300 text-lagoon focus:ring-lagoon" />
-                Remember me
-              </label>
-              <a href="https://docs.amplify.aws/lib/auth/" target="_blank" rel="noopener" class="font-semibold text-lagoon hover:text-lagoon/80">Need access?</a>
-            </div>
-            <button type="submit" class="w-full rounded-full bg-night px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-lagoon/20 transition hover:bg-slate-900" id="submitBtn">Sign in</button>
-            <button type="button" id="demoBtn" class="w-full rounded-full border border-slate-300 px-5 py-3 text-sm font-semibold text-night transition hover:border-night hover:bg-night hover:text-white">Try offline demo</button>
-            <p id="status" class="min-h-[1.5rem] text-center text-sm text-slate-500"></p>
-          </form>
-          <p class="text-xs text-slate-400">Configure your Amplify project via <span class="font-semibold text-night">public/config.js</span>. Store sensitive keys in AWS Secrets Manager and inject them during deployment—never commit secrets.</p>
+            <form id="loginForm" class="space-y-6 rounded-3xl border border-white/40 bg-white/80 px-6 py-8 shadow-[0_35px_60px_-50px_rgba(15,23,42,0.45)]">
+              <div class="space-y-2">
+                <label for="username" class="text-xs font-semibold uppercase tracking-[0.3em] text-night/70">Username</label>
+                <input id="username" name="username" type="text" autocomplete="username" required class="w-full rounded-2xl border border-night/10 bg-white px-4 py-3 text-sm text-night shadow-inner focus:border-lagoon focus:outline-none focus:ring-2 focus:ring-lagoon/40" placeholder="Roeland" />
+              </div>
+              <div class="space-y-2">
+                <label for="password" class="text-xs font-semibold uppercase tracking-[0.3em] text-night/70">Password</label>
+                <input id="password" name="password" type="password" autocomplete="current-password" required class="w-full rounded-2xl border border-night/10 bg-white px-4 py-3 text-sm text-night shadow-inner focus:border-lagoon focus:outline-none focus:ring-2 focus:ring-lagoon/40" placeholder="Demo123" />
+              </div>
+              <div class="flex items-center justify-between text-xs text-night/60">
+                <label class="inline-flex items-center gap-2">
+                  <input id="remember" type="checkbox" class="h-4 w-4 rounded border-night/20 text-lagoon focus:ring-lagoon" />
+                  Remember me
+                </label>
+                <a href="https://docs.amplify.aws/lib/auth/" target="_blank" rel="noopener" class="font-semibold text-lagoon hover:text-lagoon/80">Need access?</a>
+              </div>
+              <button type="submit" class="w-full rounded-full bg-night px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-lagoon/20 transition hover:bg-[#070c16]" id="submitBtn">Sign in</button>
+              <button type="button" id="demoBtn" class="w-full rounded-full border border-night/10 px-5 py-3 text-sm font-semibold text-night transition hover:border-night hover:bg-night hover:text-white">Try offline demo</button>
+              <p id="status" class="min-h-[1.5rem] text-center text-sm text-night/60"></p>
+            </form>
+          </div>
+          <p class="text-xs text-night/50">Configure your Amplify project via <span class="font-semibold text-night">public/config.js</span>. Store sensitive keys in AWS Secrets Manager and inject them during deployment—never commit secrets.</p>
         </div>
       </section>
     </div>
@@ -90,23 +108,24 @@
         const status = document.getElementById('status');
         const submitBtn = document.getElementById('submitBtn');
         const demoBtn = document.getElementById('demoBtn');
-        const emailField = document.getElementById('email');
+        const usernameField = document.getElementById('username');
         const passwordField = document.getElementById('password');
         const rememberBox = document.getElementById('remember');
+        const accountBtns = document.querySelectorAll('.accountBtn');
 
         const params = new URLSearchParams(window.location.search);
         const nextPath = params.get('next') || 'tool.html';
 
         function setStatus(message, tone = 'info') {
           status.textContent = message || '';
-          status.classList.remove('text-lagoon', 'text-rose-500', 'text-slate-500');
+          status.classList.remove('text-lagoon', 'text-rose-500', 'text-night/60');
           if (!message) {
-            status.classList.add('text-slate-500');
+            status.classList.add('text-night/60');
             return;
           }
           if (tone === 'error') status.classList.add('text-rose-500');
           else if (tone === 'success') status.classList.add('text-lagoon');
-          else status.classList.add('text-slate-500');
+          else status.classList.add('text-night/60');
         }
 
         async function handleSubmit(e, demo = false) {
@@ -115,20 +134,29 @@
             setStatus('Auth module not ready. Reload and try again.', 'error');
             return;
           }
-          const email = (emailField.value || '').trim();
+          let username = (usernameField.value || '').trim();
           const password = demo ? 'demo-pass' : passwordField.value;
           if (!demo && !password) {
             setStatus('Enter your password to continue.', 'error');
             passwordField.focus();
             return;
           }
+          if (!username) {
+            if (demo) {
+              username = 'Demo User';
+            } else {
+              setStatus('Enter your username to continue.', 'error');
+              usernameField.focus();
+              return;
+            }
+          }
           submitBtn.disabled = true;
           demoBtn.disabled = true;
           setStatus('Signing in…');
           try {
-            await auth().signIn(email, password);
+            await auth().signIn(username, password);
             if (rememberBox.checked) {
-              localStorage.setItem('pestimator.remember', JSON.stringify({ email }));
+              localStorage.setItem('pestimator.remember', JSON.stringify({ username }));
             } else {
               localStorage.removeItem('pestimator.remember');
             }
@@ -144,17 +172,28 @@
 
         form?.addEventListener('submit', (e) => handleSubmit(e, false));
         demoBtn?.addEventListener('click', (e) => handleSubmit(e, true));
+        accountBtns.forEach((btn) => {
+          btn.addEventListener('click', () => {
+            const username = btn.getAttribute('data-username') || '';
+            const password = btn.getAttribute('data-password') || '';
+            usernameField.value = username;
+            passwordField.value = password;
+            rememberBox.checked = true;
+            localStorage.setItem('pestimator.remember', JSON.stringify({ username }));
+            usernameField.focus();
+          });
+        });
 
         const stored = localStorage.getItem('pestimator.remember');
         if (stored) {
           try {
             const data = JSON.parse(stored);
-            if (data?.email) {
-              emailField.value = data.email;
+            if (data?.username) {
+              usernameField.value = data.username;
               rememberBox.checked = true;
             }
           } catch (err) {
-            console.warn('[Pestimator] Failed to parse remembered email', err);
+            console.warn('[Pestimator] Failed to parse remembered username', err);
           }
         }
 

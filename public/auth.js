@@ -5,6 +5,11 @@
   const Auth = amplifyGlobal.Auth;
   const listeners = new Set();
 
+  const OFFLINE_USERS = {
+    Roeland: { password: 'Demo123', attributes: { name: 'Roeland' } },
+    Joe: { password: 'Demo123', attributes: { name: 'Joe' } }
+  };
+
   function configureAmplify() {
     const config = window.PESTIMATOR_AMPLIFY_CONFIG;
     if (config && Amplify) {
@@ -80,15 +85,44 @@
       return payload;
     }
 
-    // Offline demo mode fallback: accept any non-empty credentials.
-    if (!username) {
-      throw new Error('Enter your email to sign in.');
+    // Offline demo mode fallback: curated demo accounts + general sandbox access.
+    const trimmedUsername = (username || '').trim();
+    if (!trimmedUsername) {
+      throw new Error('Enter your username to sign in.');
     }
     if (!password) {
       throw new Error('Enter your access key to sign in.');
     }
+
+    if (password === 'demo-pass') {
+      const payload = {
+        username: trimmedUsername,
+        attributes: { name: trimmedUsername },
+        provider: 'demo',
+        signedInAt: new Date().toISOString()
+      };
+      writeSession(payload);
+      return payload;
+    }
+
+    const offlineRecord = OFFLINE_USERS[trimmedUsername];
+    if (offlineRecord) {
+      if (offlineRecord.password !== password) {
+        throw new Error('Incorrect password for this demo account.');
+      }
+      const payload = {
+        username: trimmedUsername,
+        attributes: offlineRecord.attributes,
+        provider: 'demo',
+        signedInAt: new Date().toISOString()
+      };
+      writeSession(payload);
+      return payload;
+    }
+
     const payload = {
-      username,
+      username: trimmedUsername,
+      attributes: { name: trimmedUsername },
       provider: 'demo',
       signedInAt: new Date().toISOString()
     };
