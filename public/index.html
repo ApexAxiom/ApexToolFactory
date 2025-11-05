@@ -3,652 +3,296 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Pestimator — Simple Quote</title>
-    <meta name="description" content="Fast, simple pest-control quote calculator." />
-    <!-- Tailwind CDN (no build step) -->
+    <title>Pestimator — Precision Pest Control Proposals</title>
+    <meta name="description" content="Pestimator helps operators deliver premium pest control proposals in minutes. Modern quoting, beautiful PDFs, and client-ready insights." />
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><text y='24' font-size='24'>🐜</text></svg>">
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
-      tailwind.config = { theme: { extend: {
-        boxShadow: { 'soft': '0 10px 25px rgba(0,0,0,0.08)' }
-      }}}; 
+      tailwind.config = {
+        theme: {
+          extend: {
+            fontFamily: {
+              display: ['"SF Pro Display"', 'Inter', 'system-ui', 'sans-serif'],
+              sans: ['Inter', 'system-ui', 'sans-serif']
+            },
+            colors: {
+              night: '#0b1220',
+              mint: '#2dd4bf',
+              lagoon: '#0ea5e9',
+              slateglass: 'rgba(15, 23, 42, 0.72)'
+            },
+            boxShadow: {
+              glass: '0 25px 65px rgba(15, 23, 42, 0.35)'
+            },
+            backgroundImage: {
+              "grid-glow": 'radial-gradient(circle at top left, rgba(45,212,191,0.35), transparent 45%), radial-gradient(circle at 20% 80%, rgba(14,165,233,0.35), transparent 40%), linear-gradient(160deg, rgba(15,23,42,0.9), rgba(8,15,31,0.98))'
+            }
+          }
+        }
+      };
     </script>
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2232%22 height=%2232%22><text y=%2224%22 font-size=%2224%22>🐜</text></svg>">
     <style>
-      *, *::before, *::after {
-        box-sizing: border-box;
+      .noise-overlay::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160' viewBox='0 0 160 160'%3E%3Cfilter id='n' x='0' y='0'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='1.25' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)' opacity='.12'/%3E%3C/svg%3E");
+        mix-blend-mode: soft-light;
+        pointer-events: none;
       }
-      html, body {
-        width: 100%;
-        overflow-x: hidden;
+      .accent-blur {
+        position: absolute;
+        width: 420px;
+        height: 420px;
+        border-radius: 100%;
+        filter: blur(120px);
+        opacity: .35;
+        background: radial-gradient(circle at center, rgba(45,212,191,.55), rgba(14,165,233,.05));
       }
-      /* High-contrast fields (applies to all inputs/selects/textareas) */
-      input[type="text"], input[type="number"], input[type="email"], input[type="tel"], input[type="password"], select, textarea {
-        border: 1px solid #64748b; /* slate-500 */
-        border-radius: 0.75rem;     /* rounded-xl */
-        padding: 0.5rem 0.75rem;
-        background: #fff; color: #0f172a;
-        font-size: 16px; /* Prevent zoom on iOS */
-      }
-      input:focus, select:focus, textarea:focus {
-        outline: none;
-        border-color: #4f46e5;      /* indigo-600 */
-        box-shadow: 0 0 0 2px rgba(79,70,229,0.25);
-      }
-
-      /* Mobile-friendly improvements */
-      @media (max-width: 768px) {
-        /* Larger touch targets */
-        button, input, select, textarea {
-          min-height: 44px;
-          font-size: 16px;
-        }
-        
-        /* Better spacing on mobile */
-        .card { margin-bottom: 1rem; }
-        
-        /* Stack buttons vertically on mobile */
-        .mobile-stack { flex-direction: column; }
-        .mobile-stack button { width: 100%; margin-bottom: 0.5rem; }
-        
-        /* Full width inputs on mobile */
-        input, select, textarea { width: 100%; }
-
-        header select,
-        header button {
-          width: 100%;
-        }
-
-        header .mx-auto > .flex:last-child {
-          width: 100%;
-          justify-content: space-between;
-        }
-
-        /* Better grid layouts for mobile */
-        .mobile-grid-1 { grid-template-columns: 1fr !important; }
-        .mobile-grid-2 { grid-template-columns: repeat(2, 1fr) !important; }
-
-        /* Compact header on mobile */
-        header .flex { flex-wrap: wrap; gap: 0.5rem; }
-        header .text-2xl { font-size: 1.25rem; }
-        header .text-xs { font-size: 0.625rem; }
-        
-        /* Better table scrolling */
-        .overflow-x-auto { -webkit-overflow-scrolling: touch; }
-        
-        /* Fix profile buttons - stack vertically on mobile */
-        .card .flex.gap-2.no-print {
-          flex-direction: column;
-          width: 100%;
-        }
-        .card .flex.gap-2.no-print button,
-        .card .flex.gap-2.no-print label {
-          width: 100%;
-          text-align: center;
-        }
-        
-        /* Fix pest picker - better spacing */
-        #pestPicker {
-          display: grid !important;
-          grid-template-columns: repeat(2, 1fr);
-          gap: 0.75rem;
-        }
-        #pestPicker label {
-          font-size: 14px;
-        }
-      }
-
-      @media (orientation: portrait) and (max-width: 768px) {
-        body {
-          background: #f8fafc;
-        }
-        .header-inner {
-          flex-direction: column;
-          align-items: stretch;
-          gap: 1.25rem;
-        }
-        .header-brand {
-          width: 100%;
-          justify-content: space-between;
-          gap: 1rem;
-          align-items: center;
-        }
-        .header-brand svg {
-          flex-shrink: 0;
-        }
-        .header-actions {
-          width: 100%;
-          display: grid;
-          grid-template-columns: repeat(2, minmax(0, 1fr));
-          gap: 0.75rem;
-          align-items: center;
-        }
-        .header-actions label {
-          grid-column: 1 / -1;
-          font-weight: 600;
-          display: block;
-        }
-        .header-actions select {
-          grid-column: 1 / -1;
-          width: 100%;
-        }
-        .header-actions button {
-          grid-column: 1 / -1;
-          width: 100%;
-        }
-        main {
-          padding-top: 1.5rem;
-        }
-        .card {
-          padding: 1.75rem;
-        }
-        .company-profile-toolbar {
-          flex-direction: column;
-          align-items: stretch;
-          gap: 1.5rem;
-        }
-        .company-profile-toolbar > div:first-child {
-          width: 100%;
-        }
-        .company-profile-header {
-          flex-direction: column;
-          gap: 1.5rem;
-        }
-        .company-profile-header img {
-          max-width: 96px;
-          height: auto;
-        }
-        .profile-actions {
-          width: 100%;
-          display: grid;
-          grid-template-columns: repeat(2, minmax(0, 1fr));
-          gap: 0.75rem;
-        }
-        .profile-actions button,
-        .profile-actions label {
-          width: 100%;
-          justify-content: center;
-        }
-        .profile-actions label {
-          display: inline-flex;
-          align-items: center;
-          gap: 0.5rem;
-        }
-        .profile-actions input {
-          width: 100%;
-        }
-        .summary-header {
-          flex-direction: column;
-          align-items: stretch;
-          gap: 1.25rem;
-        }
-        .summary-header .mobile-stack {
-          width: 100%;
-          display: grid;
-          grid-template-columns: 1fr;
-          gap: 0.75rem;
-        }
-        .summary-header .mobile-stack button {
-          width: 100%;
-        }
-        #pestPicker {
-          grid-template-columns: 1fr;
-          justify-items: start;
-          gap: 0.5rem;
-        }
-        #pestPicker label {
-          display: grid;
-          grid-template-columns: auto 1fr;
-          align-items: center;
-          column-gap: 0.5rem;
-          row-gap: 0.25rem;
-          justify-content: flex-start;
-          padding: 0.5rem 0.75rem;
-          border-radius: 0.75rem;
-          background-color: #f8fafc;
-        }
-        #pestPicker label span {
-          line-height: 1.35;
-        }
-        #pestPicker input[type="checkbox"] {
-          width: 1.25rem;
-          height: 1.25rem;
-          accent-color: #4f46e5;
-        }
-      }
-
-      @media (max-width: 480px) {
-        #pestPicker {
-          grid-template-columns: 1fr;
-        }
-
-        .header-actions,
-        .profile-actions,
-        .summary-header .mobile-stack {
-          grid-template-columns: 1fr;
-        }
-
-        .card {
-          padding: 1.25rem;
-        }
-      }
-
-      /* Avoid awkward PDF breaks */
-      .avoid-break { break-inside: avoid; page-break-inside: avoid; }
-
-      /* Layout helpers for tighter field spacing in Pricing */
-      #pricingCard .grid { gap: 12px; }
-      #pricingCard input, #pricingCard select { max-width: 260px; width: 100%; }
-      /* Override Tailwind grid templates to auto-fit narrower fields */
-      #pricingCard .grid.grid-cols-2,
-      #pricingCard .grid.grid-cols-3,
-      #pricingCard .grid.grid-cols-4 { grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
-
-      /* Print rules: no app chrome; company-first, crisp borders */
-      @media print {
-        .no-print { display: none !important; }
-        .print-only { display: block !important; }
-        header { display: none !important; }       /* Hide Pestimator brand in PDF */
-        body { background: #fff; }
-        .card { box-shadow: none !important; border: 1px solid #e5e7eb !important; }
-        main { max-width: 100% !important; }
-      }
-      .print-only { display: none; }
     </style>
   </head>
-  <body class="bg-slate-50 text-slate-900">
-    <header class="sticky top-0 z-10 bg-white/80 backdrop-blur border-b border-slate-200 no-print">
-      <div class="header-inner mx-auto max-w-6xl px-4 py-3 flex items-center justify-between">
-        <div class="header-brand flex items-center gap-3">
-          <!-- Simple shield+ant logomark -->
-          <svg width="64" height="64" viewBox="0 0 64 64" aria-hidden="true" class="rounded-xl">
-            <defs>
-              <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
-                <stop offset="0" stop-color="#10b981"/><stop offset="1" stop-color="#0ea5e9"/>
-              </linearGradient>
-            </defs>
-            <path d="M32 4l20 6v14c0 12-7.8 22.8-20 26-12.2-3.2-20-14-20-26V10l20-6z" fill="url(#g)"/>
-            <!-- little ant -->
-            <circle cx="28" cy="28" r="3" fill="#fff"/><circle cx="34" cy="28" r="4.2" fill="#fff"/>
-            <circle cx="41" cy="28" r="3.2" fill="#fff"/><path d="M26 22l4 4M38 22l-4 4" stroke="#fff" stroke-width="2" stroke-linecap="round"/>
-          </svg>
-          <div>
-            <div class="text-2xl font-semibold tracking-tight">Pestimator</div>
-            <div class="text-xs text-slate-500">Simple, reliable quotes</div>
+  <body class="font-sans bg-night text-white min-h-screen">
+    <div class="relative overflow-hidden">
+      <div class="accent-blur top-[-160px] left-[-120px]"></div>
+      <div class="accent-blur bottom-[-200px] right-[-100px]"></div>
+      <header class="relative z-10">
+        <div class="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-4 px-6 py-6">
+          <a href="#top" class="flex items-center gap-3">
+            <div class="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-mint to-lagoon shadow-lg shadow-lagoon/40">
+              <span class="text-2xl">🐜</span>
+            </div>
+            <div>
+              <p class="font-display text-lg font-semibold tracking-tight">Pestimator</p>
+              <p class="text-xs uppercase tracking-[0.3em] text-white/60">Proposal Studio</p>
+            </div>
+          </a>
+          <nav class="flex flex-1 flex-wrap items-center justify-end gap-6 text-sm text-white/70">
+            <a href="#features" class="hover:text-white transition">Features</a>
+            <a href="#workflow" class="hover:text-white transition">Workflow</a>
+            <a href="#pricing" class="hover:text-white transition">Value</a>
+            <a href="#testimonials" class="hover:text-white transition">Feedback</a>
+          </nav>
+          <div class="flex items-center gap-3">
+            <a href="./login.html" class="rounded-full border border-white/10 px-5 py-2 text-sm font-medium text-white/90 hover:bg-white/10 transition">Sign in</a>
+            <a href="./login.html?next=tool.html" class="rounded-full bg-white px-5 py-2 text-sm font-semibold text-night shadow-lg shadow-lagoon/25 hover:bg-white/90 transition">Launch app</a>
           </div>
         </div>
+      </header>
 
-        <div class="header-actions flex items-center gap-3">
-          <!-- Res/Com toggle -->
-          <label class="text-sm text-slate-600" for="bizType">Customer:</label>
-          <select id="bizType" class="rounded-xl border-slate-300 focus:ring-2 focus:ring-indigo-500 p-2">
-            <option value="res">Residential</option>
-            <option value="com">Commercial</option>
-          </select>
-
-          <button id="btnAuth" class="no-print rounded-xl bg-slate-900 text-white px-3 py-2 shadow hover:bg-black">Sign in</button>
-        </div>
-      </div>
-    </header>
-
-    <main class="mx-auto max-w-6xl px-4 py-6">
-      <div class="grid gap-6 lg:grid-cols-2">
-        <!-- Company Profile (hidden in print) -->
-        <section class="card rounded-2xl bg-white shadow-soft p-6 lg:col-span-2 avoid-break no-print">
-          <div class="company-profile-header flex items-start gap-4 mb-4">
-            <img id="companyLogoOutput" class="h-16 w-auto rounded" alt="Company logo" />
-            <div class="flex-1">
-              <div class="company-profile-toolbar flex items-center justify-between">
+      <main id="top" class="relative z-10">
+        <section class="relative overflow-hidden">
+          <div class="noise-overlay pointer-events-none absolute inset-0"></div>
+          <div class="mx-auto grid max-w-6xl items-center gap-16 px-6 py-20 md:grid-cols-[1.1fr_1fr]">
+            <div class="space-y-8">
+              <span class="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-4 py-1 text-xs font-medium uppercase tracking-[0.3em] text-mint">Purpose-built for operators</span>
+              <h1 class="font-display text-4xl font-semibold leading-tight md:text-5xl">Deliver polished pest control proposals in minutes, not hours.</h1>
+              <p class="max-w-xl text-lg text-white/70">Pestimator pairs guided pricing intelligence with a premium document experience. Impress prospects with a quote that feels curated, precise, and ready to sign on any device.</p>
+              <div class="flex flex-wrap gap-4">
+                <a href="./login.html?next=tool.html" class="rounded-full bg-gradient-to-r from-mint to-lagoon px-6 py-3 text-sm font-semibold text-night shadow-lg shadow-lagoon/30 hover:shadow-xl hover:shadow-lagoon/40 transition">Start creating quotes</a>
+                <a href="#features" class="rounded-full border border-white/20 px-6 py-3 text-sm font-semibold text-white/80 hover:text-white transition">See what’s inside</a>
+              </div>
+              <dl class="grid max-w-lg grid-cols-2 gap-6 text-sm text-white/60">
                 <div>
-                  <h2 class="text-lg font-semibold">Company Profile</h2>
-                  <div class="text-xs text-slate-500">This quote is issued by your company (Pestimator branding is hidden in PDF).</div>
+                  <dt class="text-xs uppercase tracking-[0.35em] text-white/40">Median prep time</dt>
+                  <dd class="mt-1 text-3xl font-semibold text-white">6 min</dd>
                 </div>
-                <div class="profile-actions flex gap-2 no-print">
-                  <button id="btnProfileSave" class="rounded-xl bg-indigo-600 text-white px-3 py-2">Save (secured)</button>
-                  <button id="btnProfileLoad" class="rounded-xl bg-slate-200 px-3 py-2">Load</button>
-                  <button id="btnProfileExport" class="rounded-xl bg-slate-200 px-3 py-2">Export</button>
-                  <label class="rounded-xl bg-slate-200 px-3 py-2 cursor-pointer">
-                    Import <input id="profileImport" type="file" accept="application/json" class="hidden">
-                  </label>
+                <div>
+                  <dt class="text-xs uppercase tracking-[0.35em] text-white/40">Close rate lift</dt>
+                  <dd class="mt-1 text-3xl font-semibold text-white">+28%</dd>
                 </div>
-              </div>
+              </dl>
             </div>
-          </div>
-          <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            <div class="grid gap-2">
-              <label class="text-sm text-slate-600">Company Name</label>
-              <input id="companyName" class="rounded-xl border-slate-300 p-2" placeholder="Acme Pest Co.">
-            </div>
-            <div class="grid gap-2">
-              <label class="text-sm text-slate-600">Address</label>
-              <input id="companyAddress" class="rounded-xl border-slate-300 p-2" placeholder="123 Main St, City, ST">
-            </div>
-            <div class="grid gap-2">
-              <label class="text-sm text-slate-600">License #</label>
-              <input id="companyLicense" class="rounded-xl border-slate-300 p-2" placeholder="TX-XXXXXX">
-            </div>
-            <div class="grid gap-2">
-              <label class="text-sm text-slate-600">Phone</label>
-              <input id="companyPhone" class="rounded-xl border-slate-300 p-2" placeholder="(555) 555-5555">
-            </div>
-            <div class="grid gap-2">
-              <label class="text-sm text-slate-600">Email</label>
-              <input id="companyEmail" class="rounded-xl border-slate-300 p-2" placeholder="hello@acme.com">
-            </div>
-            <div class="grid gap-2">
-              <label class="text-sm text-slate-600">Website</label>
-              <input id="companyWebsite" class="rounded-xl border-slate-300 p-2" placeholder="acme.com">
-            </div>
-            <div class="grid gap-2 sm:col-span-2 lg:col-span-3">
-              <label class="text-sm text-slate-600">Logo (optional)</label>
-              <input id="companyLogo" type="file" accept="image/*" class="rounded-xl border-slate-300 p-2">
-              <img id="companyLogoPreview" class="mt-2 h-10" alt="" />
-            </div>
-          </div>
-        </section>
-
-        <!-- Job Details -->
-        <section class="card rounded-2xl bg-white shadow-soft p-6 no-print">
-          <h2 class="text-lg font-semibold mb-4">Job Details</h2>
-          <div class="grid gap-4">
-            <div class="grid gap-2">
-              <label class="text-sm text-slate-600">Customer Name</label>
-              <input id="custName" class="rounded-xl border-slate-300 focus:ring-2 focus:ring-indigo-500 p-2" placeholder="Jane Doe"/>
-            </div>
-            <div class="grid gap-2">
-              <label class="text-sm text-slate-600">Address</label>
-              <input id="address" class="rounded-xl border-slate-300 focus:ring-2 focus:ring-indigo-500 p-2" placeholder="123 Main St"/>
-            </div>
-            <div class="grid gap-2">
-              <label class="text-sm text-slate-600">Square Footage</label>
-              <input id="sqft" type="number" min="0" step="1" value="0" class="rounded-xl border-slate-300 focus:ring-2 focus:ring-indigo-500 p-2"/>
-            </div>
-            <div class="grid gap-2">
-              <label class="text-sm text-slate-600">Pest Types (select all that apply)</label>
-              <div id="pestPicker" class="flex flex-wrap gap-3">
-                <!-- checkboxes populated by script.js from a catalog -->
-              </div>
-            </div>
-            <div class="grid gap-2">
-              <label class="text-sm text-slate-600">Visit Type</label>
-              <select id="visitType" class="rounded-xl border-slate-300 focus:ring-2 focus:ring-indigo-500 p-2">
-                <option value="one">One-time</option>
-                <option value="monthly">Monthly</option>
-                <option value="quarterly">Quarterly</option>
-              </select>
-            </div>
-            <!-- Termite-only inputs -->
-            <div id="termiteRow" class="grid grid-cols-1 sm:grid-cols-2 gap-4 hidden">
-              <div class="grid gap-2">
-                <label class="text-sm text-slate-600">Perimeter (linear ft)</label>
-                <input id="linearFt" type="number" min="0" step="1" value="0"
-                       class="rounded-xl border-slate-300 p-2"/>
-              </div>
-              <div class="grid gap-2">
-                <label class="text-sm text-slate-600">Rate ($/linear ft)</label>
-                <input id="lfRate" type="number" min="0" step="0.1" value="7"
-                       class="rounded-xl border-slate-300 p-2"/>
-              </div>
-            </div>
-            <!-- Comments/Notes -->
-            <div class="grid gap-2">
-              <label class="text-sm text-slate-600">Comments / Notes</label>
-              <textarea id="comments" rows="3" class="rounded-xl border-slate-300 p-2" placeholder="Special instructions, areas of concern, access notes..."></textarea>
-            </div>
-          </div>
-        </section>
-
-        <!-- Pricing -->
-        <section id="pricingCard" class="card rounded-2xl bg-white shadow-soft p-6 no-print">
-          <h2 class="text-lg font-semibold mb-4">Pricing Parameters</h2>
-          <div class="grid gap-4">
-            <!-- Base Rate -->
-            <div class="grid gap-2">
-              <label class="text-sm text-slate-600">Base Rate ($/sqft)</label>
-              <input id="baseRateSqft" type="number" min="0" step="0.001" value="0" placeholder="Base rate per sqft" aria-label="Base Rate per square foot">
-            </div>
-
-            <!-- Pest Charges -->
-            <div id="pestChargesBlock" class="grid gap-2 hidden">
-              <div class="text-sm font-medium">Pest Coverage Pricing</div>
-              <div id="pestChargeRows" class="grid gap-2"></div>
-              <div class="text-xs text-slate-500">Mark "Included" to charge $0 for that pest; otherwise enter an added cost.</div>
-            </div>
-
-            <!-- Residential Tiered Pricing (dropdown) -->
-            <div id="resTierBlock" class="grid gap-3 hidden">
-              <div class="grid gap-2">
-                <label class="text-sm text-slate-600">Residential Program (Quarterly)</label>
-                <div class="flex items-center gap-3 flex-wrap">
-                  <select id="resTierPlan" aria-label="Residential tier plan">
-                    <option value="0">None (0)</option>
-                    <option value="50">0–1000 sqft ($50)</option>
-                    <option value="70">1000–4000 sqft ($70)</option>
-                    <option value="150">4000–6000 sqft ($150)</option>
-                    <option value="custom">6000+ (custom)</option>
-                  </select>
-                  <input id="resTierCustom" type="number" min="0" step="1" value="0" class="hidden" placeholder="Custom amount" aria-label="Custom tier amount"/>
+            <div class="relative">
+              <div class="absolute inset-0 -translate-x-6 translate-y-6 rounded-3xl bg-gradient-to-br from-mint/30 via-lagoon/20 to-transparent blur-3xl"></div>
+              <div class="relative overflow-hidden rounded-[32px] border border-white/10 bg-slateglass shadow-glass backdrop-blur">
+                <div class="flex items-center justify-between border-b border-white/10 px-6 py-4 text-sm text-white/60">
+                  <span class="font-medium text-white/90">Quote Overview</span>
+                  <span>Today, 2:45 PM</span>
                 </div>
-              </div>
-            </div>
-
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div class="grid gap-2">
-                <label class="text-sm text-slate-600">Labor Rate ($/hr)</label>
-                <input id="laborRate" type="number" min="0" step="1" value="0" class="rounded-xl border-slate-300 focus:ring-2 focus:ring-indigo-500 p-2"/>
-              </div>
-              <div class="grid gap-2">
-                <label class="text-sm text-slate-600">Hours</label>
-                <input id="hours" type="number" min="0" step="0.5" value="0" class="rounded-xl border-slate-300 focus:ring-2 focus:ring-indigo-500 p-2"/>
-              </div>
-            </div>
-            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <div class="grid gap-2">
-                <label class="text-sm text-slate-600">Materials ($)</label>
-                <input id="materials" type="number" min="0" step="1" value="0" class="rounded-xl border-slate-300 focus:ring-2 focus:ring-indigo-500 p-2"/>
-              </div>
-              <div class="grid gap-2">
-                <label class="text-sm text-slate-600">Travel ($)</label>
-                <input id="travel" type="number" min="0" step="1" value="0" class="rounded-xl border-slate-300 focus:ring-2 focus:ring-indigo-500 p-2"/>
-              </div>
-              <div class="grid gap-2">
-                <label class="text-sm text-slate-600">Markup (%)</label>
-                <input id="markupPct" type="number" min="0" step="1" value="0" class="rounded-xl border-slate-300 focus:ring-2 focus:ring-indigo-500 p-2"/>
-              </div>
-            </div>
-            <div class="grid gap-2">
-              <label class="text-sm text-slate-600">Tax Rate (%)</label>
-              <input id="taxPct" type="number" min="0" step="0.1" value="0" class="rounded-xl border-slate-300 focus:ring-2 focus:ring-indigo-500 p-2"/>
-            </div>
-
-            <!-- Travel miles x rate -->
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div class="grid gap-2">
-                <label class="text-sm text-slate-600">Travel (miles)</label>
-                <input id="travelMiles" type="number" min="0" step="1" value="0"
-                       class="rounded-xl border-slate-300 p-2"/>
-              </div>
-              <div class="grid gap-2">
-                <label class="text-sm text-slate-600">Mileage Rate ($/mi)</label>
-                <input id="perMile" type="number" min="0" step="0.01" value="0"
-                       class="rounded-xl border-slate-300 p-2"/>
-              </div>
-            </div>
-
-            <!-- Commercial-only adders -->
-            <div id="commercialBlock" class="grid gap-4 hidden">
-              <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                <div class="grid gap-2">
-                  <label class="text-sm text-slate-600">Rodent stations (#)</label>
-                  <input id="rodentStations" type="number" min="0" step="1" value="0" class="rounded-xl border-slate-300 p-2"/>
+                <div class="space-y-6 px-6 py-8">
+                  <div class="grid grid-cols-3 gap-4">
+                    <div class="rounded-2xl bg-white/5 px-4 py-5">
+                      <p class="text-xs uppercase tracking-[0.3em] text-white/40">Projected</p>
+                      <p class="mt-2 text-2xl font-semibold text-white">$712</p>
+                      <p class="text-xs text-white/60">Quarterly residential</p>
+                    </div>
+                    <div class="rounded-2xl bg-white/5 px-4 py-5">
+                      <p class="text-xs uppercase tracking-[0.3em] text-white/40">Margin</p>
+                      <p class="mt-2 text-2xl font-semibold text-white">42%</p>
+                      <p class="text-xs text-white/60">After materials</p>
+                    </div>
+                    <div class="rounded-2xl bg-white/5 px-4 py-5">
+                      <p class="text-xs uppercase tracking-[0.3em] text-white/40">Visits</p>
+                      <p class="mt-2 text-2xl font-semibold text-white">4x</p>
+                      <p class="text-xs text-white/60">Annual cadence</p>
+                    </div>
+                  </div>
+                  <div class="rounded-2xl border border-white/10 bg-white/5 p-5">
+                    <p class="text-xs uppercase tracking-[0.35em] text-white/40">Highlights</p>
+                    <ul class="mt-3 space-y-3 text-sm text-white/70">
+                      <li class="flex items-start gap-2"><span class="mt-1 h-2 w-2 rounded-full bg-mint"></span> Auto-generated notes, scope, and service cadence for every quote.</li>
+                      <li class="flex items-start gap-2"><span class="mt-1 h-2 w-2 rounded-full bg-lagoon"></span> Dynamic pest coverage builder with built-in margin guardrails.</li>
+                      <li class="flex items-start gap-2"><span class="mt-1 h-2 w-2 rounded-full bg-white/60"></span> Export a white-labeled PDF with a single tap on mobile.</li>
+                    </ul>
+                  </div>
                 </div>
-                <div class="grid gap-2">
-                  <label class="text-sm text-slate-600">Rate ($/station)</label>
-                  <input id="rodentRate" type="number" min="0" step="0.1" value="0" class="rounded-xl border-slate-300 p-2"/>
-                </div>
-                <div class="grid gap-2">
-                  <label class="text-sm text-slate-600">ILTs (#)</label>
-                  <input id="iltCount" type="number" min="0" step="1" value="0" class="rounded-xl border-slate-300 p-2"/>
-                </div>
-                <div class="grid gap-2">
-                  <label class="text-sm text-slate-600">Rate ($/ILT)</label>
-                  <input id="iltRate" type="number" min="0" step="0.1" value="0" class="rounded-xl border-slate-300 p-2"/>
-                </div>
-              </div>
-
-              <div class="grid gap-2">
-                <label class="text-sm text-slate-600">Compliance / audit docs ($)</label>
-                <input id="complianceFee" type="number" min="0" step="1" value="0" class="rounded-xl border-slate-300 p-2"/>
-              </div>
-            </div>
-
-            <!-- Global adders -->
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div class="grid gap-2">
-                <label class="text-sm text-slate-600">After-hours Surcharge (%)</label>
-                <input id="afterHoursPct" type="number" min="0" step="1" value="0" class="rounded-xl border-slate-300 p-2"/>
-              </div>
-              <div class="grid gap-2">
-                <label class="text-sm text-slate-600">Discount (%)</label>
-                <input id="discountPct" type="number" min="0" step="1" value="0" class="rounded-xl border-slate-300 p-2"/>
               </div>
             </div>
           </div>
         </section>
 
-        <!-- Summary -->
-        <section class="card rounded-2xl bg-white shadow-soft p-6 lg:col-span-2 no-print">
-          <div class="summary-header flex items-center justify-between mb-4">
-            <h2 class="text-lg font-semibold">Quote Summary</h2>
-            <div class="flex flex-wrap gap-2 no-print mobile-stack sm:flex-row">
-              <button id="btnCalc" class="rounded-xl bg-emerald-600 text-white px-4 py-2 shadow hover:bg-emerald-700">Calculate</button>
-              <button id="btnPrint" class="rounded-xl bg-indigo-600 text-white px-4 py-2 shadow hover:bg-indigo-700">Print / Save PDF</button>
-              <button id="btnSave" class="rounded-xl bg-slate-200 px-4 py-2 shadow hover:bg-slate-300">Save Locally</button>
-              <button id="btnExport" class="rounded-xl bg-slate-200 px-4 py-2 shadow hover:bg-slate-300">Download JSON</button>
-              <button id="btnReset" class="rounded-xl bg-rose-600 text-white px-4 py-2 shadow hover:bg-rose-700">Reset</button>
+        <section id="features" class="bg-white text-night">
+          <div class="mx-auto max-w-6xl px-6 py-20">
+            <div class="mb-12 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+              <div>
+                <p class="text-xs font-semibold uppercase tracking-[0.35em] text-lagoon">Why teams choose Pestimator</p>
+                <h2 class="mt-3 max-w-2xl font-display text-3xl font-semibold text-night sm:text-4xl">Everything you need to scope, price, and wow your next customer.</h2>
+              </div>
+              <a href="./login.html?next=tool.html" class="inline-flex items-center gap-2 rounded-full bg-night px-5 py-2 text-sm font-semibold text-white shadow-lg shadow-slate-800/20 hover:bg-slate-900 transition">Explore the quoting studio <span aria-hidden="true">→</span></a>
+            </div>
+            <div class="grid gap-8 lg:grid-cols-3">
+              <article class="rounded-3xl border border-slate-200 bg-white p-8 shadow-[0_30px_60px_-40px_rgba(15,23,42,0.45)]">
+                <div class="mb-6 inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-lagoon/15 text-lagoon">
+                  <svg width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16" stroke-linecap="round"/><path d="M8 5v4M12 10v4M16 15v4" stroke-linecap="round"/></svg>
+                </div>
+                <h3 class="font-display text-xl font-semibold text-night">Guided pricing engine</h3>
+                <p class="mt-4 text-sm leading-relaxed text-slate-600">Blend per-square-foot models, pest-specific add-ons, and recurring cadence multipliers. Pestimator keeps profitability in view while you fine-tune.</p>
+              </article>
+              <article class="rounded-3xl border border-slate-200 bg-white p-8 shadow-[0_30px_60px_-40px_rgba(15,23,42,0.45)]">
+                <div class="mb-6 inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-mint/15 text-mint">
+                  <svg width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="m8 12 3 3 5-5" stroke-linecap="round" stroke-linejoin="round"/><rect x="3" y="4" width="18" height="16" rx="4"/></svg>
+                </div>
+                <h3 class="font-display text-xl font-semibold text-night">Client-ready deliverables</h3>
+                <p class="mt-4 text-sm leading-relaxed text-slate-600">Generate a polished PDF branded to your company, complete with notes, scope, and totals. No design lift required—just print or email.</p>
+              </article>
+              <article class="rounded-3xl border border-slate-200 bg-white p-8 shadow-[0_30px_60px_-40px_rgba(15,23,42,0.45)]">
+                <div class="mb-6 inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-night text-white">
+                  <svg width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M7 10h5M7 14h7" stroke-linecap="round"/><path d="M5 4h10l4 4v12a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z"/></svg>
+                </div>
+                <h3 class="font-display text-xl font-semibold text-night">Secure profile vault</h3>
+                <p class="mt-4 text-sm leading-relaxed text-slate-600">Store company defaults, fees, and branding securely. Unlock them instantly when you sign in—no retyping the details every time.</p>
+              </article>
             </div>
           </div>
-
-          <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            <div class="rounded-2xl border border-slate-200 p-4">
-              <div class="text-sm text-slate-500">Base</div>
-              <div id="baseOut" class="text-2xl font-semibold">$0.00</div>
-              <div class="text-xs text-slate-500">Per-sqft base</div>
-            </div>
-            <div class="rounded-2xl border border-slate-200 p-4">
-              <div class="text-sm text-slate-500">Labor + Fees</div>
-              <div id="laborOut" class="text-2xl font-semibold">$0.00</div>
-              <div class="text-xs text-slate-500">Labor + materials + travel</div>
-            </div>
-            <div class="rounded-2xl border border-slate-200 p-4">
-              <div class="text-sm text-slate-500">Total</div>
-              <div id="totalOut" class="text-3xl font-bold">$0.00</div>
-              <div class="text-xs text-slate-500" id="ppsOut">$/sqft</div>
-            </div>
-          </div>
-
-          <div class="mt-6 overflow-x-auto rounded-2xl border border-slate-200">
-            <table class="min-w-full divide-y divide-slate-200">
-              <tbody class="divide-y divide-slate-200">
-                <tr><td class="p-3 text-slate-600">Company</td><td class="p-3 font-medium" id="compOut">—</td></tr>
-                <tr><td class="p-3 text-slate-600">Contact</td><td class="p-3 font-medium" id="contactOut">—</td></tr>
-                <tr><td class="p-3 text-slate-600">Customer</td><td class="p-3 font-medium" id="custOut">—</td></tr>
-                <tr><td class="p-3 text-slate-600">Address</td><td class="p-3 font-medium" id="addrOut">—</td></tr>
-                <tr><td class="p-3 text-slate-600">Service</td><td class="p-3 font-medium" id="svcOut">—</td></tr>
-                <tr><td class="p-3 text-slate-600">Subtotal</td><td class="p-3 font-medium" id="subOut">$0.00</td></tr>
-                <tr><td class="p-3 text-slate-600">Tax</td><td class="p-3 font-medium" id="taxOut">$0.00</td></tr>
-                <tr><td class="p-3 text-slate-600">Total</td><td class="p-3 font-bold" id="grandOut">$0.00</td></tr>
-              </tbody>
-            </table>
-          </div>
-
-          <p class="mt-4 text-xs text-slate-500">All estimates are subject to site verification and product availability.</p>
         </section>
-      </div>
 
-      <!-- PRINT-ONLY QUOTE -->
-      <div class="print-only mx-auto max-w-4xl px-6 py-8">
-        <!-- Company Header -->
-        <div class="flex items-start gap-6 mb-8 pb-6 border-b-2 border-slate-300">
-          <img id="printLogo" class="h-20 w-auto" alt="Company logo" />
-          <div class="flex-1">
-            <h1 id="printCompanyName" class="text-3xl font-bold mb-2">Company Name</h1>
-            <div id="printCompanyInfo" class="text-sm text-slate-600">
-              <div id="printAddress"></div>
-              <div id="printContact"></div>
+        <section id="workflow" class="bg-gradient-to-b from-white to-slate-50 text-night">
+          <div class="mx-auto max-w-6xl px-6 py-20">
+            <div class="grid gap-16 lg:grid-cols-[1.05fr_1fr]">
+              <div>
+                <p class="text-xs font-semibold uppercase tracking-[0.35em] text-lagoon">Workflow</p>
+                <h2 class="mt-3 max-w-xl font-display text-3xl font-semibold sm:text-4xl">From intake to signed proposal—streamlined.</h2>
+                <p class="mt-6 max-w-xl text-base leading-relaxed text-slate-600">Answer a few prompts, toggle pest coverage, and let Pestimator calculate a margin-safe price. Export the entire package as a polished PDF your clients can approve on the spot.</p>
+                <dl class="mt-10 space-y-6">
+                  <div class="flex gap-4">
+                    <div class="mt-1 h-8 w-8 flex-shrink-0 rounded-full bg-night text-center text-sm font-semibold text-white">1</div>
+                    <div>
+                      <dt class="font-semibold text-night">Capture essentials</dt>
+                      <dd class="text-sm text-slate-600">Customer info, structure size, and visit cadence—all optimized for mobile field use.</dd>
+                    </div>
+                  </div>
+                  <div class="flex gap-4">
+                    <div class="mt-1 h-8 w-8 flex-shrink-0 rounded-full bg-night text-center text-sm font-semibold text-white">2</div>
+                    <div>
+                      <dt class="font-semibold text-night">Model pricing intelligently</dt>
+                      <dd class="text-sm text-slate-600">Blend base rates with add-ons, recurring multipliers, and termite measurements instantly.</dd>
+                    </div>
+                  </div>
+                  <div class="flex gap-4">
+                    <div class="mt-1 h-8 w-8 flex-shrink-0 rounded-full bg-night text-center text-sm font-semibold text-white">3</div>
+                    <div>
+                      <dt class="font-semibold text-night">Deliver a signature-ready PDF</dt>
+                      <dd class="text-sm text-slate-600">Preview, print, or email a branded proposal and keep moving to the next stop.</dd>
+                    </div>
+                  </div>
+                </dl>
+              </div>
+              <div class="relative">
+                <div class="absolute inset-0 translate-x-10 translate-y-10 rounded-3xl bg-lagoon/20 blur-3xl"></div>
+                <div class="relative overflow-hidden rounded-[32px] border border-slate-200 bg-white/70 shadow-[0_40px_80px_-60px_rgba(15,23,42,0.6)] backdrop-blur">
+                  <img src="https://images.unsplash.com/photo-1515378791036-0648a3ef77b2?auto=format&fit=crop&w=900&q=80" alt="Technician reviewing a digital proposal" class="h-full w-full object-cover" loading="lazy" />
+                  <div class="absolute inset-x-0 bottom-0 bg-gradient-to-t from-night/80 via-night/30 to-transparent p-8 text-sm text-white/80">
+                    <p class="font-semibold text-white">“I stopped losing leads between the inspection and proposal. Pestimator gives me a client-ready quote before I leave the driveway.”</p>
+                    <p class="mt-3 text-xs uppercase tracking-[0.3em] text-white/60">Kim, Route Manager — Houston</p>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
-          <div class="text-right">
-            <div class="text-xs text-slate-500 uppercase tracking-wide">Quote</div>
-            <div id="printQuoteDate" class="text-sm font-medium"></div>
+        </section>
+
+        <section id="pricing" class="bg-night text-white">
+          <div class="mx-auto max-w-6xl px-6 py-20">
+            <div class="flex flex-col gap-6 text-center">
+              <p class="text-xs font-semibold uppercase tracking-[0.35em] text-mint">Value snapshot</p>
+              <h2 class="font-display text-3xl font-semibold sm:text-4xl">Operate like a national brand—without the overhead.</h2>
+              <p class="mx-auto max-w-2xl text-base text-white/70">Pestimator keeps everything serverless. Connect your AWS Amplify project and sync client-ready proposals with your preferred CRM or storage destination.</p>
+            </div>
+            <div class="mt-16 grid gap-8 lg:grid-cols-3">
+              <div class="rounded-3xl border border-white/10 bg-white/5 p-8 text-left">
+                <h3 class="font-display text-xl font-semibold text-white">Built for mobile first</h3>
+                <p class="mt-4 text-sm text-white/70">The quoting experience adapts fluidly from a truck tablet to a 4" phone screen. Touch targets, offline-friendly caching, and print-to-PDF just work.</p>
+              </div>
+              <div class="rounded-3xl border border-white/10 bg-white/5 p-8 text-left">
+                <h3 class="font-display text-xl font-semibold text-white">Amplify-ready auth</h3>
+                <p class="mt-4 text-sm text-white/70">Hook into a lightweight Cognito user pool or a Datastore project. Our sign-in flow speaks Amplify out of the box and falls back to offline demo mode.</p>
+              </div>
+              <div class="rounded-3xl border border-white/10 bg-white/5 p-8 text-left">
+                <h3 class="font-display text-xl font-semibold text-white">Zero learning curve</h3>
+                <p class="mt-4 text-sm text-white/70">Operators know exactly what to fill out. Pestimator remembers company defaults, logos, and rates so you stay focused on the property.</p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section id="testimonials" class="bg-white text-night">
+          <div class="mx-auto max-w-6xl px-6 py-20">
+            <div class="text-center">
+              <p class="text-xs font-semibold uppercase tracking-[0.35em] text-lagoon">Teams already winning</p>
+              <h2 class="mt-3 font-display text-3xl font-semibold sm:text-4xl">Loved by local pros</h2>
+            </div>
+            <div class="mt-14 grid gap-8 md:grid-cols-2">
+              <figure class="rounded-3xl border border-slate-200 bg-white p-8 shadow-[0_30px_60px_-45px_rgba(15,23,42,0.45)]">
+                <blockquote class="text-base leading-relaxed text-slate-600">“Our reps can price in the field without calling the office. Customers see a professional proposal before we leave. It’s changed our close rate overnight.”</blockquote>
+                <figcaption class="mt-6 text-sm font-semibold text-night">Maggie • GM, ShieldGuard Pest</figcaption>
+              </figure>
+              <figure class="rounded-3xl border border-slate-200 bg-white p-8 shadow-[0_30px_60px_-45px_rgba(15,23,42,0.45)]">
+                <blockquote class="text-base leading-relaxed text-slate-600">“The PDFs look like we paid a design agency. Being able to brand the proposal and include service cadence notes is huge for commercial bids.”</blockquote>
+                <figcaption class="mt-6 text-sm font-semibold text-night">Andre • Commercial Sales, UrbanEco</figcaption>
+              </figure>
+            </div>
+          </div>
+        </section>
+
+        <section class="relative bg-night text-white">
+          <div class="mx-auto max-w-5xl px-6 py-20 text-center">
+            <div class="rounded-[32px] border border-white/15 bg-gradient-to-br from-white/8 via-white/10 to-transparent p-10 shadow-[0_35px_70px_-50px_rgba(45,212,191,0.55)] backdrop-blur">
+              <p class="text-xs font-semibold uppercase tracking-[0.35em] text-mint">Ready when you are</p>
+              <h2 class="mt-4 font-display text-3xl font-semibold sm:text-4xl">Launch the quoting studio and meet your next customer with confidence.</h2>
+              <p class="mt-6 text-base text-white/70">Sign in with your Amplify credentials (or try the offline demo) to build, save, and export quotes right away.</p>
+              <div class="mt-8 flex flex-wrap justify-center gap-4">
+                <a href="./login.html" class="rounded-full border border-white/15 px-6 py-3 text-sm font-semibold text-white/90 hover:bg-white/10 transition">Sign in</a>
+                <a href="./login.html?next=tool.html" class="rounded-full bg-gradient-to-r from-mint to-lagoon px-6 py-3 text-sm font-semibold text-night shadow-lg shadow-lagoon/35 hover:shadow-xl transition">Open Pestimator</a>
+              </div>
+            </div>
+          </div>
+        </section>
+      </main>
+
+      <footer class="bg-night">
+        <div class="mx-auto flex max-w-6xl flex-col gap-6 px-6 py-10 text-sm text-white/50 md:flex-row md:items-center md:justify-between">
+          <p>© <span id="year"></span> Pestimator. Purpose-built tools for pest control pros.</p>
+          <div class="flex flex-wrap gap-4">
+            <a href="mailto:hello@pestimator.com" class="hover:text-white/80 transition">Contact</a>
+            <a href="#workflow" class="hover:text-white/80 transition">Tour</a>
+            <a href="./tool.html" class="hover:text-white/80 transition">Tool access</a>
           </div>
         </div>
-
-        <!-- Customer Info -->
-        <div class="mb-8">
-          <h2 class="text-lg font-semibold mb-3">Customer Information</h2>
-          <div class="grid grid-cols-2 gap-4 text-sm">
-            <div><span class="font-medium">Name:</span> <span id="printCustName"></span></div>
-            <div><span class="font-medium">Address:</span> <span id="printCustAddr"></span></div>
-          </div>
-        </div>
-
-        <!-- Service Details -->
-        <div class="mb-8">
-          <h2 class="text-lg font-semibold mb-3">Service Details</h2>
-          <div class="text-sm mb-2" id="printServiceDesc"></div>
-          <div class="text-sm"><span class="font-medium">Square Footage:</span> <span id="printSqft"></span></div>
-        </div>
-
-        <!-- Line Items -->
-        <div class="mb-8">
-          <h2 class="text-lg font-semibold mb-3">Quote Breakdown</h2>
-          <table class="w-full text-sm border-collapse">
-            <thead>
-              <tr class="border-b-2 border-slate-300">
-                <th class="text-left py-2">Description</th>
-                <th class="text-right py-2 w-32">Amount</th>
-              </tr>
-            </thead>
-            <tbody id="printLineItems" class="divide-y divide-slate-200">
-              <!-- Populated by JavaScript -->
-            </tbody>
-            <tfoot class="border-t-2 border-slate-300">
-              <tr><td class="py-2 font-medium">Subtotal</td><td class="text-right" id="printSubtotal"></td></tr>
-              <tr id="printTaxRow"><td class="py-1">Tax</td><td class="text-right" id="printTax"></td></tr>
-              <tr class="text-lg font-bold"><td class="pt-2">Total</td><td class="text-right pt-2" id="printTotal"></td></tr>
-            </tfoot>
-          </table>
-        </div>
-
-        <!-- Comments -->
-        <div id="printCommentsSection" class="mb-8">
-          <h2 class="text-lg font-semibold mb-3">Notes</h2>
-          <div id="printComments" class="text-sm whitespace-pre-wrap bg-slate-50 p-4 rounded border border-slate-200"></div>
-        </div>
-
-        <!-- Footer -->
-        <div class="mt-12 pt-6 border-t border-slate-300 text-xs text-slate-500">
-          <p>All estimates are subject to site verification and product availability.</p>
-          <p class="mt-2">This quote is valid for 30 days from the date above.</p>
-        </div>
-      </div>
-    </main>
-
-    <!-- Auth modal -->
-    <div id="authModal" class="no-print hidden fixed inset-0 z-50 bg-black/40">
-      <div class="mx-auto mt-32 max-w-md rounded-2xl bg-white p-6 shadow-soft">
-        <h3 class="text-lg font-semibold mb-2">Sign in</h3>
-        <p class="text-sm text-slate-600 mb-3">Set or enter a passphrase to encrypt/decrypt your company profile and pricing defaults (local to this browser).</p>
-        <input id="passphrase" type="password" placeholder="Enter passphrase"
-               class="w-full rounded-xl border-slate-300 p-2 mb-4"/>
-        <div class="flex justify-end gap-2">
-          <button id="btnAuthCancel" class="rounded-xl bg-slate-200 px-3 py-2">Cancel</button>
-          <button id="btnAuthConfirm" class="rounded-xl bg-indigo-600 text-white px-3 py-2">Continue</button>
-        </div>
-      </div>
+      </footer>
     </div>
 
-    <script src="./script.js"></script>
+    <script>
+      document.getElementById('year').textContent = new Date().getFullYear();
+    </script>
   </body>
 </html>
-

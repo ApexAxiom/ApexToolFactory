@@ -1,0 +1,645 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Pestimator — Quoting Studio</title>
+    <meta name="description" content="Secure Pestimator workspace for creating and exporting polished pest control proposals." />
+    <!-- Tailwind CDN (no build step) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script defer src="./config.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/aws-amplify@5.3.6/dist/aws-amplify.min.js"></script>
+    <script defer src="./auth.js"></script>
+    <script>
+      tailwind.config = { theme: { extend: {
+        boxShadow: { 'soft': '0 10px 25px rgba(0,0,0,0.08)' }
+      }}}; 
+    </script>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2232%22 height=%2232%22><text y=%2224%22 font-size=%2224%22>🐜</text></svg>">
+    <style>
+      *, *::before, *::after {
+        box-sizing: border-box;
+      }
+      html, body {
+        width: 100%;
+        overflow-x: hidden;
+      }
+      /* High-contrast fields (applies to all inputs/selects/textareas) */
+      input[type="text"], input[type="number"], input[type="email"], input[type="tel"], input[type="password"], select, textarea {
+        border: 1px solid #64748b; /* slate-500 */
+        border-radius: 0.75rem;     /* rounded-xl */
+        padding: 0.5rem 0.75rem;
+        background: #fff; color: #0f172a;
+        font-size: 16px; /* Prevent zoom on iOS */
+      }
+      input:focus, select:focus, textarea:focus {
+        outline: none;
+        border-color: #4f46e5;      /* indigo-600 */
+        box-shadow: 0 0 0 2px rgba(79,70,229,0.25);
+      }
+
+      /* Mobile-friendly improvements */
+      @media (max-width: 768px) {
+        /* Larger touch targets */
+        button, input, select, textarea {
+          min-height: 44px;
+          font-size: 16px;
+        }
+        
+        /* Better spacing on mobile */
+        .card { margin-bottom: 1rem; }
+        
+        /* Stack buttons vertically on mobile */
+        .mobile-stack { flex-direction: column; }
+        .mobile-stack button { width: 100%; margin-bottom: 0.5rem; }
+        
+        /* Full width inputs on mobile */
+        input, select, textarea { width: 100%; }
+
+        header select,
+        header button {
+          width: 100%;
+        }
+
+        header .mx-auto > .flex:last-child {
+          width: 100%;
+          justify-content: space-between;
+        }
+
+        /* Better grid layouts for mobile */
+        .mobile-grid-1 { grid-template-columns: 1fr !important; }
+        .mobile-grid-2 { grid-template-columns: repeat(2, 1fr) !important; }
+
+        /* Compact header on mobile */
+        header .flex { flex-wrap: wrap; gap: 0.5rem; }
+        header .text-2xl { font-size: 1.25rem; }
+        header .text-xs { font-size: 0.625rem; }
+        
+        /* Better table scrolling */
+        .overflow-x-auto { -webkit-overflow-scrolling: touch; }
+        
+        /* Fix profile buttons - stack vertically on mobile */
+        .card .flex.gap-2.no-print {
+          flex-direction: column;
+          width: 100%;
+        }
+        .card .flex.gap-2.no-print button,
+        .card .flex.gap-2.no-print label {
+          width: 100%;
+          text-align: center;
+        }
+        
+        /* Fix pest picker - better spacing */
+        #pestPicker {
+          display: grid !important;
+          grid-template-columns: repeat(2, 1fr);
+          gap: 0.75rem;
+        }
+        #pestPicker label {
+          font-size: 14px;
+        }
+      }
+
+      @media (orientation: portrait) and (max-width: 768px) {
+        body {
+          background: #f8fafc;
+        }
+        .header-inner {
+          flex-direction: column;
+          align-items: stretch;
+          gap: 1.25rem;
+        }
+        .header-brand {
+          width: 100%;
+          justify-content: space-between;
+          gap: 1rem;
+          align-items: center;
+        }
+        .header-brand svg {
+          flex-shrink: 0;
+        }
+        .header-actions {
+          width: 100%;
+          display: grid;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          gap: 0.75rem;
+          align-items: center;
+        }
+        .header-actions label {
+          grid-column: 1 / -1;
+          font-weight: 600;
+          display: block;
+        }
+        .header-actions select {
+          grid-column: 1 / -1;
+          width: 100%;
+        }
+        .header-actions button {
+          grid-column: 1 / -1;
+          width: 100%;
+        }
+        main {
+          padding-top: 1.5rem;
+        }
+        .card {
+          padding: 1.75rem;
+        }
+        .company-profile-toolbar {
+          flex-direction: column;
+          align-items: stretch;
+          gap: 1.5rem;
+        }
+        .company-profile-toolbar > div:first-child {
+          width: 100%;
+        }
+        .company-profile-header {
+          flex-direction: column;
+          gap: 1.5rem;
+        }
+        .company-profile-header img {
+          max-width: 96px;
+          height: auto;
+        }
+        .profile-actions {
+          width: 100%;
+          display: grid;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          gap: 0.75rem;
+        }
+        .profile-actions button,
+        .profile-actions label {
+          width: 100%;
+          justify-content: center;
+        }
+        .profile-actions label {
+          display: inline-flex;
+          align-items: center;
+          gap: 0.5rem;
+        }
+        .profile-actions input {
+          width: 100%;
+        }
+        .summary-header {
+          flex-direction: column;
+          align-items: stretch;
+          gap: 1.25rem;
+        }
+        .summary-header .mobile-stack {
+          width: 100%;
+          display: grid;
+          grid-template-columns: 1fr;
+          gap: 0.75rem;
+        }
+        .summary-header .mobile-stack button {
+          width: 100%;
+        }
+        #pestPicker {
+          grid-template-columns: 1fr;
+          justify-items: start;
+          gap: 0.5rem;
+        }
+        #pestPicker label {
+          display: grid;
+          grid-template-columns: auto 1fr;
+          align-items: center;
+          column-gap: 0.5rem;
+          row-gap: 0.25rem;
+          justify-content: flex-start;
+          padding: 0.5rem 0.75rem;
+          border-radius: 0.75rem;
+          background-color: #f8fafc;
+        }
+        #pestPicker label span {
+          line-height: 1.35;
+        }
+        #pestPicker input[type="checkbox"] {
+          width: 1.25rem;
+          height: 1.25rem;
+          accent-color: #4f46e5;
+        }
+      }
+
+      @media (max-width: 480px) {
+        #pestPicker {
+          grid-template-columns: 1fr;
+        }
+
+        .header-actions,
+        .profile-actions,
+        .summary-header .mobile-stack {
+          grid-template-columns: 1fr;
+        }
+
+        .card {
+          padding: 1.25rem;
+        }
+      }
+
+      /* Avoid awkward PDF breaks */
+      .avoid-break { break-inside: avoid; page-break-inside: avoid; }
+
+      /* Layout helpers for tighter field spacing in Pricing */
+      #pricingCard .grid { gap: 12px; }
+      #pricingCard input, #pricingCard select { max-width: 260px; width: 100%; }
+      /* Override Tailwind grid templates to auto-fit narrower fields */
+      #pricingCard .grid.grid-cols-2,
+      #pricingCard .grid.grid-cols-3,
+      #pricingCard .grid.grid-cols-4 { grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
+
+      /* Print rules: no app chrome; company-first, crisp borders */
+      @media print {
+        .no-print { display: none !important; }
+        .print-only { display: block !important; }
+        header { display: none !important; }       /* Hide Pestimator brand in PDF */
+        body { background: #fff; }
+        .card { box-shadow: none !important; border: 1px solid #e5e7eb !important; }
+        main { max-width: 100% !important; }
+      }
+      .print-only { display: none; }
+    </style>
+  </head>
+  <body class="bg-slate-50 text-slate-900">
+    <header class="sticky top-0 z-10 bg-white/80 backdrop-blur border-b border-slate-200 no-print">
+      <div class="header-inner mx-auto max-w-6xl px-4 py-3 flex items-center justify-between">
+        <div class="header-brand flex items-center gap-3">
+          <!-- Simple shield+ant logomark -->
+          <svg width="64" height="64" viewBox="0 0 64 64" aria-hidden="true" class="rounded-xl">
+            <defs>
+              <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0" stop-color="#10b981"/><stop offset="1" stop-color="#0ea5e9"/>
+              </linearGradient>
+            </defs>
+            <path d="M32 4l20 6v14c0 12-7.8 22.8-20 26-12.2-3.2-20-14-20-26V10l20-6z" fill="url(#g)"/>
+            <!-- little ant -->
+            <circle cx="28" cy="28" r="3" fill="#fff"/><circle cx="34" cy="28" r="4.2" fill="#fff"/>
+            <circle cx="41" cy="28" r="3.2" fill="#fff"/><path d="M26 22l4 4M38 22l-4 4" stroke="#fff" stroke-width="2" stroke-linecap="round"/>
+          </svg>
+          <div>
+            <div class="text-2xl font-semibold tracking-tight">Pestimator</div>
+            <div class="text-xs text-slate-500">Simple, reliable quotes</div>
+          </div>
+        </div>
+
+        <div class="header-actions flex items-center gap-3">
+          <!-- Res/Com toggle -->
+          <label class="text-sm text-slate-600" for="bizType">Customer:</label>
+          <select id="bizType" class="rounded-xl border-slate-300 focus:ring-2 focus:ring-indigo-500 p-2">
+            <option value="res">Residential</option>
+            <option value="com">Commercial</option>
+          </select>
+
+          <a href="./index.html" class="no-print inline-flex items-center rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-600 transition hover:border-slate-300 hover:text-slate-800">Home</a>
+          <span class="hidden text-right text-xs text-slate-500 sm:inline" id="authUser"></span>
+          <button id="btnSignOut" class="no-print rounded-xl bg-slate-900 text-white px-3 py-2 shadow hover:bg-black">Sign out</button>
+        </div>
+      </div>
+    </header>
+
+    <main class="mx-auto max-w-6xl px-4 py-6">
+      <div class="grid gap-6 lg:grid-cols-2">
+        <!-- Company Profile (hidden in print) -->
+        <section class="card rounded-2xl bg-white shadow-soft p-6 lg:col-span-2 avoid-break no-print">
+          <div class="company-profile-header flex items-start gap-4 mb-4">
+            <img id="companyLogoOutput" class="h-16 w-auto rounded" alt="Company logo" />
+            <div class="flex-1">
+              <div class="company-profile-toolbar flex items-center justify-between">
+                <div>
+                  <h2 class="text-lg font-semibold">Company Profile</h2>
+                  <div class="text-xs text-slate-500">This quote is issued by your company (Pestimator branding is hidden in PDF).</div>
+                </div>
+                <div class="profile-actions flex gap-2 no-print">
+                  <button id="btnProfileSave" class="rounded-xl bg-indigo-600 text-white px-3 py-2">Save (secured)</button>
+                  <button id="btnProfileLoad" class="rounded-xl bg-slate-200 px-3 py-2">Load</button>
+                  <button id="btnProfileExport" class="rounded-xl bg-slate-200 px-3 py-2">Export</button>
+                  <label class="rounded-xl bg-slate-200 px-3 py-2 cursor-pointer">
+                    Import <input id="profileImport" type="file" accept="application/json" class="hidden">
+                  </label>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <div class="grid gap-2">
+              <label class="text-sm text-slate-600">Company Name</label>
+              <input id="companyName" class="rounded-xl border-slate-300 p-2" placeholder="Acme Pest Co.">
+            </div>
+            <div class="grid gap-2">
+              <label class="text-sm text-slate-600">Address</label>
+              <input id="companyAddress" class="rounded-xl border-slate-300 p-2" placeholder="123 Main St, City, ST">
+            </div>
+            <div class="grid gap-2">
+              <label class="text-sm text-slate-600">License #</label>
+              <input id="companyLicense" class="rounded-xl border-slate-300 p-2" placeholder="TX-XXXXXX">
+            </div>
+            <div class="grid gap-2">
+              <label class="text-sm text-slate-600">Phone</label>
+              <input id="companyPhone" class="rounded-xl border-slate-300 p-2" placeholder="(555) 555-5555">
+            </div>
+            <div class="grid gap-2">
+              <label class="text-sm text-slate-600">Email</label>
+              <input id="companyEmail" class="rounded-xl border-slate-300 p-2" placeholder="hello@acme.com">
+            </div>
+            <div class="grid gap-2">
+              <label class="text-sm text-slate-600">Website</label>
+              <input id="companyWebsite" class="rounded-xl border-slate-300 p-2" placeholder="acme.com">
+            </div>
+            <div class="grid gap-2 sm:col-span-2 lg:col-span-3">
+              <label class="text-sm text-slate-600">Logo (optional)</label>
+              <input id="companyLogo" type="file" accept="image/*" class="rounded-xl border-slate-300 p-2">
+              <img id="companyLogoPreview" class="mt-2 h-10" alt="" />
+            </div>
+          </div>
+        </section>
+
+        <!-- Job Details -->
+        <section class="card rounded-2xl bg-white shadow-soft p-6 no-print">
+          <h2 class="text-lg font-semibold mb-4">Job Details</h2>
+          <div class="grid gap-4">
+            <div class="grid gap-2">
+              <label class="text-sm text-slate-600">Customer Name</label>
+              <input id="custName" class="rounded-xl border-slate-300 focus:ring-2 focus:ring-indigo-500 p-2" placeholder="Jane Doe"/>
+            </div>
+            <div class="grid gap-2">
+              <label class="text-sm text-slate-600">Address</label>
+              <input id="address" class="rounded-xl border-slate-300 focus:ring-2 focus:ring-indigo-500 p-2" placeholder="123 Main St"/>
+            </div>
+            <div class="grid gap-2">
+              <label class="text-sm text-slate-600">Square Footage</label>
+              <input id="sqft" type="number" min="0" step="1" value="0" class="rounded-xl border-slate-300 focus:ring-2 focus:ring-indigo-500 p-2"/>
+            </div>
+            <div class="grid gap-2">
+              <label class="text-sm text-slate-600">Pest Types (select all that apply)</label>
+              <div id="pestPicker" class="flex flex-wrap gap-3">
+                <!-- checkboxes populated by script.js from a catalog -->
+              </div>
+            </div>
+            <div class="grid gap-2">
+              <label class="text-sm text-slate-600">Visit Type</label>
+              <select id="visitType" class="rounded-xl border-slate-300 focus:ring-2 focus:ring-indigo-500 p-2">
+                <option value="one">One-time</option>
+                <option value="monthly">Monthly</option>
+                <option value="quarterly">Quarterly</option>
+              </select>
+            </div>
+            <!-- Termite-only inputs -->
+            <div id="termiteRow" class="grid grid-cols-1 sm:grid-cols-2 gap-4 hidden">
+              <div class="grid gap-2">
+                <label class="text-sm text-slate-600">Perimeter (linear ft)</label>
+                <input id="linearFt" type="number" min="0" step="1" value="0"
+                       class="rounded-xl border-slate-300 p-2"/>
+              </div>
+              <div class="grid gap-2">
+                <label class="text-sm text-slate-600">Rate ($/linear ft)</label>
+                <input id="lfRate" type="number" min="0" step="0.1" value="7"
+                       class="rounded-xl border-slate-300 p-2"/>
+              </div>
+            </div>
+            <!-- Comments/Notes -->
+            <div class="grid gap-2">
+              <label class="text-sm text-slate-600">Comments / Notes</label>
+              <textarea id="comments" rows="3" class="rounded-xl border-slate-300 p-2" placeholder="Special instructions, areas of concern, access notes..."></textarea>
+            </div>
+          </div>
+        </section>
+
+        <!-- Pricing -->
+        <section id="pricingCard" class="card rounded-2xl bg-white shadow-soft p-6 no-print">
+          <h2 class="text-lg font-semibold mb-4">Pricing Parameters</h2>
+          <div class="grid gap-4">
+            <!-- Base Rate -->
+            <div class="grid gap-2">
+              <label class="text-sm text-slate-600">Base Rate ($/sqft)</label>
+              <input id="baseRateSqft" type="number" min="0" step="0.001" value="0" placeholder="Base rate per sqft" aria-label="Base Rate per square foot">
+            </div>
+
+            <!-- Pest Charges -->
+            <div id="pestChargesBlock" class="grid gap-2 hidden">
+              <div class="text-sm font-medium">Pest Coverage Pricing</div>
+              <div id="pestChargeRows" class="grid gap-2"></div>
+              <div class="text-xs text-slate-500">Mark "Included" to charge $0 for that pest; otherwise enter an added cost.</div>
+            </div>
+
+            <!-- Residential Tiered Pricing (dropdown) -->
+            <div id="resTierBlock" class="grid gap-3 hidden">
+              <div class="grid gap-2">
+                <label class="text-sm text-slate-600">Residential Program (Quarterly)</label>
+                <div class="flex items-center gap-3 flex-wrap">
+                  <select id="resTierPlan" aria-label="Residential tier plan">
+                    <option value="0">None (0)</option>
+                    <option value="50">0–1000 sqft ($50)</option>
+                    <option value="70">1000–4000 sqft ($70)</option>
+                    <option value="150">4000–6000 sqft ($150)</option>
+                    <option value="custom">6000+ (custom)</option>
+                  </select>
+                  <input id="resTierCustom" type="number" min="0" step="1" value="0" class="hidden" placeholder="Custom amount" aria-label="Custom tier amount"/>
+                </div>
+              </div>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div class="grid gap-2">
+                <label class="text-sm text-slate-600">Labor Rate ($/hr)</label>
+                <input id="laborRate" type="number" min="0" step="1" value="0" class="rounded-xl border-slate-300 focus:ring-2 focus:ring-indigo-500 p-2"/>
+              </div>
+              <div class="grid gap-2">
+                <label class="text-sm text-slate-600">Hours</label>
+                <input id="hours" type="number" min="0" step="0.5" value="0" class="rounded-xl border-slate-300 focus:ring-2 focus:ring-indigo-500 p-2"/>
+              </div>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div class="grid gap-2">
+                <label class="text-sm text-slate-600">Materials ($)</label>
+                <input id="materials" type="number" min="0" step="1" value="0" class="rounded-xl border-slate-300 focus:ring-2 focus:ring-indigo-500 p-2"/>
+              </div>
+              <div class="grid gap-2">
+                <label class="text-sm text-slate-600">Travel ($)</label>
+                <input id="travel" type="number" min="0" step="1" value="0" class="rounded-xl border-slate-300 focus:ring-2 focus:ring-indigo-500 p-2"/>
+              </div>
+              <div class="grid gap-2">
+                <label class="text-sm text-slate-600">Markup (%)</label>
+                <input id="markupPct" type="number" min="0" step="1" value="0" class="rounded-xl border-slate-300 focus:ring-2 focus:ring-indigo-500 p-2"/>
+              </div>
+            </div>
+            <div class="grid gap-2">
+              <label class="text-sm text-slate-600">Tax Rate (%)</label>
+              <input id="taxPct" type="number" min="0" step="0.1" value="0" class="rounded-xl border-slate-300 focus:ring-2 focus:ring-indigo-500 p-2"/>
+            </div>
+
+            <!-- Travel miles x rate -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div class="grid gap-2">
+                <label class="text-sm text-slate-600">Travel (miles)</label>
+                <input id="travelMiles" type="number" min="0" step="1" value="0"
+                       class="rounded-xl border-slate-300 p-2"/>
+              </div>
+              <div class="grid gap-2">
+                <label class="text-sm text-slate-600">Mileage Rate ($/mi)</label>
+                <input id="perMile" type="number" min="0" step="0.01" value="0"
+                       class="rounded-xl border-slate-300 p-2"/>
+              </div>
+            </div>
+
+            <!-- Commercial-only adders -->
+            <div id="commercialBlock" class="grid gap-4 hidden">
+              <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div class="grid gap-2">
+                  <label class="text-sm text-slate-600">Rodent stations (#)</label>
+                  <input id="rodentStations" type="number" min="0" step="1" value="0" class="rounded-xl border-slate-300 p-2"/>
+                </div>
+                <div class="grid gap-2">
+                  <label class="text-sm text-slate-600">Rate ($/station)</label>
+                  <input id="rodentRate" type="number" min="0" step="0.1" value="0" class="rounded-xl border-slate-300 p-2"/>
+                </div>
+                <div class="grid gap-2">
+                  <label class="text-sm text-slate-600">ILTs (#)</label>
+                  <input id="iltCount" type="number" min="0" step="1" value="0" class="rounded-xl border-slate-300 p-2"/>
+                </div>
+                <div class="grid gap-2">
+                  <label class="text-sm text-slate-600">Rate ($/ILT)</label>
+                  <input id="iltRate" type="number" min="0" step="0.1" value="0" class="rounded-xl border-slate-300 p-2"/>
+                </div>
+              </div>
+
+              <div class="grid gap-2">
+                <label class="text-sm text-slate-600">Compliance / audit docs ($)</label>
+                <input id="complianceFee" type="number" min="0" step="1" value="0" class="rounded-xl border-slate-300 p-2"/>
+              </div>
+            </div>
+
+            <!-- Global adders -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div class="grid gap-2">
+                <label class="text-sm text-slate-600">After-hours Surcharge (%)</label>
+                <input id="afterHoursPct" type="number" min="0" step="1" value="0" class="rounded-xl border-slate-300 p-2"/>
+              </div>
+              <div class="grid gap-2">
+                <label class="text-sm text-slate-600">Discount (%)</label>
+                <input id="discountPct" type="number" min="0" step="1" value="0" class="rounded-xl border-slate-300 p-2"/>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Summary -->
+        <section class="card rounded-2xl bg-white shadow-soft p-6 lg:col-span-2 no-print">
+          <div class="summary-header flex items-center justify-between mb-4">
+            <h2 class="text-lg font-semibold">Quote Summary</h2>
+            <div class="flex flex-wrap gap-2 no-print mobile-stack sm:flex-row">
+              <button id="btnCalc" class="rounded-xl bg-emerald-600 text-white px-4 py-2 shadow hover:bg-emerald-700">Calculate</button>
+              <button id="btnPrint" class="rounded-xl bg-indigo-600 text-white px-4 py-2 shadow hover:bg-indigo-700">Print / Save PDF</button>
+              <button id="btnSave" class="rounded-xl bg-slate-200 px-4 py-2 shadow hover:bg-slate-300">Save Locally</button>
+              <button id="btnExport" class="rounded-xl bg-slate-200 px-4 py-2 shadow hover:bg-slate-300">Download JSON</button>
+              <button id="btnReset" class="rounded-xl bg-rose-600 text-white px-4 py-2 shadow hover:bg-rose-700">Reset</button>
+            </div>
+          </div>
+
+          <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <div class="rounded-2xl border border-slate-200 p-4">
+              <div class="text-sm text-slate-500">Base</div>
+              <div id="baseOut" class="text-2xl font-semibold">$0.00</div>
+              <div class="text-xs text-slate-500">Per-sqft base</div>
+            </div>
+            <div class="rounded-2xl border border-slate-200 p-4">
+              <div class="text-sm text-slate-500">Labor + Fees</div>
+              <div id="laborOut" class="text-2xl font-semibold">$0.00</div>
+              <div class="text-xs text-slate-500">Labor + materials + travel</div>
+            </div>
+            <div class="rounded-2xl border border-slate-200 p-4">
+              <div class="text-sm text-slate-500">Total</div>
+              <div id="totalOut" class="text-3xl font-bold">$0.00</div>
+              <div class="text-xs text-slate-500" id="ppsOut">$/sqft</div>
+            </div>
+          </div>
+
+          <div class="mt-6 overflow-x-auto rounded-2xl border border-slate-200">
+            <table class="min-w-full divide-y divide-slate-200">
+              <tbody class="divide-y divide-slate-200">
+                <tr><td class="p-3 text-slate-600">Company</td><td class="p-3 font-medium" id="compOut">—</td></tr>
+                <tr><td class="p-3 text-slate-600">Contact</td><td class="p-3 font-medium" id="contactOut">—</td></tr>
+                <tr><td class="p-3 text-slate-600">Customer</td><td class="p-3 font-medium" id="custOut">—</td></tr>
+                <tr><td class="p-3 text-slate-600">Address</td><td class="p-3 font-medium" id="addrOut">—</td></tr>
+                <tr><td class="p-3 text-slate-600">Service</td><td class="p-3 font-medium" id="svcOut">—</td></tr>
+                <tr><td class="p-3 text-slate-600">Subtotal</td><td class="p-3 font-medium" id="subOut">$0.00</td></tr>
+                <tr><td class="p-3 text-slate-600">Tax</td><td class="p-3 font-medium" id="taxOut">$0.00</td></tr>
+                <tr><td class="p-3 text-slate-600">Total</td><td class="p-3 font-bold" id="grandOut">$0.00</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <p class="mt-4 text-xs text-slate-500">All estimates are subject to site verification and product availability.</p>
+        </section>
+      </div>
+
+      <!-- PRINT-ONLY QUOTE -->
+      <div class="print-only mx-auto max-w-4xl px-6 py-8">
+        <!-- Company Header -->
+        <div class="flex items-start gap-6 mb-8 pb-6 border-b-2 border-slate-300">
+          <img id="printLogo" class="h-20 w-auto" alt="Company logo" />
+          <div class="flex-1">
+            <h1 id="printCompanyName" class="text-3xl font-bold mb-2">Company Name</h1>
+            <div id="printCompanyInfo" class="text-sm text-slate-600">
+              <div id="printAddress"></div>
+              <div id="printContact"></div>
+            </div>
+          </div>
+          <div class="text-right">
+            <div class="text-xs text-slate-500 uppercase tracking-wide">Quote</div>
+            <div id="printQuoteDate" class="text-sm font-medium"></div>
+          </div>
+        </div>
+
+        <!-- Customer Info -->
+        <div class="mb-8">
+          <h2 class="text-lg font-semibold mb-3">Customer Information</h2>
+          <div class="grid grid-cols-2 gap-4 text-sm">
+            <div><span class="font-medium">Name:</span> <span id="printCustName"></span></div>
+            <div><span class="font-medium">Address:</span> <span id="printCustAddr"></span></div>
+          </div>
+        </div>
+
+        <!-- Service Details -->
+        <div class="mb-8">
+          <h2 class="text-lg font-semibold mb-3">Service Details</h2>
+          <div class="text-sm mb-2" id="printServiceDesc"></div>
+          <div class="text-sm"><span class="font-medium">Square Footage:</span> <span id="printSqft"></span></div>
+        </div>
+
+        <!-- Line Items -->
+        <div class="mb-8">
+          <h2 class="text-lg font-semibold mb-3">Quote Breakdown</h2>
+          <table class="w-full text-sm border-collapse">
+            <thead>
+              <tr class="border-b-2 border-slate-300">
+                <th class="text-left py-2">Description</th>
+                <th class="text-right py-2 w-32">Amount</th>
+              </tr>
+            </thead>
+            <tbody id="printLineItems" class="divide-y divide-slate-200">
+              <!-- Populated by JavaScript -->
+            </tbody>
+            <tfoot class="border-t-2 border-slate-300">
+              <tr><td class="py-2 font-medium">Subtotal</td><td class="text-right" id="printSubtotal"></td></tr>
+              <tr id="printTaxRow"><td class="py-1">Tax</td><td class="text-right" id="printTax"></td></tr>
+              <tr class="text-lg font-bold"><td class="pt-2">Total</td><td class="text-right pt-2" id="printTotal"></td></tr>
+            </tfoot>
+          </table>
+        </div>
+
+        <!-- Comments -->
+        <div id="printCommentsSection" class="mb-8">
+          <h2 class="text-lg font-semibold mb-3">Notes</h2>
+          <div id="printComments" class="text-sm whitespace-pre-wrap bg-slate-50 p-4 rounded border border-slate-200"></div>
+        </div>
+
+        <!-- Footer -->
+        <div class="mt-12 pt-6 border-t border-slate-300 text-xs text-slate-500">
+          <p>All estimates are subject to site verification and product availability.</p>
+          <p class="mt-2">This quote is valid for 30 days from the date above.</p>
+        </div>
+      </div>
+    </main>
+
+    <script src="./script.js"></script>
+  </body>
+</html>
+

@@ -34,7 +34,9 @@
   const visitMult = { one: 1.00, monthly: 0.75, quarterly: 0.85 };
 
   // ---- tiny crypto for secured profile/pricing (AES-GCM via PBKDF2) ----
-  let sessionKey = null; // set after "Sign in"
+  let sessionKey = null;
+  let activeSession = null;
+  let profileHydrated = false;
   async function deriveKey(pass, saltB) {
     const km = await crypto.subtle.importKey("raw", enc.encode(pass), "PBKDF2", false, ["deriveKey"]);
     return crypto.subtle.deriveKey({ name: "PBKDF2", salt: saltB, iterations: 150000, hash: "SHA-256" },
@@ -59,6 +61,43 @@
     const iv = unb64(payload.iv); const data = unb64(payload.data);
     const plain = await crypto.subtle.decrypt({name:"AES-GCM", iv}, key, data);
     return JSON.parse(dec.decode(plain));
+  }
+
+  async function updateSessionKey(session) {
+    activeSession = session || null;
+    if (!session) {
+      sessionKey = null;
+      renderAuthUser();
+      return;
+    }
+    try {
+      const seed = session.tokens?.idToken || session.username || session.signedInAt;
+      if (!seed) {
+        sessionKey = null;
+        renderAuthUser();
+        return;
+      }
+      const saltHash = await crypto.subtle.digest("SHA-256", enc.encode(seed));
+      const salt = new Uint8Array(saltHash).slice(0, 16);
+      sessionKey = await deriveKey(seed, salt);
+    } catch (err) {
+      console.warn("[Pestimator] Failed to derive session key", err);
+      sessionKey = null;
+    }
+    renderAuthUser();
+  }
+
+  function renderAuthUser() {
+    const el = document.getElementById("authUser");
+    if (!el) return;
+    if (!activeSession) {
+      el.textContent = "";
+      el.classList.add("hidden");
+      return;
+    }
+    const name = activeSession.attributes?.name || activeSession.attributes?.email || activeSession.username || "Signed in";
+    el.textContent = `Signed in as ${name}`;
+    el.classList.remove("hidden");
   }
 
   // ---- storage helpers ----
@@ -94,7 +133,11 @@
         laborRate: $("laborRate").value, markupPct: $("markupPct").value, taxPct: $("taxPct").value
       }
     };
-    if (!sessionKey) { localStorage.setItem("pestimator.profile", JSON.stringify(profile)); alert("Saved locally (not encrypted). Sign in to encrypt."); return; }
+    if (!sessionKey) {
+      localStorage.setItem("pestimator.profile", JSON.stringify(profile));
+      alert("Saved locally (not encrypted). Sign in with your Pestimator account to enable encryption.");
+      return;
+    }
     const payload = await encryptJson(profile, sessionKey);
     localStorage.setItem("pestimator.profile.sec", JSON.stringify(payload));
     alert("Profile saved (encrypted in this browser).");
@@ -419,7 +462,36 @@
   }
 
   // ---- wire up ----
-  document.addEventListener("DOMContentLoaded", () => {
+  document.addEventListener("DOMContentLoaded", async () => {
+    const redirectTarget = "./login.html?next=tool.html";
+    const auth = window.PestimatorAuth;
+    if (auth) {
+      const session = auth.getSession?.();
+      if (!session) {
+        auth.requireAuth?.({ redirectTo: redirectTarget });
+        return;
+      }
+      await updateSessionKey(session);
+      if (!profileHydrated) {
+        await loadProfile();
+        profileHydrated = true;
+      }
+      auth.subscribe?.((s) => {
+        updateSessionKey(s).then(() => {
+          if (s) {
+            loadProfile().then(() => { profileHydrated = true; }).catch((err) => {
+              console.warn('[Pestimator] Failed to hydrate profile', err);
+            });
+          } else {
+            profileHydrated = false;
+            auth.requireAuth?.({ redirectTo: redirectTarget });
+          }
+        });
+      });
+    } else {
+      console.warn("[Pestimator] Auth module missing; proceeding without enforced login.");
+    }
+
     renderPestPicker();
     restore();
     renderPestChargeRows();
@@ -597,67 +669,32 @@
       });
     }
 
-    // Auth Sign in button
-    const btnAuth = $("btnAuth");
-    const authModal = $("authModal");
-    if (btnAuth && authModal) {
-      btnAuth.addEventListener("click", function(e) {
+    const btnSignOut = $("btnSignOut");
+    if (btnSignOut) {
+      btnSignOut.addEventListener("click", async function(e) {
         e.preventDefault();
         e.stopPropagation();
-        console.log("Sign in clicked");
-        authModal.classList.remove("hidden");
-      });
-    }
-
-    // Auth Cancel button
-    const btnAuthCancel = $("btnAuthCancel");
-    if (btnAuthCancel && authModal) {
-      btnAuthCancel.addEventListener("click", function(e) {
-        e.preventDefault();
-        e.stopPropagation();
-        console.log("Auth Cancel clicked");
-        authModal.classList.add("hidden");
-      });
-    }
-
-    // Auth Confirm button
-    const btnAuthConfirm = $("btnAuthConfirm");
-    if (btnAuthConfirm && authModal) {
-      btnAuthConfirm.addEventListener("click", async function(e) {
-        e.preventDefault();
-        e.stopPropagation();
-        console.log("Auth Confirm clicked");
-        
-        const passField = $("passphrase");
-        const pass = passField?.value.trim();
-        if (!pass) {
-          alert("Enter a passphrase.");
-          return;
+        console.log("Sign out clicked");
+        try {
+          await window.PestimatorAuth?.signOut?.();
+        } catch (err) {
+          console.warn("[Pestimator] Sign out failed", err);
         }
-        
-        let saltB64 = localStorage.getItem("pestimator.auth.salt");
-        let salt;
-        if (saltB64) {
-          salt = Uint8Array.from(atob(saltB64), c => c.charCodeAt(0));
-        } else {
-          salt = crypto.getRandomValues(new Uint8Array(16));
-          localStorage.setItem("pestimator.auth.salt", b64(salt));
-        }
-        
-        sessionKey = await deriveKey(pass, salt);
-        authModal.classList.add("hidden");
-        await loadProfile();
+        sessionKey = null;
+        activeSession = null;
+        renderAuthUser();
+        window.location.href = "./login.html";
       });
     }
 
     // Initial compute
     compute();
-    
+
     // Log button status
     console.log("=== Button Status ===");
     ["btnCalc","btnPrint","btnSave","btnExport","btnReset",
      "btnProfileSave","btnProfileLoad","btnProfileExport",
-     "btnAuth","btnAuthCancel","btnAuthConfirm"].forEach(id => {
+     "btnSignOut"].forEach(id => {
       console.log(`${id}: ${$(id) ? "✓" : "✗"}`);
     });
   });
