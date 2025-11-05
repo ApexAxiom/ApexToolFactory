@@ -33,6 +33,50 @@
   // Visit multipliers
   const visitMult = { one: 1.00, monthly: 0.75, quarterly: 0.85 };
 
+  const EMAIL_KEY = "pestimator.auth.email";
+
+  function updateAccountUi(email, mode) {
+    const badge = $("activeAccount");
+    if (badge) {
+      if (mode === "account" && email) {
+        badge.textContent = `Signed in as ${email}`;
+        badge.classList.remove("hidden");
+      } else if (mode === "demo") {
+        badge.textContent = "Demo mode (not encrypted)";
+        badge.classList.remove("hidden");
+      } else {
+        badge.textContent = "";
+        badge.classList.add("hidden");
+      }
+    }
+    const authBtn = $("btnAuth");
+    if (authBtn) authBtn.textContent = mode === "account" ? "Account" : "Sign in";
+  }
+
+  function activateApp(mode = "account", email = null) {
+    const authModalEl = $("authModal");
+    if (authModalEl) authModalEl.classList.add("hidden");
+    const marketingShell = document.getElementById("marketingShell");
+    if (marketingShell) marketingShell.classList.add("hidden");
+    const appShell = document.getElementById("appShell");
+    if (appShell) appShell.classList.remove("hidden");
+    document.body.classList.add("app-active");
+    updateAccountUi(email, mode);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+    compute();
+  }
+
+  function openAuthModal() {
+    const authModalEl = $("authModal");
+    if (!authModalEl) return;
+    authModalEl.classList.remove("hidden");
+    setTimeout(() => {
+      const emailField = $("authEmail");
+      if (emailField && !emailField.value) emailField.focus();
+      else $("passphrase")?.focus();
+    }, 60);
+  }
+
   // ---- tiny crypto for secured profile/pricing (AES-GCM via PBKDF2) ----
   let sessionKey = null; // set after "Sign in"
   async function deriveKey(pass, saltB) {
@@ -425,6 +469,12 @@
     renderPestChargeRows();
     refreshBlocks();
 
+    const footerYear = document.getElementById("footerYear");
+    if (footerYear) footerYear.textContent = new Date().getFullYear().toString();
+
+    const storedEmail = localStorage.getItem(EMAIL_KEY);
+    if (storedEmail && $("authEmail")) $("authEmail").value = storedEmail;
+
     // Wire inputs
     fields.forEach(f => {
       const el = $(f);
@@ -470,6 +520,23 @@
         if (file) importProfile(file);
       });
     }
+
+    const authModal = $("authModal");
+    const authTriggers = document.querySelectorAll('[data-open-auth]');
+    authTriggers.forEach(trigger => {
+      trigger.addEventListener("click", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        console.log("Auth trigger clicked");
+        openAuthModal();
+      });
+    });
+
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "Escape" && authModal && !authModal.classList.contains("hidden")) {
+        authModal.classList.add("hidden");
+      }
+    });
 
     // ============ BUTTON HANDLERS ============
     // Each button gets its own dedicated handler
@@ -597,18 +664,6 @@
       });
     }
 
-    // Auth Sign in button
-    const btnAuth = $("btnAuth");
-    const authModal = $("authModal");
-    if (btnAuth && authModal) {
-      btnAuth.addEventListener("click", function(e) {
-        e.preventDefault();
-        e.stopPropagation();
-        console.log("Sign in clicked");
-        authModal.classList.remove("hidden");
-      });
-    }
-
     // Auth Cancel button
     const btnAuthCancel = $("btnAuthCancel");
     if (btnAuthCancel && authModal) {
@@ -627,14 +682,19 @@
         e.preventDefault();
         e.stopPropagation();
         console.log("Auth Confirm clicked");
-        
+
         const passField = $("passphrase");
         const pass = passField?.value.trim();
         if (!pass) {
           alert("Enter a passphrase.");
           return;
         }
-        
+
+        const emailField = $("authEmail");
+        const email = emailField?.value.trim() || "";
+        if (email) localStorage.setItem(EMAIL_KEY, email);
+        else localStorage.removeItem(EMAIL_KEY);
+
         let saltB64 = localStorage.getItem("pestimator.auth.salt");
         let salt;
         if (saltB64) {
@@ -643,9 +703,38 @@
           salt = crypto.getRandomValues(new Uint8Array(16));
           localStorage.setItem("pestimator.auth.salt", b64(salt));
         }
-        
+
         sessionKey = await deriveKey(pass, salt);
-        authModal.classList.add("hidden");
+        if (passField) passField.value = "";
+        activateApp("account", email || null);
+        await loadProfile();
+      });
+    }
+
+    const btnAuthSkip = $("btnAuthSkip");
+    if (btnAuthSkip && authModal) {
+      btnAuthSkip.addEventListener("click", async function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        console.log("Auth Skip clicked");
+        sessionKey = null;
+        const passField = $("passphrase");
+        if (passField) passField.value = "";
+        activateApp("demo", null);
+        await loadProfile();
+      });
+    }
+
+    const btnLaunchDemo = $("btnLaunchDemo");
+    if (btnLaunchDemo) {
+      btnLaunchDemo.addEventListener("click", async function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        console.log("Launch demo clicked");
+        sessionKey = null;
+        const passField = $("passphrase");
+        if (passField) passField.value = "";
+        activateApp("demo", null);
         await loadProfile();
       });
     }
@@ -657,7 +746,7 @@
     console.log("=== Button Status ===");
     ["btnCalc","btnPrint","btnSave","btnExport","btnReset",
      "btnProfileSave","btnProfileLoad","btnProfileExport",
-     "btnAuth","btnAuthCancel","btnAuthConfirm"].forEach(id => {
+     "btnAuth","btnAuthCancel","btnAuthConfirm","btnAuthSkip","btnLaunchDemo"].forEach(id => {
       console.log(`${id}: ${$(id) ? "✓" : "✗"}`);
     });
   });
