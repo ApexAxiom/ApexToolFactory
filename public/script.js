@@ -19,6 +19,7 @@
   let selectedPests = [];            // array of ids
   let pestPricing = {};              // { id: {included: boolean, cost: number} }
   let documentMode = "quote";       // "quote" | "invoice"
+  let documentModeRestore = null;    // pending mode to restore after printing
 
   // Persisted quote + profile fields
   const fields = [
@@ -601,6 +602,15 @@
       });
     }
 
+    // Ensure we restore quote view after printing invoices
+    window.addEventListener("afterprint", () => {
+      if (documentModeRestore) {
+        documentMode = documentModeRestore;
+        documentModeRestore = null;
+        compute();
+      }
+    });
+
     // ============ BUTTON HANDLERS ============
     // Each button gets its own dedicated handler
     
@@ -638,6 +648,7 @@
         e.preventDefault();
         e.stopPropagation();
         console.log("Invoice clicked");
+        const previousMode = documentMode;
         documentMode = "invoice";
         const dueField = $("invoiceDueDate");
         if (dueField && !dueField.value) {
@@ -654,9 +665,8 @@
         }
         compute();
         saveQuote();
+        documentModeRestore = previousMode;
         window.print();
-        documentMode = "quote";
-        compute();
       });
     }
 
