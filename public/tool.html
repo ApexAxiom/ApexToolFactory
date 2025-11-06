@@ -406,6 +406,16 @@
               <label>Address</label>
               <input id="address" class="rounded-2xl p-3" placeholder="123 Main St"/>
             </div>
+            <div class="grid gap-2 sm:grid-cols-2">
+              <div class="grid gap-2">
+                <label>Invoice Number</label>
+                <input id="invoiceNumber" class="rounded-2xl p-3" placeholder="INV-001"/>
+              </div>
+              <div class="grid gap-2">
+                <label>Invoice Due Date</label>
+                <input id="invoiceDueDate" type="date" class="rounded-2xl p-3"/>
+              </div>
+            </div>
             <div class="grid gap-2">
               <label>Square Footage</label>
               <input id="sqft" type="number" min="0" step="1" value="0" class="rounded-2xl p-3"/>
@@ -568,16 +578,17 @@
 
         <!-- Summary -->
         <section class="card lg:col-span-2 no-print p-8 shadow-soft">
-          <div class="summary-header mb-6 flex items-center justify-between">
-            <h2 class="text-2xl">Quote Summary</h2>
-            <div class="flex flex-wrap gap-2 mobile-stack sm:flex-row">
-              <button id="btnCalc" class="rounded-full bg-mint/80 px-4 py-2 text-sm font-semibold text-night shadow-glow transition hover:brightness-110">Calculate</button>
-              <button id="btnPrint" class="rounded-full bg-lagoon px-4 py-2 text-sm font-semibold text-night shadow-glow transition hover:brightness-110">Print / Save PDF</button>
-              <button id="btnSave" class="rounded-full border border-white/20 bg-white/10 px-4 py-2 text-sm font-semibold text-white/85 transition hover:border-white/35 hover:bg-white/15">Save Locally</button>
-              <button id="btnExport" class="rounded-full border border-white/20 bg-white/10 px-4 py-2 text-sm font-semibold text-white/85 transition hover:border-white/35 hover:bg-white/15">Download JSON</button>
-              <button id="btnReset" class="rounded-full bg-rose-500/90 px-4 py-2 text-sm font-semibold text-white shadow-[0_18px_35px_-22px_rgba(244,63,94,0.7)] transition hover:bg-rose-500">Reset</button>
+            <div class="summary-header mb-6 flex items-center justify-between">
+              <h2 class="text-2xl">Quote Summary</h2>
+              <div class="flex flex-wrap gap-2 mobile-stack sm:flex-row">
+                <button id="btnCalc" class="rounded-full bg-mint/80 px-4 py-2 text-sm font-semibold text-night shadow-glow transition hover:brightness-110">Calculate</button>
+                <button id="btnPrint" class="rounded-full bg-lagoon px-4 py-2 text-sm font-semibold text-night shadow-glow transition hover:brightness-110">Print / Save PDF</button>
+                <button id="btnInvoice" class="rounded-full bg-white px-4 py-2 text-sm font-semibold text-night shadow-glow transition hover:bg-white/90">Create Invoice</button>
+                <button id="btnSave" class="rounded-full border border-white/20 bg-white/10 px-4 py-2 text-sm font-semibold text-white/85 transition hover:border-white/35 hover:bg-white/15">Save Locally</button>
+                <button id="btnExport" class="rounded-full border border-white/20 bg-white/10 px-4 py-2 text-sm font-semibold text-white/85 transition hover:border-white/35 hover:bg-white/15">Download JSON</button>
+                <button id="btnReset" class="rounded-full bg-rose-500/90 px-4 py-2 text-sm font-semibold text-white shadow-[0_18px_35px_-22px_rgba(244,63,94,0.7)] transition hover:bg-rose-500">Reset</button>
+              </div>
             </div>
-          </div>
 
           <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             <div class="stat-card p-5">
@@ -605,6 +616,8 @@
                 <tr><td class="p-3">Customer</td><td class="p-3 font-medium text-white/90" id="custOut">—</td></tr>
                 <tr><td class="p-3">Address</td><td class="p-3 font-medium text-white/90" id="addrOut">—</td></tr>
                 <tr><td class="p-3">Service</td><td class="p-3 font-medium text-white/90" id="svcOut">—</td></tr>
+                <tr id="invoiceNumberRow" class="hidden"><td class="p-3">Invoice #</td><td class="p-3 font-medium text-white/90" id="invoiceOut">—</td></tr>
+                <tr id="invoiceDueRow" class="hidden"><td class="p-3">Due Date</td><td class="p-3 font-medium text-white/90" id="invoiceDueOut">—</td></tr>
                 <tr><td class="p-3">Subtotal</td><td class="p-3 font-medium text-white/90" id="subOut">$0.00</td></tr>
                 <tr><td class="p-3">Tax</td><td class="p-3 font-medium text-white/90" id="taxOut">$0.00</td></tr>
                 <tr><td class="p-3">Total</td><td class="p-3 font-bold text-white" id="grandOut">$0.00</td></tr>
@@ -629,8 +642,9 @@
             </div>
           </div>
           <div class="text-right">
-            <div class="text-xs uppercase tracking-wide">Quote</div>
-            <div id="printQuoteDate" class="text-sm font-medium"></div>
+            <div class="text-xs uppercase tracking-wide" id="printDocLabel">Quote</div>
+            <div id="printDocDate" class="text-sm font-medium"></div>
+            <div id="printDocMeta" class="text-xs text-slate-500"></div>
           </div>
         </div>
 
@@ -640,6 +654,10 @@
           <div class="grid grid-cols-2 gap-4 text-sm">
             <div><span class="font-medium">Name:</span> <span id="printCustName"></span></div>
             <div><span class="font-medium">Address:</span> <span id="printCustAddr"></span></div>
+          </div>
+          <div id="printInvoiceDetails" class="mt-4 grid grid-cols-2 gap-4 text-sm hidden">
+            <div><span class="font-medium">Invoice #:</span> <span id="printInvoiceNumber"></span></div>
+            <div><span class="font-medium">Due Date:</span> <span id="printInvoiceDue"></span></div>
           </div>
         </div>
 
@@ -652,7 +670,7 @@
 
         <!-- Line Items -->
         <div class="mb-8">
-          <h2 class="text-lg font-semibold mb-3">Quote Breakdown</h2>
+          <h2 class="text-lg font-semibold mb-3" id="printBreakdownTitle">Quote Breakdown</h2>
           <table class="w-full text-sm border-collapse">
             <thead>
               <tr class="border-b-2 border-slate-300">
@@ -679,8 +697,8 @@
 
         <!-- Footer -->
         <div class="mt-12 pt-6 border-t border-slate-300 text-xs">
-          <p>All estimates are subject to site verification and product availability.</p>
-          <p class="mt-2">This quote is valid for 30 days from the date above.</p>
+          <div id="printFooterPrimary">All estimates are subject to site verification and product availability.</div>
+          <div id="printFooterSecondary" class="mt-2">This quote is valid for 30 days from the date above.</div>
         </div>
       </div>
     </main>
