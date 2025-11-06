@@ -1,5 +1,4 @@
 {
-  "extends": "next/core-web-vitals",
   "compilerOptions": {
     "target": "ES2022",
     "lib": ["ES2022", "DOM", "DOM.Iterable"],
@@ -16,7 +15,12 @@
     "allowJs": false,
     "esModuleInterop": true,
     "isolatedModules": true,
-    "types": ["node"],
+    "types": [
+      "node",
+      "next",
+      "next/types/global",
+      "next/navigation-types/compat/navigation"
+    ],
     "baseUrl": ".",
     "paths": { "@/*": ["./*"] },
     "plugins": [{ "name": "next" }]

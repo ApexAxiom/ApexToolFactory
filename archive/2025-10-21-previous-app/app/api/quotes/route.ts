@@ -30,7 +30,7 @@ export async function GET() {
  */
 export async function POST(req: Request) {
   const s = await session(); if (!s.authed) return NextResponse.json({error:"unauthorized"},{status:401});
-  const body = await req.json() as { customerId:string; propertyId:string; items:{unitPrice:number; qty:number}[]; customerName:string; };
+  const body = await req.json() as { customerId?:string; propertyId?:string; items:{unitPrice:number; qty:number}[]; customerName?:string; };
 
   let quote: Quote | null = null;
   await withLock(s.orgId!, async ()=>{
@@ -45,14 +45,16 @@ export async function POST(req: Request) {
     const number = `Q${today}-${String(serial).padStart(4,"0")}`;
     const totals = priceItems(body.items);
     const now = new Date().toISOString();
-    quote = { id, orgId: s.orgId!, number, customerId: body.customerId, propertyId: body.propertyId,
+    const customerName = body.customerName?.trim() ?? "";
+    quote = { id, orgId: s.orgId!, number, customerId: body.customerId ?? "", propertyId: body.propertyId ?? "",
+      customerName,
       items: body.items.map(i=>({ templateId:"", qty:i.qty, unitPrice:i.unitPrice, lineTotal: i.unitPrice*i.qty })), ...totals, createdAt: now };
 
     const qKey = paths.quote(s.orgId!, id);
     await putJson(qKey, quote);
 
     const idx = (await getJson<IndexRow[]>(idxKey)) || [];
-    idx.unshift({ id, number, customerName: body.customerName, createdAt: now, total: totals.total });
+    idx.unshift({ id, number, customerName, createdAt: now, total: totals.total });
     await putJson(idxKey, idx.slice(0,5000)); // cap
     await putJson(metaKey, meta);
   });
