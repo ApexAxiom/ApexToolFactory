@@ -18,10 +18,11 @@
 
   let selectedPests = [];            // array of ids
   let pestPricing = {};              // { id: {included: boolean, cost: number} }
+  let documentMode = "quote";       // "quote" | "invoice"
 
   // Persisted quote + profile fields
   const fields = [
-    "bizType","custName","address","sqft","visitType","comments",
+    "bizType","custName","address","invoiceNumber","invoiceDueDate","sqft","visitType","comments",
     "baseRateSqft","useTieredRes","tier_0_1000","tier_1000_4000","tier_4000_6000","tier_6000_plus",
     "laborRate","hours","materials","travel","markupPct","taxPct",
     "travelMiles","perMile",
@@ -300,6 +301,21 @@
   function num(v){ const n = parseFloat(v); return isFinite(n) ? n : 0; }
   function currency(n){ return (isFinite(n)? n:0).toLocaleString(undefined,{style:"currency",currency:"USD",maximumFractionDigits:2}); }
 
+  function parseDateInput(value) {
+    if (!value) return null;
+    const parts = value.split("-").map(Number);
+    if (parts.length !== 3) return null;
+    const [y, m, d] = parts;
+    if (!Number.isFinite(y) || !Number.isFinite(m) || !Number.isFinite(d)) return null;
+    const dt = new Date(y, m - 1, d);
+    return Number.isNaN(dt.getTime()) ? null : dt;
+  }
+
+  function formatDate(date) {
+    if (!(date instanceof Date) || Number.isNaN(date.getTime())) return "";
+    return date.toLocaleDateString();
+  }
+
   function tierPriceForSqft(sqft){
     const sel = $("resTierPlan");
     const val = sel ? sel.value : "0";
@@ -311,6 +327,10 @@
     const sqft = num($("sqft")?.value || "0");
     const visitType = $("visitType")?.value || "one";
     const bizType = $("bizType")?.value || "res";
+    const invoiceNumber = ($("invoiceNumber")?.value || "").trim();
+    const invoiceDueRaw = $("invoiceDueDate")?.value || "";
+    const invoiceDueDate = parseDateInput(invoiceDueRaw);
+    const invoiceDueText = invoiceDueDate ? formatDate(invoiceDueDate) : "";
 
     // ---- base / service price
     let baseTotal = 0;
@@ -368,6 +388,12 @@
     if ($("custOut")) $("custOut").textContent = $("custName")?.value || "—";
     if ($("addrOut")) $("addrOut").textContent = $("address")?.value || "—";
     if ($("svcOut")) $("svcOut").textContent  = describeService(visitType);
+    if ($("invoiceOut")) $("invoiceOut").textContent = invoiceNumber || "—";
+    if ($("invoiceDueOut")) $("invoiceDueOut").textContent = invoiceDueText || "—";
+    const invoiceRow = $("invoiceNumberRow");
+    if (invoiceRow) invoiceRow.classList.toggle("hidden", !invoiceNumber);
+    const invoiceDueRow = $("invoiceDueRow");
+    if (invoiceDueRow) invoiceDueRow.classList.toggle("hidden", !invoiceDueText);
     if ($("subOut")) $("subOut").textContent  = currency(subtotal);
     if ($("taxOut")) $("taxOut").textContent  = currency(tax);
     if ($("grandOut")) $("grandOut").textContent= currency(total);
@@ -385,11 +411,31 @@
     const email = $("companyEmail")?.value || "";
     const license = $("companyLicense")?.value || "";
     if ($("printContact")) $("printContact").textContent = [phone, email, license ? `License: ${license}` : ""].filter(Boolean).join(" • ");
-    if ($("printQuoteDate")) $("printQuoteDate").textContent = new Date().toLocaleDateString();
+    const now = new Date();
+    const invoiceNumber = ($("invoiceNumber")?.value || "").trim();
+    const invoiceDueRaw = $("invoiceDueDate")?.value || "";
+    const invoiceDueDate = parseDateInput(invoiceDueRaw);
+    const invoiceDueText = invoiceDueDate ? formatDate(invoiceDueDate) : "";
+    const isInvoice = documentMode === "invoice";
+
+    if ($("printDocLabel")) $("printDocLabel").textContent = isInvoice ? "Invoice" : "Quote";
+    if ($("printDocDate")) $("printDocDate").textContent = formatDate(now);
+    if ($("printDocMeta")) {
+      const metaParts = [];
+      if (isInvoice && invoiceNumber) metaParts.push(`Invoice #${invoiceNumber}`);
+      if (isInvoice && invoiceDueText) metaParts.push(`Due ${invoiceDueText}`);
+      if (!isInvoice) metaParts.push("Valid for 30 days");
+      if (metaParts.length === 0 && isInvoice) metaParts.push("Payment due upon receipt");
+      $("printDocMeta").textContent = metaParts.join(" • ");
+    }
 
     // Customer info
     if ($("printCustName")) $("printCustName").textContent = $("custName")?.value || "—";
     if ($("printCustAddr")) $("printCustAddr").textContent = $("address")?.value || "—";
+    const invoiceDetails = $("printInvoiceDetails");
+    if (invoiceDetails) invoiceDetails.style.display = (isInvoice && (invoiceNumber || invoiceDueText)) ? "" : "none";
+    if ($("printInvoiceNumber")) $("printInvoiceNumber").textContent = invoiceNumber || "—";
+    if ($("printInvoiceDue")) $("printInvoiceDue").textContent = invoiceDueText || "—";
 
     // Service details
     const sqft = num($("sqft")?.value || "0");
@@ -434,6 +480,7 @@
       });
     }
 
+    if ($("printBreakdownTitle")) $("printBreakdownTitle").textContent = isInvoice ? "Invoice Breakdown" : "Quote Breakdown";
     if ($("printSubtotal")) $("printSubtotal").textContent = currency(subtotal);
     if ($("printTax")) $("printTax").textContent = currency(tax);
     if ($("printTotal")) $("printTotal").textContent = currency(total);
@@ -447,6 +494,17 @@
     const commentsSection = $("printCommentsSection");
     if (commentsSection) commentsSection.style.display = comments ? "" : "none";
     if ($("printComments")) $("printComments").textContent = comments;
+
+    if ($("printFooterPrimary")) {
+      $("printFooterPrimary").textContent = isInvoice
+        ? "Please remit payment to the company details above."
+        : "All estimates are subject to site verification and product availability.";
+    }
+    if ($("printFooterSecondary")) {
+      $("printFooterSecondary").textContent = isInvoice
+        ? (invoiceDueText ? `Payment is due by ${invoiceDueText}.` : "Payment is due upon receipt.")
+        : "This quote is valid for 30 days from the date above.";
+    }
   }
 
   function logoPreview(file){
@@ -566,7 +624,39 @@
         e.preventDefault();
         e.stopPropagation();
         console.log("Print clicked");
+        documentMode = "quote";
+        compute();
+        saveQuote();
         window.print();
+        documentMode = "quote";
+      });
+    }
+
+    const btnInvoice = $("btnInvoice");
+    if (btnInvoice) {
+      btnInvoice.addEventListener("click", function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        console.log("Invoice clicked");
+        documentMode = "invoice";
+        const dueField = $("invoiceDueDate");
+        if (dueField && !dueField.value) {
+          const due = new Date();
+          due.setDate(due.getDate() + 14);
+          dueField.value = due.toISOString().split("T")[0];
+        }
+        const numberField = $("invoiceNumber");
+        if (numberField && !numberField.value) {
+          const today = new Date();
+          const month = String(today.getMonth() + 1).padStart(2, "0");
+          const day = String(today.getDate()).padStart(2, "0");
+          numberField.value = `INV-${today.getFullYear()}${month}${day}`;
+        }
+        compute();
+        saveQuote();
+        window.print();
+        documentMode = "quote";
+        compute();
       });
     }
 
@@ -621,12 +711,16 @@
             const el = $(id);
             if (el) el.value = "0";
           });
-        
+
+        if ($("invoiceNumber")) $("invoiceNumber").value = "";
+        if ($("invoiceDueDate")) $("invoiceDueDate").value = "";
+
         const plan = $("resTierPlan");
         if (plan) plan.value = "0";
-        
+
         selectedPests = [];
         pestPricing = {};
+        documentMode = "quote";
         
         const checks = document.querySelectorAll('#pestPicker input[type="checkbox"]');
         checks.forEach(c => c.checked = false);
@@ -692,7 +786,7 @@
 
     // Log button status
     console.log("=== Button Status ===");
-    ["btnCalc","btnPrint","btnSave","btnExport","btnReset",
+    ["btnCalc","btnPrint","btnInvoice","btnSave","btnExport","btnReset",
      "btnProfileSave","btnProfileLoad","btnProfileExport",
      "btnSignOut"].forEach(id => {
       console.log(`${id}: ${$(id) ? "✓" : "✗"}`);
