@@ -1,7 +1,27 @@
-import { getIronSession, type IronSession, type CookieStore } from "iron-session";
+import { getIronSession, type IronSession } from "iron-session";
 import { cookies } from "next/headers";
 
 const sessionName = "aa.sid";
+
+type ResponseCookie = {
+  name: string;
+  value: string;
+  domain?: string;
+  path?: string;
+  sameSite?: "lax" | "strict" | "none";
+  secure?: boolean;
+  httpOnly?: boolean;
+  maxAge?: number;
+  priority?: "low" | "medium" | "high";
+  expires?: number | Date;
+};
+
+type CookieStore = {
+  get(name: string): { name: string; value: string } | undefined;
+  set(name: string, value: string, cookie?: Partial<ResponseCookie>): void;
+} & {
+  set(options: ResponseCookie): void;
+};
 
 export interface Sess {
   authed?: boolean;

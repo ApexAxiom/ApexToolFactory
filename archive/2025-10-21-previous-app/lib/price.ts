@@ -1,4 +1,4 @@
-import { QuoteItem } from "./types";
+import { LineItem } from "./types";
 
 /**
  * Calculates subtotal, tax, and total for provided line items.
@@ -26,7 +26,7 @@ export function priceItems(items: {unitPrice:number; qty:number}[]): {subtotal:n
  * const item = priceLine(25, 3);
  * ```
  */
-export function priceLine(unitPrice:number, qty:number): QuoteItem {
+export function priceLine(unitPrice:number, qty:number): LineItem {
   const lineTotal = Math.round(unitPrice * qty * 100)/100;
   return { templateId: "", qty, unitPrice, lineTotal };
 }

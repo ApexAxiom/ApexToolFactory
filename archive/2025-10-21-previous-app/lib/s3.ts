@@ -74,10 +74,13 @@ export const paths = {
   org:(orgId:string)=>`orgs/${orgId}/`,
   meta:(orgId:string)=>`orgs/${orgId}/meta.json`,
   index:(orgId:string)=>`orgs/${orgId}/index.json`,
+  invoiceMeta:(orgId:string)=>`orgs/${orgId}/invoice-meta.json`,
+  invoiceIndex:(orgId:string)=>`orgs/${orgId}/invoice-index.json`,
   customer:(orgId:string,id:string)=>`orgs/${orgId}/customers/${id}.json`,
   property:(orgId:string,id:string)=>`orgs/${orgId}/properties/${id}.json`,
   template:(orgId:string,id:string)=>`orgs/${orgId}/templates/${id}.json`,
-  quote:(orgId:string,id:string)=>`orgs/${orgId}/quotes/${id}.json`
+  quote:(orgId:string,id:string)=>`orgs/${orgId}/quotes/${id}.json`,
+  invoice:(orgId:string,id:string)=>`orgs/${orgId}/invoices/${id}.json`
 };
 
 /**

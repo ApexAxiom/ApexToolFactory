@@ -1,6 +1,5 @@
 import Card from "@/components/Card";
-
-interface Row { id:string; number:string; customerName:string; createdAt:string; total:number; }
+import type { IndexRow } from "@/lib/types";
 
 /**
  * Lists recent quotes for the authenticated organization.
@@ -15,7 +14,7 @@ interface Row { id:string; number:string; customerName:string; createdAt:string;
 export default async function Quotes() {
   const base = process.env.NEXT_PUBLIC_BASE_URL ?? "";
   const r = await fetch(`${base}/api/quotes`, { cache: "no-store" });
-  const rows: Row[] = r.ok ? await r.json() : [];
+  const rows: IndexRow[] = r.ok ? await r.json() as IndexRow[] : [];
   return (
     <main className="max-w-5xl mx-auto p-6">
       <h1 className="text-xl font-semibold mb-4">Quotes</h1>
