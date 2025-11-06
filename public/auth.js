@@ -10,6 +10,9 @@
     Joe: { password: 'Demo123', attributes: { name: 'Joe' } }
   };
 
+  let cachedSession = null;
+  let syncPromise = null;
+
   function configureAmplify() {
     const config = window.PESTIMATOR_AMPLIFY_CONFIG;
     if (config && Amplify) {
@@ -18,6 +21,8 @@
       console.info('[Pestimator] Amplify config missing — running in offline demo mode.');
     }
   }
+
+  configureAmplify();
 
   function readSession() {
     try {
@@ -31,45 +36,28 @@
   }
 
   function writeSession(session) {
+    cachedSession = session || null;
     if (!session) {
       sessionStorage.removeItem(STORAGE_KEY);
     } else {
       sessionStorage.setItem(STORAGE_KEY, JSON.stringify(session));
     }
     listeners.forEach((fn) => {
-      try { fn(session || null); } catch (_) {}
+      try {
+        fn(session || null);
+      } catch (err) {
+        console.error('[Pestimator] Auth listener failed', err);
+      }
     });
   }
 
-  async function syncFromAmplify() {
-    if (!Auth || !window.PESTIMATOR_AMPLIFY_CONFIG) return null;
-    try {
-      const user = await Auth.currentAuthenticatedUser();
-      const session = await Auth.currentSession();
-      const idToken = session.getIdToken();
-      const profile = {
-        username: user.username,
-        attributes: user.attributes || {},
-        tokens: {
-          idToken: idToken?.getJwtToken?.() || null,
-          accessToken: session.getAccessToken()?.getJwtToken?.() || null
-        },
-        provider: 'amplify',
-        signedInAt: new Date().toISOString()
-      };
-      writeSession(profile);
-      return profile;
-    } catch (err) {
-      console.info('[Pestimator] No Amplify user session found.');
-      writeSession(null);
+  async function hydrateFromAmplify() {
+    if (!Auth || !window.PESTIMATOR_AMPLIFY_CONFIG) {
       return null;
     }
-  }
-
-  async function signIn(username, password) {
-    if (Auth && window.PESTIMATOR_AMPLIFY_CONFIG) {
-      const user = await Auth.signIn(username, password);
+    try {
       const session = await Auth.currentSession();
+      const user = await Auth.currentAuthenticatedUser();
       const idToken = session.getIdToken();
       const payload = {
         username: user.username,
@@ -78,14 +66,34 @@
           idToken: idToken?.getJwtToken?.() || null,
           accessToken: session.getAccessToken()?.getJwtToken?.() || null
         },
+        ownerId: user.attributes?.sub || user.username,
         provider: 'amplify',
         signedInAt: new Date().toISOString()
       };
       writeSession(payload);
       return payload;
+    } catch (err) {
+      console.info('[Pestimator] No Amplify session', err?.message || err);
+      writeSession(null);
+      return null;
+    }
+  }
+
+  async function syncFromAmplify() {
+    if (!syncPromise) {
+      syncPromise = hydrateFromAmplify().finally(() => {
+        syncPromise = null;
+      });
+    }
+    return syncPromise;
+  }
+
+  async function signIn(username, password) {
+    if (Auth && window.PESTIMATOR_AMPLIFY_CONFIG) {
+      await Auth.signIn(username, password);
+      return syncFromAmplify();
     }
 
-    // Offline demo mode fallback: curated demo accounts + general sandbox access.
     const trimmedUsername = (username || '').trim();
     if (!trimmedUsername) {
       throw new Error('Enter your username to sign in.');
@@ -99,6 +107,7 @@
         username: trimmedUsername,
         attributes: { name: trimmedUsername },
         provider: 'demo',
+        ownerId: trimmedUsername,
         signedInAt: new Date().toISOString()
       };
       writeSession(payload);
@@ -114,6 +123,7 @@
         username: trimmedUsername,
         attributes: offlineRecord.attributes,
         provider: 'demo',
+        ownerId: trimmedUsername,
         signedInAt: new Date().toISOString()
       };
       writeSession(payload);
@@ -124,6 +134,7 @@
       username: trimmedUsername,
       attributes: { name: trimmedUsername },
       provider: 'demo',
+      ownerId: trimmedUsername,
       signedInAt: new Date().toISOString()
     };
     writeSession(payload);
@@ -142,18 +153,34 @@
   }
 
   function getSession() {
-    return readSession();
+    if (cachedSession) return cachedSession;
+    const stored = readSession();
+    cachedSession = stored;
+    return stored;
   }
 
-  function requireAuth(options = {}) {
-    const session = readSession();
-    if (session) return session;
-
-    const redirectTo = options.redirectTo || './login.html';
-    if (options?.redirect !== false) {
-      window.location.href = redirectTo;
+  async function ensureSession(options = {}) {
+    const current = getSession();
+    if (current?.provider === 'demo' || !window.PESTIMATOR_AMPLIFY_CONFIG) {
+      return current;
     }
-    return null;
+    try {
+      const refreshed = await syncFromAmplify();
+      if (!refreshed) {
+        if (!options.silent) {
+          throw new Error('Sign-in required');
+        }
+        return null;
+      }
+      return refreshed;
+    } catch (err) {
+      console.error('[Pestimator] Session sync failed', err);
+      writeSession(null);
+      if (!options.silent) {
+        throw err instanceof Error ? err : new Error('Authentication failed');
+      }
+      return null;
+    }
   }
 
   function subscribe(listener) {
@@ -161,16 +188,26 @@
     return () => listeners.delete(listener);
   }
 
-  configureAmplify();
-  // Attempt to hydrate from an existing Amplify session.
-  syncFromAmplify();
+  function requireAuth(options = {}) {
+    const session = getSession();
+    if (session) return session;
+    const redirectTo = options.redirectTo || './login.html';
+    if (options?.redirect !== false) {
+      window.location.href = redirectTo;
+    }
+    return null;
+  }
 
   window.PestimatorAuth = {
     signIn,
     signOut,
     getSession,
+    ensureSession,
     requireAuth,
     subscribe,
-    refresh: syncFromAmplify
+    syncFromAmplify
   };
+
+  // Bootstrap immediately for signed-in users.
+  syncFromAmplify();
 })();

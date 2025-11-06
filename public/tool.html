@@ -328,6 +328,14 @@
             <option value="com">Commercial</option>
           </select>
 
+          <div class="no-print hidden flex-col text-xs font-semibold uppercase tracking-[0.35em] text-white/60 sm:flex">
+            <label for="vendorSelect">Vendor</label>
+            <select id="vendorSelect" class="mt-1 rounded-full border border-white/20 bg-white/10 px-4 py-2 text-sm font-medium text-white/80 shadow-inner shadow-black/20"></select>
+          </div>
+
+          <button id="btnManageVendors" class="no-print hidden rounded-full border border-white/20 bg-white/10 px-4 py-2 text-xs font-semibold uppercase tracking-[0.3em] text-white/80 transition hover:border-white/40 hover:bg-white/15">Vendors</button>
+          <button id="btnHistory" class="no-print hidden rounded-full border border-white/20 bg-white/10 px-4 py-2 text-xs font-semibold uppercase tracking-[0.3em] text-white/80 transition hover:border-white/40 hover:bg-white/15">History</button>
+
           <a href="./index.html" class="no-print inline-flex items-center rounded-full border border-white/20 bg-white/5 px-4 py-2 text-sm font-medium text-white/80 transition hover:border-white/40 hover:text-white">Home</a>
           <span class="hidden text-right text-xs font-medium text-white/60 sm:inline" id="authUser"></span>
           <button id="btnSignOut" class="no-print rounded-full bg-lagoon px-4 py-2 text-sm font-semibold text-night shadow-glow transition hover:brightness-110">Sign out</button>
@@ -336,6 +344,10 @@
     </header>
 
     <main class="mx-auto max-w-6xl px-6 py-10">
+      <div class="no-print mb-6 flex items-center justify-between rounded-3xl border border-white/10 bg-white/5 px-6 py-3 text-xs text-white/60">
+        <span class="font-semibold uppercase tracking-[0.3em] text-white/50">Cloud sync</span>
+        <span id="remoteStatus" class="text-xs text-white/60"></span>
+      </div>
       <div class="grid gap-6 lg:grid-cols-2">
         <!-- Company Profile (hidden in print) -->
         <section class="card lg:col-span-2 avoid-break p-8 shadow-soft no-print">
@@ -702,6 +714,89 @@
         </div>
       </div>
     </main>
+
+    <div id="vendorModal" class="no-print fixed inset-0 z-40 hidden items-center justify-center bg-abyss/80 px-6 py-12 backdrop-blur" aria-hidden="true" role="dialog">
+      <div class="w-full max-w-xl rounded-3xl border border-white/15 bg-night p-8 shadow-[0_40px_80px_-50px_rgba(14,165,233,0.7)]">
+        <div class="flex items-center justify-between">
+          <div>
+            <h3 class="text-xl font-semibold text-white">Manage vendors</h3>
+            <p class="text-sm text-white/60">Create vendor records to organize daily quote numbering.</p>
+          </div>
+          <button type="button" class="rounded-full border border-white/20 px-3 py-1 text-xs font-semibold text-white/70 hover:border-white/40 hover:bg-white/10" data-close-modal="vendorModal">Close</button>
+        </div>
+        <form id="vendorForm" class="mt-6 space-y-4">
+          <div>
+            <label for="vendorNameInput" class="block text-xs font-semibold uppercase tracking-[0.3em] text-white/60">Vendor name</label>
+            <input id="vendorNameInput" name="name" type="text" required class="mt-2 w-full rounded-2xl border border-white/15 bg-white/10 px-4 py-3 text-sm text-white placeholder:text-white/40 focus:border-lagoon focus:outline-none focus:ring-2 focus:ring-lagoon/40" placeholder="Northside Pest Control" />
+          </div>
+          <div class="grid gap-4 sm:grid-cols-2">
+            <div>
+              <label for="vendorEmailInput" class="block text-xs font-semibold uppercase tracking-[0.3em] text-white/60">Email</label>
+              <input id="vendorEmailInput" name="email" type="email" class="mt-2 w-full rounded-2xl border border-white/15 bg-white/10 px-4 py-3 text-sm text-white placeholder:text-white/40 focus:border-lagoon focus:outline-none focus:ring-2 focus:ring-lagoon/40" placeholder="team@example.com" />
+            </div>
+            <div>
+              <label for="vendorPhoneInput" class="block text-xs font-semibold uppercase tracking-[0.3em] text-white/60">Phone</label>
+              <input id="vendorPhoneInput" name="phone" type="tel" class="mt-2 w-full rounded-2xl border border-white/15 bg-white/10 px-4 py-3 text-sm text-white placeholder:text-white/40 focus:border-lagoon focus:outline-none focus:ring-2 focus:ring-lagoon/40" placeholder="555-123-4567" />
+            </div>
+          </div>
+          <div>
+            <label for="vendorNotesInput" class="block text-xs font-semibold uppercase tracking-[0.3em] text-white/60">Notes</label>
+            <textarea id="vendorNotesInput" name="notes" rows="3" class="mt-2 w-full rounded-2xl border border-white/15 bg-white/10 px-4 py-3 text-sm text-white placeholder:text-white/40 focus:border-lagoon focus:outline-none focus:ring-2 focus:ring-lagoon/40" placeholder="Branch details, internal references, etc."></textarea>
+          </div>
+          <div class="flex justify-end">
+            <button type="submit" class="rounded-full bg-lagoon px-5 py-2 text-sm font-semibold text-night shadow-glow transition hover:brightness-110">Save vendor</button>
+          </div>
+        </form>
+        <div id="vendorList" class="mt-8 space-y-3 overflow-y-auto pr-1" style="max-height: 18rem;"></div>
+      </div>
+    </div>
+
+    <div id="historyModal" class="no-print fixed inset-0 z-40 hidden items-center justify-center bg-abyss/80 px-6 py-12 backdrop-blur" aria-hidden="true" role="dialog">
+      <div class="w-full max-w-5xl rounded-3xl border border-white/15 bg-night p-8 shadow-[0_45px_90px_-50px_rgba(14,165,233,0.75)]">
+        <div class="flex items-center justify-between">
+          <div>
+            <h3 class="text-xl font-semibold text-white">Quote & invoice history</h3>
+            <p class="text-sm text-white/60">Filter by vendor, date, or quote number and convert to invoices instantly.</p>
+          </div>
+          <button type="button" class="rounded-full border border-white/20 px-3 py-1 text-xs font-semibold text-white/70 hover:border-white/40 hover:bg-white/10" data-close-modal="historyModal">Close</button>
+        </div>
+        <form id="historyFilterForm" class="mt-6 grid gap-4 md:grid-cols-5">
+          <div class="md:col-span-2">
+            <label class="block text-xs font-semibold uppercase tracking-[0.3em] text-white/60" for="historyQuery">Quote number</label>
+            <input id="historyQuery" name="query" type="text" class="mt-2 w-full rounded-2xl border border-white/15 bg-white/10 px-4 py-3 text-sm text-white placeholder:text-white/40 focus:border-lagoon focus:outline-none focus:ring-2 focus:ring-lagoon/40" placeholder="Q20240519-001" />
+          </div>
+          <div>
+            <label class="block text-xs font-semibold uppercase tracking-[0.3em] text-white/60" for="historyFrom">From</label>
+            <input id="historyFrom" name="from" type="date" class="mt-2 w-full rounded-2xl border border-white/15 bg-white/10 px-4 py-3 text-sm text-white focus:border-lagoon focus:outline-none focus:ring-2 focus:ring-lagoon/40" />
+          </div>
+          <div>
+            <label class="block text-xs font-semibold uppercase tracking-[0.3em] text-white/60" for="historyTo">To</label>
+            <input id="historyTo" name="to" type="date" class="mt-2 w-full rounded-2xl border border-white/15 bg-white/10 px-4 py-3 text-sm text-white focus:border-lagoon focus:outline-none focus:ring-2 focus:ring-lagoon/40" />
+          </div>
+          <div class="flex items-end">
+            <button type="submit" class="w-full rounded-full bg-lagoon px-5 py-3 text-sm font-semibold text-night shadow-glow transition hover:brightness-110">Apply</button>
+          </div>
+        </form>
+        <div class="mt-6 overflow-hidden rounded-3xl border border-white/10 bg-white/5">
+          <table class="min-w-full divide-y divide-white/10 text-left text-sm text-white/80">
+            <thead class="bg-white/5 text-xs uppercase tracking-[0.3em] text-white/60">
+              <tr>
+                <th class="px-3 py-3">Quote</th>
+                <th class="px-3 py-3">Created</th>
+                <th class="px-3 py-3">Total</th>
+                <th class="px-3 py-3">Status</th>
+                <th class="px-3 py-3 text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="historyTableBody" class="divide-y divide-white/5"></tbody>
+          </table>
+          <div id="historyEmptyState" class="px-6 py-10 text-center text-sm text-white/50">No cloud quotes yet. Save one to get started.</div>
+        </div>
+        <div class="mt-4 flex justify-end">
+          <button id="historyLoadMore" type="button" class="rounded-full border border-white/20 px-5 py-2 text-sm font-semibold text-white/80 transition hover:border-white/40 hover:bg-white/10">Load more</button>
+        </div>
+      </div>
+    </div>
 
     <script src="./script.js"></script>
   </body>
