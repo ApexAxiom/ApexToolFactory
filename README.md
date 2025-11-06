@@ -7,6 +7,8 @@ Pestimator now ships with a premium marketing homepage, Amplify-ready authentica
 - 🐜 **Showcase homepage** – A modern, mobile-first marketing page for Pestimator.com.
 - 🔐 **Amplify-aware auth** – Dedicated sign-in screen that integrates with AWS Amplify (Cognito) or falls back to an offline demo.
 - 💼 **Quoting studio** – Existing calculator preserved in `tool.html` with secure profile storage when authenticated.
+- ☁️ **Cloud history** – Amplify Data + DynamoDB store quotes/invoices with daily sequencing per vendor.
+- 📇 **Vendor-aware workflows** – Manage vendors, browse quote history, and convert quotes to invoices with a single click.
 - 💾 **Auto-save** – Quotes persist in browser storage; encrypted profile vault when signed in.
 - 🖨️ **Print ready** – Export polished, white-labeled PDFs directly from the browser.
 
@@ -32,10 +34,10 @@ public/
 ### Amplify configuration
 
 1. Copy your Amplify-generated web config into `public/config.js` (or inject at deploy time).
-2. Required keys typically include `aws_project_region`, `aws_cognito_region`, `aws_user_pools_id`, and `aws_user_pools_web_client_id`.
+2. Required keys typically include `aws_project_region`, `aws_cognito_region`, `aws_user_pools_id`, `aws_user_pools_web_client_id`, `aws_appsync_graphqlEndpoint`, `aws_appsync_region`, and `aws_appsync_authenticationType`.
 3. Never commit secrets—reference them via AWS Secrets Manager/SSM when deploying.
 
-Without configuration, the sign-in page operates in **offline demo mode** and simply stores a session locally.
+Without configuration, the sign-in page operates in **offline demo mode** and simply stores a session locally. Cloud quote history and vendor management require the Amplify Gen 2 backend defined under `amplify/`.
 
 ## Local Development
 

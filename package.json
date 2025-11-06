@@ -5,6 +5,10 @@
   "private": true,
   "scripts": {
     "build": "echo 'No build required - static site'"
+  },
+  "dependencies": {
+    "@aws-amplify/backend": "^1.2.0",
+    "@aws-sdk/client-dynamodb": "^3.515.0",
+    "@aws-sdk/util-dynamodb": "^3.515.0"
   }
 }
-

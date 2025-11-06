@@ -20,6 +20,87 @@
   let pestPricing = {};              // { id: {included: boolean, cost: number} }
   let documentMode = "quote";       // "quote" | "invoice"
   let documentModeRestore = null;    // pending mode to restore after printing
+  let latestTotals = { subtotal: 0, taxTotal: 0, grandTotal: 0 };
+  let vendorCache = [];
+  let activeVendorId = null;
+  let historyCache = [];
+  let historyNextToken = null;
+  let historyFilters = { vendorId: null, quoteNumber: '', from: null, to: null };
+
+  const amplifyGlobal = window.aws_amplify || {};
+  const API = amplifyGlobal.API;
+  const graphqlOperation = amplifyGlobal.graphqlOperation;
+  const hasBackend = Boolean(window.PESTIMATOR_AMPLIFY_CONFIG && API?.graphql);
+
+  const GRAPHQL = {
+    createQuote: `mutation CreateQuoteWithNumber($vendorId: ID!, $payload: String!, $subtotal: Float!, $taxTotal: Float!, $grandTotal: Float!) {
+      createQuoteWithNumber(vendorId: $vendorId, payload: $payload, subtotal: $subtotal, taxTotal: $taxTotal, grandTotal: $grandTotal) {
+        id
+        vendorId
+        quoteNumber
+        status
+        subtotal
+        taxTotal
+        grandTotal
+        invoiceNumber
+        invoiceDate
+        createdAt
+        updatedAt
+      }
+    }`,
+    convertQuote: `mutation ConvertQuoteToInvoice($quoteId: ID!, $invoiceNumber: String!, $invoiceDate: AWSDateTime!) {
+      convertQuoteToInvoice(quoteId: $quoteId, invoiceNumber: $invoiceNumber, invoiceDate: $invoiceDate) {
+        id
+        quoteNumber
+        status
+        invoiceNumber
+        invoiceDate
+        convertedAt
+        updatedAt
+      }
+    }`,
+    listQuotes: `query ListQuotes($filter: ModelQuoteFilterInput, $limit: Int, $nextToken: String) {
+      listQuotes(filter: $filter, limit: $limit, nextToken: $nextToken) {
+        items {
+          id
+          vendorId
+          quoteNumber
+          status
+          subtotal
+          taxTotal
+          grandTotal
+          invoiceNumber
+          invoiceDate
+          createdAt
+          updatedAt
+        }
+        nextToken
+      }
+    }`,
+    listVendors: `query ListVendors($limit: Int, $nextToken: String) {
+      listVendors(limit: $limit, nextToken: $nextToken) {
+        items {
+          id
+          name
+          contactEmail
+          contactPhone
+          notes
+          createdAt
+        }
+        nextToken
+      }
+    }`,
+    createVendor: `mutation CreateVendor($input: CreateVendorInput!) {
+      createVendor(input: $input) {
+        id
+        name
+        contactEmail
+        contactPhone
+        notes
+        createdAt
+      }
+    }`
+  };
 
   // Persisted quote + profile fields
   const fields = [
@@ -39,6 +120,187 @@
   let sessionKey = null;
   let activeSession = null;
   let profileHydrated = false;
+  let vendorBootstrapPromise = null;
+  let historyLoading = false;
+
+  function remoteStatus(message, tone = 'info') {
+    const el = $('remoteStatus');
+    if (!el) return;
+    el.textContent = message || '';
+    el.classList.remove('text-lagoon', 'text-amber-400', 'text-rose-400');
+    if (!message) return;
+    if (tone === 'success') el.classList.add('text-lagoon');
+    else if (tone === 'warn') el.classList.add('text-amber-400');
+    else if (tone === 'error') el.classList.add('text-rose-400');
+  }
+
+  async function ensureBackendSession(options = {}) {
+    if (!hasBackend) return null;
+    const auth = window.PestimatorAuth;
+    if (!auth) return null;
+    const session = await auth.ensureSession({ silent: options.silent ?? true });
+    if (!session && !options.silent) {
+      throw new Error('Sign-in required to use cloud storage.');
+    }
+    return session;
+  }
+
+  async function callGraphQL(query, variables) {
+    if (!hasBackend) {
+      throw new Error('Cloud persistence is not configured.');
+    }
+    const session = await ensureBackendSession({ silent: false });
+    if (!session) {
+      throw new Error('Authentication required.');
+    }
+    if (!API?.graphql || !graphqlOperation) {
+      throw new Error('Amplify GraphQL client not available.');
+    }
+    return API.graphql({
+      ...graphqlOperation(query, variables),
+      authMode: 'AMAZON_COGNITO_USER_POOLS'
+    });
+  }
+
+  async function listAllVendors() {
+    if (!hasBackend) return [];
+    const vendors = [];
+    let nextToken = null;
+    do {
+      const result = await callGraphQL(GRAPHQL.listVendors, { limit: 100, nextToken });
+      const payload = result?.data?.listVendors;
+      if (payload?.items) vendors.push(...payload.items);
+      nextToken = payload?.nextToken || null;
+    } while (nextToken);
+    vendorCache = vendors;
+    return vendors;
+  }
+
+  async function createVendorRemote(input) {
+    if (!hasBackend) throw new Error('Cloud persistence disabled.');
+    await ensureBackendSession({ silent: false });
+    const payload = { ...input };
+    remoteStatus('Saving vendor…');
+    const result = await callGraphQL(GRAPHQL.createVendor, { input: payload });
+    const vendor = result?.data?.createVendor;
+    if (vendor) {
+      vendorCache = [vendor, ...vendorCache.filter((item) => item.id !== vendor.id)];
+      activeVendorId = vendor.id;
+      historyFilters.vendorId = vendor.id;
+      renderVendorSelect();
+      remoteStatus(`Vendor “${vendor.name}” saved`, 'success');
+      await loadHistory(true);
+    }
+    return vendor;
+  }
+
+  async function bootstrapVendors() {
+    if (!hasBackend) return [];
+    if (!vendorBootstrapPromise) {
+      vendorBootstrapPromise = (async () => {
+        const vendors = await listAllVendors();
+        if (!vendors.length) {
+          const profileName = $('companyName')?.value?.trim() || 'Primary Vendor';
+          try {
+            const vendor = await createVendorRemote({ name: profileName });
+            if (vendor) vendors.unshift(vendor);
+          } catch (err) {
+            console.warn('[Pestimator] Failed to create default vendor', err);
+          }
+        }
+        if (vendors.length) {
+          activeVendorId = vendors[0].id;
+        }
+        renderVendorSelect();
+        return vendors;
+      })().finally(() => {
+        vendorBootstrapPromise = null;
+      });
+    }
+    return vendorBootstrapPromise;
+  }
+
+  async function persistQuoteRemote() {
+    if (!hasBackend) return null;
+    if (!activeVendorId) {
+      throw new Error('Select a vendor before saving a quote.');
+    }
+    remoteStatus('Saving quote to cloud…');
+    const payload = JSON.stringify(serialize());
+    const result = await callGraphQL(GRAPHQL.createQuote, {
+      vendorId: activeVendorId,
+      payload,
+      subtotal: Number(latestTotals.subtotal || 0),
+      taxTotal: Number(latestTotals.taxTotal || 0),
+      grandTotal: Number(latestTotals.grandTotal || 0)
+    });
+    const quote = result?.data?.createQuoteWithNumber;
+    if (quote) {
+      historyCache = [quote, ...historyCache];
+      renderHistoryList();
+      remoteStatus(`Quote ${quote.quoteNumber} saved`, 'success');
+    }
+    return quote;
+  }
+
+  async function loadHistory(reset = false) {
+    if (!hasBackend || historyLoading) return;
+    historyLoading = true;
+    if (reset) {
+      historyCache = [];
+      historyNextToken = null;
+    }
+    try {
+      remoteStatus('Refreshing history…');
+      const filter = {};
+      if (historyFilters.vendorId) {
+        filter.vendorId = { eq: historyFilters.vendorId };
+      }
+      if (historyFilters.quoteNumber) {
+        filter.quoteNumber = { contains: historyFilters.quoteNumber.trim() };
+      }
+      if (historyFilters.from || historyFilters.to) {
+        filter.createdAt = {};
+        if (historyFilters.from) filter.createdAt.ge = historyFilters.from;
+        if (historyFilters.to) filter.createdAt.le = historyFilters.to;
+      }
+      const result = await callGraphQL(GRAPHQL.listQuotes, {
+        filter,
+        limit: 100,
+        nextToken: reset ? null : historyNextToken
+      });
+      const payload = result?.data?.listQuotes;
+      if (payload?.items) {
+        if (reset) historyCache = payload.items;
+        else historyCache = [...historyCache, ...payload.items];
+      }
+      historyNextToken = payload?.nextToken || null;
+      renderHistoryList();
+      remoteStatus(reset ? 'History updated' : 'Loaded more history', 'success');
+    } catch (err) {
+      console.error('[Pestimator] Failed to load history', err);
+      remoteStatus('Failed to load history — check console', 'error');
+    } finally {
+      historyLoading = false;
+    }
+  }
+
+  async function convertQuoteRemote(quoteId, invoiceNumber, invoiceDate) {
+    if (!hasBackend) return null;
+    remoteStatus('Converting quote…');
+    const result = await callGraphQL(GRAPHQL.convertQuote, {
+      quoteId,
+      invoiceNumber,
+      invoiceDate
+    });
+    const updated = result?.data?.convertQuoteToInvoice;
+    if (updated) {
+      historyCache = historyCache.map((item) => (item.id === updated.id ? { ...item, ...updated } : item));
+      renderHistoryList();
+      remoteStatus(`Invoice ${updated.invoiceNumber} created`, 'success');
+    }
+    return updated;
+  }
   async function deriveKey(pass, saltB) {
     const km = await crypto.subtle.importKey("raw", enc.encode(pass), "PBKDF2", false, ["deriveKey"]);
     return crypto.subtle.deriveKey({ name: "PBKDF2", salt: saltB, iterations: 150000, hash: "SHA-256" },
@@ -70,6 +332,11 @@
     if (!session) {
       sessionKey = null;
       renderAuthUser();
+      if (hasBackend) {
+        vendorCache = [];
+        activeVendorId = null;
+        renderVendorSelect();
+      }
       return;
     }
     try {
@@ -77,6 +344,7 @@
       if (!seed) {
         sessionKey = null;
         renderAuthUser();
+        if (hasBackend) bootstrapVendors();
         return;
       }
       const saltHash = await crypto.subtle.digest("SHA-256", enc.encode(seed));
@@ -87,6 +355,7 @@
       sessionKey = null;
     }
     renderAuthUser();
+      if (hasBackend) bootstrapVendors();
   }
 
   function renderAuthUser() {
@@ -100,6 +369,127 @@
     const name = activeSession.attributes?.name || activeSession.attributes?.email || activeSession.username || "Signed in";
     el.textContent = `Signed in as ${name}`;
     el.classList.remove("hidden");
+  }
+
+  function renderVendorSelect() {
+    const container = $('vendorSelect');
+    const manageBtn = $('btnManageVendors');
+    const historyBtn = $('btnHistory');
+    if (!container) return;
+    if (!hasBackend) {
+      container.innerHTML = '';
+      container.disabled = true;
+      if (manageBtn) manageBtn.classList.add('hidden');
+      if (historyBtn) historyBtn.classList.add('hidden');
+      return;
+    }
+    container.parentElement?.classList.remove('hidden');
+    container.disabled = false;
+    container.innerHTML = '';
+    vendorCache.forEach((vendor) => {
+      const opt = document.createElement('option');
+      opt.value = vendor.id;
+      opt.textContent = vendor.name || 'Vendor';
+      if (vendor.id === activeVendorId) opt.selected = true;
+      container.appendChild(opt);
+    });
+    if (!vendorCache.length) {
+      const opt = document.createElement('option');
+      opt.value = '';
+      opt.textContent = 'No vendors yet';
+      container.appendChild(opt);
+      container.disabled = true;
+    }
+    if (manageBtn) manageBtn.classList.remove('hidden');
+    if (historyBtn) historyBtn.classList.remove('hidden');
+    renderVendorList();
+  }
+
+  function renderVendorList() {
+    const list = $('vendorList');
+    if (!list) return;
+    list.innerHTML = '';
+    if (!hasBackend) {
+      list.insertAdjacentHTML('beforeend', '<p class="text-sm text-white/60">Connect Amplify to manage vendors.</p>');
+      return;
+    }
+    if (!vendorCache.length) {
+      list.insertAdjacentHTML('beforeend', '<p class="text-sm text-white/60">No vendors yet. Create one above to get started.</p>');
+      return;
+    }
+    vendorCache.forEach((vendor) => {
+      const created = vendor.createdAt ? new Date(vendor.createdAt).toLocaleString() : '';
+      list.insertAdjacentHTML(
+        'beforeend',
+        `<article class="rounded-2xl border border-white/10 bg-white/5 p-4">
+          <div class="flex items-center justify-between gap-3">
+            <div>
+              <h4 class="text-sm font-semibold text-white">${vendor.name || 'Vendor'}</h4>
+              <p class="text-xs text-white/60">${created ? `Created ${created}` : 'Created in workspace'}</p>
+            </div>
+            <button type="button" data-vendor-id="${vendor.id}" class="rounded-full border border-white/20 px-3 py-1 text-xs font-semibold text-white/80 hover:border-white/40 hover:bg-white/10 vendor-select-btn">Select</button>
+          </div>
+          <div class="mt-2 space-y-1 text-xs text-white/70">
+            ${vendor.contactEmail ? `<div>Email: ${vendor.contactEmail}</div>` : ''}
+            ${vendor.contactPhone ? `<div>Phone: ${vendor.contactPhone}</div>` : ''}
+            ${vendor.notes ? `<div class="text-white/60">${vendor.notes}</div>` : ''}
+          </div>
+        </article>`
+      );
+    });
+  }
+
+  function renderHistoryList() {
+    const table = $('historyTableBody');
+    const empty = $('historyEmptyState');
+    if (!table) return;
+    table.innerHTML = '';
+    if (!historyCache.length) {
+      if (empty) empty.classList.remove('hidden');
+      return;
+    }
+    if (empty) empty.classList.add('hidden');
+    historyCache
+      .sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime())
+      .forEach((item) => {
+        const created = item.createdAt ? new Date(item.createdAt).toLocaleString() : '—';
+        const statusBadge = item.status === 'INVOICE'
+          ? '<span class="rounded-full bg-lime-400/20 px-2 py-1 text-xs font-semibold text-lime-300">Invoice</span>'
+          : '<span class="rounded-full bg-lagoon/10 px-2 py-1 text-xs font-semibold text-lagoon">Quote</span>';
+        const action = item.status === 'INVOICE'
+          ? `<span class="text-xs text-white/50">Converted ${item.invoiceDate ? new Date(item.invoiceDate).toLocaleDateString() : ''}</span>`
+          : `<button type="button" data-action="convert" data-quote-id="${item.id}" class="rounded-full bg-lagoon px-3 py-1 text-xs font-semibold text-night hover:brightness-110">Convert to invoice</button>`;
+        table.insertAdjacentHTML(
+          'beforeend',
+          `<tr class="border-b border-white/5 last:border-0">
+            <td class="px-3 py-3 text-sm text-white/80">${item.quoteNumber || '—'}</td>
+            <td class="px-3 py-3 text-sm text-white/60">${created}</td>
+            <td class="px-3 py-3 text-sm text-white/60">${currency(Number(item.grandTotal || 0))}</td>
+            <td class="px-3 py-3 text-sm">${statusBadge}</td>
+            <td class="px-3 py-3 text-right text-sm text-white/70">${action}</td>
+          </tr>`
+        );
+      });
+    const loadMore = $('historyLoadMore');
+    if (loadMore) {
+      const hasNext = Boolean(historyNextToken);
+      loadMore.disabled = !hasNext;
+      loadMore.classList.toggle('opacity-40', !hasNext);
+    }
+  }
+
+  function openModal(id) {
+    const modal = $(id);
+    if (!modal) return;
+    modal.classList.remove('hidden');
+    modal.setAttribute('aria-hidden', 'false');
+  }
+
+  function closeModal(id) {
+    const modal = $(id);
+    if (!modal) return;
+    modal.classList.add('hidden');
+    modal.setAttribute('aria-hidden', 'true');
   }
 
   // ---- storage helpers ----
@@ -379,6 +769,7 @@
     const subtotal  = preMarkup + markup;
     const tax       = subtotal * (num($("taxPct")?.value || "0")/100);
     const total     = subtotal + tax;
+    latestTotals = { subtotal, taxTotal: tax, grandTotal: total };
     const pps       = sqft ? total / sqft : 0;
 
     if ($("baseOut")) $("baseOut").textContent = currency(baseTotal);
@@ -555,6 +946,23 @@
     restore();
     renderPestChargeRows();
     refreshBlocks();
+    renderHistoryList();
+
+    if (hasBackend) {
+      remoteStatus('Syncing cloud workspace…');
+      bootstrapVendors()
+        .then(() => {
+          historyFilters.vendorId = activeVendorId;
+          renderVendorSelect();
+          return loadHistory(true);
+        })
+        .catch((err) => {
+          console.error('[Pestimator] Vendor bootstrap failed', err);
+          remoteStatus('Amplify sync failed — see console', 'error');
+        });
+    } else {
+      remoteStatus('Offline demo — cloud sync disabled', 'warn');
+    }
 
     // Wire inputs
     fields.forEach(f => {
@@ -673,12 +1081,22 @@
     // Save button
     const btnSave = $("btnSave");
     if (btnSave) {
-      btnSave.addEventListener("click", function(e) {
+      btnSave.addEventListener("click", async function(e) {
         e.preventDefault();
         e.stopPropagation();
         console.log("Save clicked");
         saveQuote();
-        alert("Quote saved locally!");
+        if (hasBackend) {
+          try {
+            await persistQuoteRemote();
+          } catch (err) {
+            console.error('[Pestimator] Failed to persist quote', err);
+            remoteStatus(err?.message || 'Cloud save failed', 'error');
+            alert('Quote saved locally. Cloud save failed — see console.');
+          }
+        } else {
+          alert("Quote saved locally!");
+        }
       });
     }
 
@@ -788,6 +1206,156 @@
         activeSession = null;
         renderAuthUser();
         window.location.href = "./login.html";
+      });
+    }
+
+    const vendorSelectEl = $('vendorSelect');
+    if (vendorSelectEl) {
+      vendorSelectEl.addEventListener('change', (event) => {
+        activeVendorId = event.target.value || null;
+        historyFilters.vendorId = activeVendorId || null;
+        if (hasBackend) {
+          loadHistory(true);
+        }
+      });
+    }
+
+    const vendorListEl = $('vendorList');
+    if (vendorListEl) {
+      vendorListEl.addEventListener('click', (event) => {
+        const target = event.target.closest('.vendor-select-btn');
+        if (!target) return;
+        activeVendorId = target.dataset.vendorId || null;
+        historyFilters.vendorId = activeVendorId || null;
+        renderVendorSelect();
+        closeModal('vendorModal');
+        if (hasBackend) {
+          loadHistory(true);
+        }
+      });
+    }
+
+    const vendorForm = $('vendorForm');
+    if (vendorForm) {
+      vendorForm.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        if (!hasBackend) {
+          alert('Connect Amplify to manage vendors.');
+          return;
+        }
+        const formData = new FormData(vendorForm);
+        const name = (formData.get('name') || '').toString().trim();
+        if (!name) {
+          alert('Vendor name is required.');
+          return;
+        }
+        try {
+          await createVendorRemote({
+            name,
+            contactEmail: (formData.get('email') || '').toString().trim() || undefined,
+            contactPhone: (formData.get('phone') || '').toString().trim() || undefined,
+            notes: (formData.get('notes') || '').toString().trim() || undefined
+          });
+          vendorForm.reset();
+          renderVendorSelect();
+        } catch (err) {
+          console.error('[Pestimator] Vendor create failed', err);
+          remoteStatus(err?.message || 'Vendor save failed', 'error');
+        }
+      });
+    }
+
+    const btnManageVendors = $('btnManageVendors');
+    if (btnManageVendors) {
+      btnManageVendors.addEventListener('click', (event) => {
+        event.preventDefault();
+        if (!hasBackend) {
+          alert('Connect Amplify to manage vendors.');
+          return;
+        }
+        openModal('vendorModal');
+      });
+    }
+
+    const btnHistory = $('btnHistory');
+    if (btnHistory) {
+      btnHistory.addEventListener('click', (event) => {
+        event.preventDefault();
+        if (!hasBackend) {
+          alert('History requires Amplify backend.');
+          return;
+        }
+        renderHistoryList();
+        openModal('historyModal');
+      });
+    }
+
+    document.querySelectorAll('[data-close-modal]').forEach((el) => {
+      el.addEventListener('click', () => {
+        const target = el.getAttribute('data-close-modal');
+        if (target) closeModal(target);
+      });
+    });
+
+    const vendorModal = $('vendorModal');
+    if (vendorModal) {
+      vendorModal.addEventListener('click', (event) => {
+        if (event.target === vendorModal) closeModal('vendorModal');
+      });
+    }
+
+    const historyModal = $('historyModal');
+    if (historyModal) {
+      historyModal.addEventListener('click', (event) => {
+        if (event.target === historyModal) closeModal('historyModal');
+      });
+    }
+
+    const historyForm = $('historyFilterForm');
+    if (historyForm) {
+      historyForm.addEventListener('submit', (event) => {
+        event.preventDefault();
+        if (!hasBackend) return;
+        const formData = new FormData(historyForm);
+        historyFilters.quoteNumber = (formData.get('query') || '').toString().trim();
+        historyFilters.from = (formData.get('from') || '').toString().trim() || null;
+        historyFilters.to = (formData.get('to') || '').toString().trim() || null;
+        loadHistory(true);
+      });
+    }
+
+    const historyLoadMore = $('historyLoadMore');
+    if (historyLoadMore) {
+      historyLoadMore.addEventListener('click', (event) => {
+        event.preventDefault();
+        if (!hasBackend) return;
+        loadHistory(false);
+      });
+    }
+
+    const historyTableBody = $('historyTableBody');
+    if (historyTableBody) {
+      historyTableBody.addEventListener('click', async (event) => {
+        const target = event.target.closest('button[data-action="convert"]');
+        if (!target) return;
+        const quoteId = target.getAttribute('data-quote-id');
+        if (!quoteId) return;
+        const invoiceNumberDefault = `INV-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}`;
+        const invoiceNumber = prompt('Invoice number', invoiceNumberDefault);
+        if (!invoiceNumber) return;
+        let invoiceDate = prompt('Invoice date (YYYY-MM-DD)', new Date().toISOString().slice(0, 10));
+        if (!invoiceDate) return;
+        if (!/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/.test(invoiceDate)) {
+          alert('Enter the date as YYYY-MM-DD.');
+          return;
+        }
+        try {
+          await convertQuoteRemote(quoteId, invoiceNumber, `${invoiceDate}T00:00:00.000Z`);
+          renderHistoryList();
+        } catch (err) {
+          console.error('[Pestimator] Convert failed', err);
+          remoteStatus(err?.message || 'Convert failed', 'error');
+        }
       });
     }
 
