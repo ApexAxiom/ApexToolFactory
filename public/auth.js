@@ -6,8 +6,7 @@
   const listeners = new Set();
 
   const OFFLINE_USERS = {
-    Roeland: { password: 'Demo123', attributes: { name: 'Roeland' } },
-    Joe: { password: 'Demo123', attributes: { name: 'Joe' } }
+    Roeland: { password: 'Demo123', attributes: { name: 'Roeland' } }
   };
 
   let cachedSession = null;
@@ -102,18 +101,6 @@
       throw new Error('Enter your access key to sign in.');
     }
 
-    if (password === 'demo-pass') {
-      const payload = {
-        username: trimmedUsername,
-        attributes: { name: trimmedUsername },
-        provider: 'demo',
-        ownerId: trimmedUsername,
-        signedInAt: new Date().toISOString()
-      };
-      writeSession(payload);
-      return payload;
-    }
-
     const offlineRecord = OFFLINE_USERS[trimmedUsername];
     if (offlineRecord) {
       if (offlineRecord.password !== password) {
@@ -130,15 +117,7 @@
       return payload;
     }
 
-    const payload = {
-      username: trimmedUsername,
-      attributes: { name: trimmedUsername },
-      provider: 'demo',
-      ownerId: trimmedUsername,
-      signedInAt: new Date().toISOString()
-    };
-    writeSession(payload);
-    return payload;
+    throw new Error('Account not recognized. Contact your administrator for access.');
   }
 
   async function signOut() {
