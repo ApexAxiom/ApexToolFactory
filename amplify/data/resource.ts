@@ -15,10 +15,34 @@ export const data = defineData({
           updatedAt: a.datetime().required().updatedAt()
         })
         .authorization((allow) => [allow.owner()]),
+      Client: a
+        .model({
+          id: a.id().required(),
+          vendorId: a.string().required(),
+          name: a.string().required(),
+          email: a.string(),
+          phone: a.string(),
+          address1: a.string(),
+          city: a.string(),
+          state: a.string(),
+          postalCode: a.string(),
+          notes: a.string(),
+          createdAt: a.datetime().required().defaultToNow(),
+          updatedAt: a.datetime().required().updatedAt()
+        })
+        .authorization((allow) => [allow.owner()])
+        .secondaryIndexes((index) => [
+          index('byVendor', {
+            sortKey: 'createdAt',
+            queryField: 'clientsByVendor'
+          })
+        ]),
       Quote: a
         .model({
           id: a.id().required(),
           vendorId: a.string().required(),
+          clientId: a.string().required(),
+          clientName: a.string(),
           quoteNumber: a.string().required(),
           status: a.ref('QuoteStatus').required(),
           payload: a.string().required(),
@@ -40,6 +64,10 @@ export const data = defineData({
           index('byQuoteNumber', {
             sortKey: 'createdAt',
             queryField: 'quoteByNumber'
+          }),
+          index('byClient', {
+            sortKey: 'createdAt',
+            queryField: 'quotesByClient'
           })
         ]),
       DailyCounter: a

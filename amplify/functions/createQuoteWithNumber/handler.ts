@@ -6,6 +6,8 @@ const ddb = new DynamoDBClient({});
 
 interface CreateQuoteWithNumberArguments {
   vendorId: string;
+  clientId: string;
+  clientName?: string;
   payload: string;
   subtotal: number;
   taxTotal: number;
@@ -41,10 +43,13 @@ function sequenceKey(ownerId: string, vendorId: string, date: string): string {
 
 export const handler = async (event: AppSyncEvent) => {
   const ownerId = resolveOwnerId(event);
-  const { vendorId, payload, subtotal, taxTotal, grandTotal } = event.arguments;
+  const { vendorId, clientId, clientName, payload, subtotal, taxTotal, grandTotal } = event.arguments;
 
   if (!vendorId) {
     throw new Error('vendorId is required');
+  }
+  if (!clientId) {
+    throw new Error('clientId is required');
   }
   if (typeof payload !== 'string' || !payload.length) {
     throw new Error('payload is required');
@@ -89,6 +94,8 @@ export const handler = async (event: AppSyncEvent) => {
         id: quoteId,
         owner: ownerId,
         vendorId,
+        clientId,
+        clientName: clientName || null,
         quoteNumber,
         status: 'QUOTE',
         payload,
@@ -105,6 +112,8 @@ export const handler = async (event: AppSyncEvent) => {
     id: quoteId,
     owner: ownerId,
     vendorId,
+    clientId,
+    clientName: clientName || null,
     quoteNumber,
     status: 'QUOTE',
     payload,

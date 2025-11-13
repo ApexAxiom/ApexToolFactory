@@ -22,21 +22,28 @@
   let documentModeRestore = null;    // pending mode to restore after printing
   let latestTotals = { subtotal: 0, taxTotal: 0, grandTotal: 0 };
   let vendorCache = [];
+  let clientCache = [];
   let activeVendorId = null;
+  let activeClientId = null;
   let historyCache = [];
   let historyNextToken = null;
-  let historyFilters = { vendorId: null, quoteNumber: '', from: null, to: null };
+  let historyFilters = { vendorId: null, clientId: null, quoteNumber: '', from: null, to: null };
+  let quoteAttachments = [];
+  let convertQuoteTargetId = null;
 
   const amplifyGlobal = window.aws_amplify || {};
   const API = amplifyGlobal.API;
   const graphqlOperation = amplifyGlobal.graphqlOperation;
+  const Storage = amplifyGlobal.Storage || amplifyGlobal.default?.Storage;
   const hasBackend = Boolean(window.PESTIMATOR_AMPLIFY_CONFIG && API?.graphql);
 
   const GRAPHQL = {
-    createQuote: `mutation CreateQuoteWithNumber($vendorId: ID!, $payload: String!, $subtotal: Float!, $taxTotal: Float!, $grandTotal: Float!) {
-      createQuoteWithNumber(vendorId: $vendorId, payload: $payload, subtotal: $subtotal, taxTotal: $taxTotal, grandTotal: $grandTotal) {
+    createQuote: `mutation CreateQuoteWithNumber($vendorId: ID!, $clientId: ID!, $clientName: String, $payload: String!, $subtotal: Float!, $taxTotal: Float!, $grandTotal: Float!) {
+      createQuoteWithNumber(vendorId: $vendorId, clientId: $clientId, clientName: $clientName, payload: $payload, subtotal: $subtotal, taxTotal: $taxTotal, grandTotal: $grandTotal) {
         id
         vendorId
+        clientId
+        clientName
         quoteNumber
         status
         subtotal
@@ -64,6 +71,8 @@
         items {
           id
           vendorId
+          clientId
+          clientName
           quoteNumber
           status
           subtotal
@@ -99,6 +108,40 @@
         notes
         createdAt
       }
+    }`,
+    listClients: `query ClientsByVendor($vendorId: String!, $limit: Int, $nextToken: String) {
+      clientsByVendor(vendorId: $vendorId, limit: $limit, nextToken: $nextToken) {
+        items {
+          id
+          vendorId
+          name
+          email
+          phone
+          address1
+          city
+          state
+          postalCode
+          notes
+          createdAt
+        }
+        nextToken
+      }
+    }`,
+    createClient: `mutation CreateClient($input: CreateClientInput!) {
+      createClient(input: $input) {
+        id
+        vendorId
+        name
+        email
+        phone
+        address1
+        city
+        state
+        postalCode
+        notes
+        createdAt
+        updatedAt
+      }
     }`
   };
 
@@ -110,7 +153,8 @@
     "travelMiles","perMile",
     "rodentStations","rodentRate","iltCount","iltRate","complianceFee",
     "afterHoursPct","discountPct",
-    "linearFt","lfRate"
+    "linearFt","lfRate",
+    "acceptedPlanEnabled","acceptedMonthlyFee","acceptedStartDate","acceptedNotes","acceptedAddOns"
   ];
 
   // Visit multipliers
@@ -188,10 +232,115 @@
       activeVendorId = vendor.id;
       historyFilters.vendorId = vendor.id;
       renderVendorSelect();
+      await listClientsByVendor(activeVendorId);
       remoteStatus(`Vendor “${vendor.name}” saved`, 'success');
       await loadHistory(true);
     }
     return vendor;
+  }
+
+  function populateJobDetailsFromClient(client) {
+    if (!client) return;
+    const nameEl = $('custName');
+    if (nameEl) nameEl.value = client.name || '';
+    const addressEl = $('address');
+    if (addressEl) {
+      const parts = [
+        client.address1 || '',
+        [client.city, client.state].filter(Boolean).join(', '),
+        client.postalCode || ''
+      ]
+        .map((part) => part.trim())
+        .filter(Boolean);
+      addressEl.value = parts.join(' • ');
+    }
+    compute();
+    saveQuote();
+  }
+
+  async function listClientsByVendor(vendorId) {
+    if (!hasBackend || !vendorId) {
+      clientCache = [];
+      renderClientSelect();
+      return [];
+    }
+    const clients = [];
+    let nextToken = null;
+    do {
+      const result = await callGraphQL(GRAPHQL.listClients, { vendorId, limit: 100, nextToken });
+      const payload = result?.data?.clientsByVendor;
+      if (payload?.items) clients.push(...payload.items);
+      nextToken = payload?.nextToken || null;
+    } while (nextToken);
+    clientCache = clients;
+    if (!clients.length) {
+      activeClientId = null;
+      historyFilters.clientId = null;
+    } else if (!clients.some((c) => c.id === activeClientId)) {
+      activeClientId = clients[0].id;
+      historyFilters.clientId = activeClientId;
+      populateJobDetailsFromClient(clients[0]);
+    }
+    renderClientSelect();
+    return clients;
+  }
+
+  function renderClientSelect() {
+    const select = $('clientSelect');
+    const manageBtn = $('btnManageClients');
+    if (!select) return;
+    select.innerHTML = '';
+    if (!hasBackend || !activeVendorId) {
+      const opt = document.createElement('option');
+      opt.value = '';
+      opt.textContent = hasBackend ? 'Select a vendor first' : 'Connect Amplify to manage clients';
+      select.appendChild(opt);
+      select.disabled = true;
+      if (manageBtn) {
+        manageBtn.disabled = true;
+        manageBtn.classList.add('opacity-50', 'cursor-not-allowed');
+      }
+      return;
+    }
+    select.disabled = false;
+    if (manageBtn) {
+      manageBtn.disabled = false;
+      manageBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+    }
+    if (!clientCache.length) {
+      const opt = document.createElement('option');
+      opt.value = '';
+      opt.textContent = 'No clients yet';
+      select.appendChild(opt);
+      select.disabled = true;
+      return;
+    }
+    clientCache.forEach((client) => {
+      const opt = document.createElement('option');
+      opt.value = client.id;
+      opt.textContent = client.name || 'Client';
+      if (client.id === activeClientId) opt.selected = true;
+      select.appendChild(opt);
+    });
+  }
+
+  async function createClientRemote(input) {
+    if (!hasBackend) throw new Error('Cloud persistence disabled.');
+    await ensureBackendSession({ silent: false });
+    const payload = { ...input, vendorId: activeVendorId };
+    remoteStatus('Saving client…');
+    const result = await callGraphQL(GRAPHQL.createClient, { input: payload });
+    const client = result?.data?.createClient;
+    if (client) {
+      clientCache = [client, ...clientCache.filter((c) => c.id !== client.id)];
+      activeClientId = client.id;
+      historyFilters.clientId = activeClientId;
+      populateJobDetailsFromClient(client);
+      renderClientSelect();
+      remoteStatus(`Client “${client.name}” saved`, 'success');
+      await loadHistory(true);
+    }
+    return client;
   }
 
   async function bootstrapVendors() {
@@ -210,6 +359,8 @@
         }
         if (vendors.length) {
           activeVendorId = vendors[0].id;
+          historyFilters.vendorId = activeVendorId;
+          await listClientsByVendor(activeVendorId);
         }
         renderVendorSelect();
         return vendors;
@@ -225,10 +376,15 @@
     if (!activeVendorId) {
       throw new Error('Select a vendor before saving a quote.');
     }
+    if (!activeClientId) {
+      throw new Error('Select a client before saving a quote.');
+    }
     remoteStatus('Saving quote to cloud…');
     const payload = JSON.stringify(serialize());
     const result = await callGraphQL(GRAPHQL.createQuote, {
       vendorId: activeVendorId,
+      clientId: activeClientId,
+      clientName: $('custName')?.value || '',
       payload,
       subtotal: Number(latestTotals.subtotal || 0),
       taxTotal: Number(latestTotals.taxTotal || 0),
@@ -255,6 +411,9 @@
       const filter = {};
       if (historyFilters.vendorId) {
         filter.vendorId = { eq: historyFilters.vendorId };
+      }
+      if (historyFilters.clientId) {
+        filter.clientId = { eq: historyFilters.clientId };
       }
       if (historyFilters.quoteNumber) {
         filter.quoteNumber = { contains: historyFilters.quoteNumber.trim() };
@@ -403,6 +562,7 @@
     if (manageBtn) manageBtn.classList.remove('hidden');
     if (historyBtn) historyBtn.classList.remove('hidden');
     renderVendorList();
+    renderClientSelect();
   }
 
   function renderVendorList() {
@@ -459,10 +619,14 @@
         const action = item.status === 'INVOICE'
           ? `<span class="text-xs text-white/50">Converted ${item.invoiceDate ? new Date(item.invoiceDate).toLocaleDateString() : ''}</span>`
           : `<button type="button" data-action="convert" data-quote-id="${item.id}" class="rounded-full bg-lagoon px-3 py-1 text-xs font-semibold text-night hover:brightness-110">Convert to invoice</button>`;
+        const clientLine = item.clientName ? `<div class="text-xs text-white/50">${item.clientName}</div>` : '';
         table.insertAdjacentHTML(
           'beforeend',
           `<tr class="border-b border-white/5 last:border-0">
-            <td class="px-3 py-3 text-sm text-white/80">${item.quoteNumber || '—'}</td>
+            <td class="px-3 py-3 text-sm text-white/80">
+              <div>${item.quoteNumber || '—'}</div>
+              ${clientLine}
+            </td>
             <td class="px-3 py-3 text-sm text-white/60">${created}</td>
             <td class="px-3 py-3 text-sm text-white/60">${currency(Number(item.grandTotal || 0))}</td>
             <td class="px-3 py-3 text-sm">${statusBadge}</td>
@@ -490,14 +654,138 @@
     if (!modal) return;
     modal.classList.add('hidden');
     modal.setAttribute('aria-hidden', 'true');
+    if (id === 'convertModal') {
+      convertQuoteTargetId = null;
+    }
+  }
+
+  // ---- attachment helpers ----
+  function renderPhotoPreview() {
+    const container = $('photoPreview');
+    if (!container) return;
+    container.innerHTML = '';
+    if (!quoteAttachments.length) {
+      const empty = document.createElement('p');
+      empty.className = 'text-xs text-white/50';
+      empty.textContent = hasBackend
+        ? 'No site photos uploaded yet.'
+        : 'Enable cloud sync to upload and store photos.';
+      container.appendChild(empty);
+      saveQuote();
+      return;
+    }
+    quoteAttachments.forEach((att) => {
+      const wrapper = document.createElement('div');
+      wrapper.className = 'relative h-20 w-28 overflow-hidden rounded-xl border border-white/15 bg-white/5';
+      const img = document.createElement('img');
+      img.className = 'absolute inset-0 h-full w-full object-cover';
+      img.alt = att.fileName || 'Site photo';
+      if (att.url) {
+        img.src = att.url;
+      }
+      wrapper.appendChild(img);
+      const placeholder = document.createElement('div');
+      placeholder.className = 'absolute inset-0 flex items-center justify-center px-2 text-center text-[11px] text-white/70 backdrop-blur-xs';
+      placeholder.textContent = att.fileName || 'Photo';
+      wrapper.appendChild(placeholder);
+      container.appendChild(wrapper);
+      if (!att.url && Storage?.get && att.key) {
+        Storage.get(att.key, { level: 'private' })
+          .then((url) => {
+            if (!url) return;
+            att.url = url;
+            img.src = url;
+            placeholder.classList.add('opacity-0');
+          })
+          .catch((err) => {
+            console.warn('[Pestimator] Failed to load photo preview', err);
+          });
+      }
+    });
+    saveQuote();
+  }
+
+  async function onPhotoFilesSelected(evt) {
+    const input = evt.target;
+    const files = Array.from(input?.files || []);
+    if (!files.length) return;
+
+    if (!hasBackend || !Storage?.put) {
+      files.forEach((file) => {
+        quoteAttachments.push({ key: null, fileName: file.name });
+      });
+      renderPhotoPreview();
+      if (input) input.value = '';
+      return;
+    }
+
+    try {
+      await ensureBackendSession({ silent: false });
+    } catch (err) {
+      remoteStatus(err?.message || 'Sign-in required for uploads', 'error');
+      return;
+    }
+
+    const uploads = files.map(async (file) => {
+      const ts = Date.now();
+      const safeName = file.name.replace(/\s+/g, '_');
+      const key = `pestimator/uploads/${ts}-${safeName}`;
+      await Storage.put(key, file, { level: 'private', contentType: file.type });
+      quoteAttachments.push({ key, fileName: file.name });
+      renderPhotoPreview();
+    });
+
+    Promise.all(uploads).catch((err) => {
+      console.error('[Pestimator] Photo upload failed', err);
+      remoteStatus('Photo upload failed. See console.', 'error');
+    });
+    if (input) input.value = '';
+  }
+
+  function emailCurrentDocument() {
+    const vendor = vendorCache.find((v) => v.id === activeVendorId);
+    const client = clientCache.find((c) => c.id === activeClientId);
+    const clientEmail = client?.email || '';
+    const invoiceNumber = $('invoiceNumber')?.value || '';
+    const invoiceLabel = invoiceNumber ? ` ${invoiceNumber}` : '';
+    const subject = documentMode === 'invoice'
+      ? `Pest Control Invoice${invoiceLabel} from ${vendor?.name || 'Pestimator'}`
+      : `Pest Control Quote from ${vendor?.name || 'Pestimator'}`;
+    const bodyLines = [
+      `Hello ${$('custName')?.value || client?.name || ''},`,
+      '',
+      `Please see the attached pest control ${documentMode === 'invoice' ? 'invoice' : 'quote'}.`,
+      '',
+      `Total: $${Number(latestTotals.grandTotal || 0).toFixed(2)}`,
+      '',
+      vendor?.name || 'Pestimator'
+    ];
+    const mailto = [
+      'mailto:',
+      encodeURIComponent(clientEmail),
+      '?subject=',
+      encodeURIComponent(subject),
+      '&body=',
+      encodeURIComponent(bodyLines.join('\n'))
+    ].join('');
+    window.location.href = mailto;
   }
 
   // ---- storage helpers ----
   function serialize() {
     const d = {};
-    fields.forEach(f => d[f] = ($(f)?.value ?? ""));
+    fields.forEach((f) => {
+      const el = $(f);
+      if (!el) return;
+      if (el.type === 'checkbox') {
+        d[f] = el.checked ? 'true' : 'false';
+      } else {
+        d[f] = el.value ?? '';
+      }
+    });
     d.selectedPests = selectedPests;
     d.pestPricing = pestPricing;
+    d.attachments = quoteAttachments || [];
     return d;
   }
 
@@ -506,9 +794,19 @@
       const raw = localStorage.getItem("pestimator.quote");
       if (!raw) return;
       const d = JSON.parse(raw);
-      fields.forEach(f => { if (d[f]!=null && $(f)) $(f).value = d[f]; });
+      fields.forEach((f) => {
+        const el = $(f);
+        if (!el || d[f] == null) return;
+        if (el.type === 'checkbox') {
+          el.checked = d[f] === true || d[f] === 'true' || d[f] === 'on';
+        } else {
+          el.value = d[f];
+        }
+      });
       selectedPests = Array.isArray(d.selectedPests) ? d.selectedPests : [];
       pestPricing = d.pestPricing || {};
+      quoteAttachments = Array.isArray(d.attachments) ? d.attachments : [];
+      renderPhotoPreview();
     } catch {}
   }
 
@@ -887,6 +1185,57 @@
     if (commentsSection) commentsSection.style.display = comments ? "" : "none";
     if ($("printComments")) $("printComments").textContent = comments;
 
+    const planSection = $('printAcceptedPlanSection');
+    const planSummary = $('printAcceptedPlanSummary');
+    const planNotes = $('printAcceptedPlanNotes');
+    const planAddOns = $('printAcceptedPlanAddOns');
+    const acceptedPlanEnabled = $('acceptedPlanEnabled')?.checked;
+    if (planSection && planSummary && planNotes && planAddOns) {
+      if (!acceptedPlanEnabled) {
+        planSection.style.display = 'none';
+        planSummary.textContent = '';
+        planNotes.textContent = '';
+        planAddOns.textContent = '';
+      } else {
+        planSection.style.display = '';
+        const monthly = $('acceptedMonthlyFee')?.value ?? '';
+        const startRaw = $('acceptedStartDate')?.value || '';
+        const start = parseDateInput(startRaw);
+        const startText = start ? formatDate(start) : '';
+        const notes = $('acceptedNotes')?.value || '';
+        const addOns = $('acceptedAddOns')?.value || '';
+        const summaryParts = [];
+        if (monthly !== '') {
+          const monthlyValue = Number(monthly);
+          const monthlyLabel = Number.isFinite(monthlyValue)
+            ? `$${monthlyValue.toFixed(2)}`
+            : monthly;
+          summaryParts.push(`Monthly fee: ${monthlyLabel}`);
+        }
+        if (startText) summaryParts.push(`Start: ${startText}`);
+        planSummary.textContent = summaryParts.join(' • ') || 'Plan confirmed';
+        planNotes.textContent = notes || '—';
+        planAddOns.textContent = addOns || '—';
+      }
+    }
+
+    const photosSection = $('printPhotosSection');
+    const photosList = $('printPhotoList');
+    if (photosSection && photosList) {
+      if (!quoteAttachments.length) {
+        photosSection.style.display = 'none';
+        photosList.innerHTML = '';
+      } else {
+        photosSection.style.display = '';
+        photosList.innerHTML = '';
+        quoteAttachments.forEach((att) => {
+          const li = document.createElement('li');
+          li.textContent = att.fileName || att.key || 'Photo';
+          photosList.appendChild(li);
+        });
+      }
+    }
+
     if ($("printFooterPrimary")) {
       $("printFooterPrimary").textContent = isInvoice
         ? "Please remit payment to the company details above."
@@ -944,6 +1293,7 @@
 
     renderPestPicker();
     restore();
+    renderPhotoPreview();
     renderPestChargeRows();
     refreshBlocks();
     renderHistoryList();
@@ -1120,6 +1470,20 @@
       });
     }
 
+    const btnEmailDocument = $('btnEmailDocument');
+    if (btnEmailDocument) {
+      btnEmailDocument.addEventListener('click', (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        emailCurrentDocument();
+      });
+    }
+
+    const photoInput = $('quotePhotos');
+    if (photoInput) {
+      photoInput.addEventListener('change', onPhotoFilesSelected);
+    }
+
     // Reset button
     const btnReset = $("btnReset");
     if (btnReset) {
@@ -1149,10 +1513,12 @@
         selectedPests = [];
         pestPricing = {};
         documentMode = "quote";
-        
+        quoteAttachments = [];
+        renderPhotoPreview();
+
         const checks = document.querySelectorAll('#pestPicker input[type="checkbox"]');
         checks.forEach(c => c.checked = false);
-        
+
         renderPestChargeRows();
         compute();
       });
@@ -1211,26 +1577,141 @@
 
     const vendorSelectEl = $('vendorSelect');
     if (vendorSelectEl) {
-      vendorSelectEl.addEventListener('change', (event) => {
+      vendorSelectEl.addEventListener('change', async (event) => {
         activeVendorId = event.target.value || null;
         historyFilters.vendorId = activeVendorId || null;
+        activeClientId = null;
+        historyFilters.clientId = null;
+        renderClientSelect();
+        if (hasBackend && activeVendorId) {
+          await listClientsByVendor(activeVendorId);
+        } else {
+          clientCache = [];
+        }
         if (hasBackend) {
-          loadHistory(true);
+          await loadHistory(true);
         }
       });
     }
 
     const vendorListEl = $('vendorList');
     if (vendorListEl) {
-      vendorListEl.addEventListener('click', (event) => {
+      vendorListEl.addEventListener('click', async (event) => {
         const target = event.target.closest('.vendor-select-btn');
         if (!target) return;
         activeVendorId = target.dataset.vendorId || null;
         historyFilters.vendorId = activeVendorId || null;
+        activeClientId = null;
+        historyFilters.clientId = null;
         renderVendorSelect();
         closeModal('vendorModal');
+        if (hasBackend && activeVendorId) {
+          await listClientsByVendor(activeVendorId);
+        }
         if (hasBackend) {
-          loadHistory(true);
+          await loadHistory(true);
+        }
+      });
+    }
+
+    const clientSelectEl = $('clientSelect');
+    if (clientSelectEl) {
+      clientSelectEl.addEventListener('change', async (event) => {
+        activeClientId = event.target.value || null;
+        historyFilters.clientId = activeClientId || null;
+        if (activeClientId) {
+          const client = clientCache.find((c) => c.id === activeClientId);
+          if (client) populateJobDetailsFromClient(client);
+        }
+        if (hasBackend) {
+          await loadHistory(true);
+        }
+      });
+    }
+
+    const btnManageClients = $('btnManageClients');
+    if (btnManageClients) {
+      btnManageClients.addEventListener('click', (event) => {
+        event.preventDefault();
+        if (!hasBackend) {
+          alert('Connect Amplify to manage clients.');
+          return;
+        }
+        if (!activeVendorId) {
+          alert('Select a vendor before managing clients.');
+          return;
+        }
+        const form = $('clientForm');
+        form?.reset();
+        const idInput = $('clientId');
+        if (idInput) idInput.value = '';
+        openModal('clientModal');
+      });
+    }
+
+    const clientForm = $('clientForm');
+    if (clientForm) {
+      clientForm.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        if (!hasBackend) {
+          alert('Connect Amplify to manage clients.');
+          return;
+        }
+        if (!activeVendorId) {
+          alert('Select a vendor before saving clients.');
+          return;
+        }
+        const formData = new FormData(clientForm);
+        const name = (formData.get('clientName') || '').toString().trim();
+        if (!name) {
+          alert('Client name is required.');
+          return;
+        }
+        try {
+          await createClientRemote({
+            name,
+            email: (formData.get('clientEmail') || '').toString().trim() || undefined,
+            phone: (formData.get('clientPhone') || '').toString().trim() || undefined,
+            address1: (formData.get('clientAddress1') || '').toString().trim() || undefined,
+            city: (formData.get('clientCity') || '').toString().trim() || undefined,
+            state: (formData.get('clientState') || '').toString().trim() || undefined,
+            postalCode: (formData.get('clientPostalCode') || '').toString().trim() || undefined,
+            notes: (formData.get('clientNotes') || '').toString().trim() || undefined
+          });
+          clientForm.reset();
+          closeModal('clientModal');
+        } catch (err) {
+          console.error('[Pestimator] Client create failed', err);
+          remoteStatus(err?.message || 'Client save failed', 'error');
+        }
+      });
+    }
+
+    const convertForm = $('convertForm');
+    if (convertForm) {
+      convertForm.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        const invoiceNumber = $('convertInvoiceNumber')?.value?.trim();
+        const invoiceDate = $('convertInvoiceDate')?.value;
+        if (!convertQuoteTargetId) {
+          alert('Select a quote to convert.');
+          return;
+        }
+        if (!invoiceNumber) {
+          alert('Invoice number is required.');
+          return;
+        }
+        if (!invoiceDate || !/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/.test(invoiceDate)) {
+          alert('Enter invoice date as YYYY-MM-DD.');
+          return;
+        }
+        try {
+          await convertQuoteRemote(convertQuoteTargetId, invoiceNumber, `${invoiceDate}T00:00:00.000Z`);
+          closeModal('convertModal');
+          renderHistoryList();
+        } catch (err) {
+          console.error('[Pestimator] Convert failed', err);
+          remoteStatus(err?.message || 'Convert failed', 'error');
         }
       });
     }
@@ -1297,6 +1778,13 @@
       });
     });
 
+    document.querySelectorAll('[data-close]').forEach((el) => {
+      el.addEventListener('click', () => {
+        const target = el.getAttribute('data-close');
+        if (target) closeModal(target);
+      });
+    });
+
     const vendorModal = $('vendorModal');
     if (vendorModal) {
       vendorModal.addEventListener('click', (event) => {
@@ -1308,6 +1796,20 @@
     if (historyModal) {
       historyModal.addEventListener('click', (event) => {
         if (event.target === historyModal) closeModal('historyModal');
+      });
+    }
+
+    const clientModal = $('clientModal');
+    if (clientModal) {
+      clientModal.addEventListener('click', (event) => {
+        if (event.target === clientModal) closeModal('clientModal');
+      });
+    }
+
+    const convertModal = $('convertModal');
+    if (convertModal) {
+      convertModal.addEventListener('click', (event) => {
+        if (event.target === convertModal) closeModal('convertModal');
       });
     }
 
@@ -1340,22 +1842,21 @@
         if (!target) return;
         const quoteId = target.getAttribute('data-quote-id');
         if (!quoteId) return;
-        const invoiceNumberDefault = `INV-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}`;
-        const invoiceNumber = prompt('Invoice number', invoiceNumberDefault);
-        if (!invoiceNumber) return;
-        let invoiceDate = prompt('Invoice date (YYYY-MM-DD)', new Date().toISOString().slice(0, 10));
-        if (!invoiceDate) return;
-        if (!/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/.test(invoiceDate)) {
-          alert('Enter the date as YYYY-MM-DD.');
-          return;
-        }
-        try {
-          await convertQuoteRemote(quoteId, invoiceNumber, `${invoiceDate}T00:00:00.000Z`);
-          renderHistoryList();
-        } catch (err) {
-          console.error('[Pestimator] Convert failed', err);
-          remoteStatus(err?.message || 'Convert failed', 'error');
-        }
+        const quote = historyCache.find((item) => item.id === quoteId);
+        const invoiceNumberInput = $('convertInvoiceNumber');
+        const invoiceDateInput = $('convertInvoiceDate');
+        const label = $('convertQuoteLabel');
+        const defaultInvoiceNumber = ($('invoiceNumber')?.value || '').trim()
+          || quote?.invoiceNumber
+          || `INV-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}`;
+        const defaultInvoiceDate = quote?.invoiceDate
+          ? new Date(quote.invoiceDate).toISOString().slice(0, 10)
+          : new Date().toISOString().slice(0, 10);
+        if (invoiceNumberInput) invoiceNumberInput.value = defaultInvoiceNumber;
+        if (invoiceDateInput) invoiceDateInput.value = defaultInvoiceDate;
+        if (label) label.textContent = quote?.quoteNumber || 'Selected quote';
+        convertQuoteTargetId = quoteId;
+        openModal('convertModal');
       });
     }
 
