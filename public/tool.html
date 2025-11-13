@@ -411,6 +411,17 @@
           </div>
           <div class="grid gap-4">
             <div class="grid gap-2">
+              <label>Client</label>
+              <div class="flex items-center gap-3">
+                <select id="clientSelect" class="flex-1 rounded-2xl p-3"></select>
+                <button type="button"
+                        id="btnManageClients"
+                        class="rounded-full border border-white/20 px-3 py-2 text-xs font-semibold text-white/80 transition hover:border-white/40 hover:bg-white/10">
+                  Manage
+                </button>
+              </div>
+            </div>
+            <div class="grid gap-2">
               <label>Customer Name</label>
               <input id="custName" class="rounded-2xl p-3" placeholder="Jane Doe"/>
             </div>
@@ -464,6 +475,21 @@
               <label>Comments / Notes</label>
               <textarea id="comments" rows="3" class="rounded-2xl p-3" placeholder="Special instructions, areas of concern, access notes..."></textarea>
             </div>
+          </div>
+        </section>
+
+        <section class="card p-8 shadow-soft no-print">
+          <div class="mb-4 flex items-center justify-between">
+            <h2 class="text-2xl">Site Photos</h2>
+            <span class="badge">Optional documentation</span>
+          </div>
+          <div class="grid gap-3">
+            <div class="grid gap-2">
+              <label>Upload Photos</label>
+              <input id="quotePhotos" type="file" accept="image/*" multiple class="rounded-2xl p-3" />
+              <p class="text-xs text-white/60">These will be stored securely and appear below the quote/invoice when printed.</p>
+            </div>
+            <div id="photoPreview" class="flex flex-wrap gap-3"></div>
           </div>
         </section>
 
@@ -595,6 +621,7 @@
               <div class="flex flex-wrap gap-2 mobile-stack sm:flex-row">
                 <button id="btnCalc" class="rounded-full bg-mint/80 px-4 py-2 text-sm font-semibold text-night shadow-glow transition hover:brightness-110">Calculate</button>
                 <button id="btnPrint" class="rounded-full bg-lagoon px-4 py-2 text-sm font-semibold text-night shadow-glow transition hover:brightness-110">Print / Save PDF</button>
+                <button type="button" id="btnEmailDocument" class="rounded-full bg-white/90 px-4 py-2 text-sm font-semibold text-night shadow-glow transition hover:bg-white">Email this document</button>
                 <button id="btnInvoice" class="rounded-full bg-white px-4 py-2 text-sm font-semibold text-night shadow-glow transition hover:bg-white/90">Create Invoice</button>
                 <button id="btnSave" class="rounded-full border border-white/20 bg-white/10 px-4 py-2 text-sm font-semibold text-white/85 transition hover:border-white/35 hover:bg-white/15">Save Locally</button>
                 <button id="btnExport" class="rounded-full border border-white/20 bg-white/10 px-4 py-2 text-sm font-semibold text-white/85 transition hover:border-white/35 hover:bg-white/15">Download JSON</button>
@@ -635,6 +662,37 @@
                 <tr><td class="p-3">Total</td><td class="p-3 font-bold text-white" id="grandOut">$0.00</td></tr>
               </tbody>
             </table>
+          </div>
+
+          <div class="mt-8 grid gap-4 rounded-2xl border border-white/15 bg-white/5 p-6">
+            <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <h3 class="text-lg font-semibold text-white">Accepted Plan</h3>
+                <p class="text-xs text-white/60">Track recurring commitments once your client gives the green light.</p>
+              </div>
+              <label class="flex items-center gap-2 text-sm text-white/80">
+                <input id="acceptedPlanEnabled" type="checkbox" class="h-4 w-4 rounded border-white/40 bg-white/10 accent-lagoon" />
+                Client accepted plan
+              </label>
+            </div>
+            <div class="grid gap-4 sm:grid-cols-2">
+              <div class="grid gap-2">
+                <label>Monthly Fee ($)</label>
+                <input id="acceptedMonthlyFee" type="number" min="0" step="0.01" class="rounded-2xl p-3" placeholder="125.00" />
+              </div>
+              <div class="grid gap-2">
+                <label>Plan Start Date</label>
+                <input id="acceptedStartDate" type="date" class="rounded-2xl p-3" />
+              </div>
+            </div>
+            <div class="grid gap-2">
+              <label>Accepted Add-ons</label>
+              <textarea id="acceptedAddOns" rows="2" class="rounded-2xl p-3" placeholder="Monthly mosquito treatment, attic stations, etc."></textarea>
+            </div>
+            <div class="grid gap-2">
+              <label>Notes</label>
+              <textarea id="acceptedNotes" rows="2" class="rounded-2xl p-3" placeholder="Payment cadence, scope reminders, or authorization details."></textarea>
+            </div>
           </div>
 
           <p class="mt-4 text-xs text-white/50">All estimates are subject to site verification and product availability.</p>
@@ -701,6 +759,23 @@
           </table>
         </div>
 
+        <div id="printAcceptedPlanSection" class="mb-8" style="display:none;">
+          <h2 class="text-lg font-semibold mb-3">Accepted Plan</h2>
+          <div class="space-y-2 text-sm">
+            <div id="printAcceptedPlanSummary" class="font-medium text-slate-700"></div>
+            <div><span class="font-medium">Add-ons:</span> <span id="printAcceptedPlanAddOns"></span></div>
+            <div>
+              <div class="font-medium">Notes</div>
+              <div id="printAcceptedPlanNotes" class="mt-1 whitespace-pre-wrap rounded border border-slate-200 bg-slate-50 p-3"></div>
+            </div>
+          </div>
+        </div>
+
+        <div id="printPhotosSection" class="mb-8" style="display:none;">
+          <h2 class="text-lg font-semibold mb-3">Site Photos</h2>
+          <ul id="printPhotoList" class="list-disc space-y-1 pl-5 text-sm"></ul>
+        </div>
+
         <!-- Comments -->
         <div id="printCommentsSection" class="mb-8">
           <h2 class="text-lg font-semibold mb-3">Notes</h2>
@@ -751,6 +826,56 @@
       </div>
     </div>
 
+    <div id="clientModal" class="no-print fixed inset-0 z-40 hidden items-center justify-center bg-black/60" aria-hidden="true">
+      <div class="w-full max-w-lg rounded-3xl bg-night p-6 shadow-soft">
+        <div class="mb-4 flex items-center justify-between">
+          <h3 class="text-lg font-semibold text-white">Client Profile</h3>
+          <button type="button" data-close="clientModal" class="text-sm text-white/60 transition hover:text-white">Close</button>
+        </div>
+        <form id="clientForm" class="grid gap-4">
+          <input type="hidden" id="clientId" />
+          <div class="grid gap-2">
+            <label>Client Name</label>
+            <input id="clientName" class="rounded-2xl p-3" required placeholder="Homeowner / Business name" />
+          </div>
+          <div class="grid gap-2">
+            <label>Email</label>
+            <input id="clientEmail" type="email" class="rounded-2xl p-3" placeholder="client@example.com" />
+          </div>
+          <div class="grid gap-2">
+            <label>Phone</label>
+            <input id="clientPhone" type="tel" class="rounded-2xl p-3" placeholder="(555) 555-5555" />
+          </div>
+          <div class="grid gap-2">
+            <label>Address</label>
+            <input id="clientAddress1" class="rounded-2xl p-3" placeholder="123 Main St" />
+          </div>
+          <div class="grid gap-2 sm:grid-cols-3">
+            <div class="grid gap-2">
+              <label>City</label>
+              <input id="clientCity" class="rounded-2xl p-3" />
+            </div>
+            <div class="grid gap-2">
+              <label>State</label>
+              <input id="clientState" class="rounded-2xl p-3" />
+            </div>
+            <div class="grid gap-2">
+              <label>ZIP</label>
+              <input id="clientPostalCode" class="rounded-2xl p-3" />
+            </div>
+          </div>
+          <div class="grid gap-2">
+            <label>Notes</label>
+            <textarea id="clientNotes" rows="3" class="rounded-2xl p-3" placeholder="Gate code, pets on site, etc."></textarea>
+          </div>
+          <div class="mt-4 flex justify-end gap-3">
+            <button type="button" data-close="clientModal" class="rounded-full border border-white/20 px-4 py-2 text-sm text-white/70">Cancel</button>
+            <button type="submit" class="rounded-full bg-lagoon px-4 py-2 text-sm font-semibold text-night transition hover:brightness-110">Save client</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
     <div id="historyModal" class="no-print fixed inset-0 z-40 hidden items-center justify-center bg-abyss/80 px-6 py-12 backdrop-blur" aria-hidden="true" role="dialog">
       <div class="w-full max-w-5xl rounded-3xl border border-white/15 bg-night p-8 shadow-[0_45px_90px_-50px_rgba(14,165,233,0.75)]">
         <div class="flex items-center justify-between">
@@ -795,6 +920,32 @@
         <div class="mt-4 flex justify-end">
           <button id="historyLoadMore" type="button" class="rounded-full border border-white/20 px-5 py-2 text-sm font-semibold text-white/80 transition hover:border-white/40 hover:bg-white/10">Load more</button>
         </div>
+      </div>
+    </div>
+
+    <div id="convertModal" class="no-print fixed inset-0 z-50 hidden items-center justify-center bg-abyss/80 px-6 py-12 backdrop-blur" aria-hidden="true" role="dialog">
+      <div class="w-full max-w-md rounded-3xl border border-white/15 bg-night p-6 shadow-soft">
+        <div class="flex items-start justify-between gap-3">
+          <div>
+            <h3 class="text-lg font-semibold text-white">Finalize invoice</h3>
+            <p class="text-xs uppercase tracking-[0.25em] text-white/50">For quote <span id="convertQuoteLabel" class="text-white/80">—</span></p>
+          </div>
+          <button type="button" data-close="convertModal" class="rounded-full border border-white/20 px-3 py-1 text-xs font-semibold text-white/70 transition hover:border-white/40 hover:bg-white/10">Close</button>
+        </div>
+        <form id="convertForm" class="mt-6 grid gap-4">
+          <div class="grid gap-2">
+            <label class="text-xs font-semibold uppercase tracking-[0.28em] text-white/60">Invoice Number</label>
+            <input id="convertInvoiceNumber" class="rounded-2xl border border-white/15 bg-white/5 p-3 text-sm text-white placeholder:text-white/40 focus:border-lagoon focus:outline-none focus:ring-2 focus:ring-lagoon/40" required />
+          </div>
+          <div class="grid gap-2">
+            <label class="text-xs font-semibold uppercase tracking-[0.28em] text-white/60">Invoice Date</label>
+            <input id="convertInvoiceDate" type="date" class="rounded-2xl border border-white/15 bg-white/5 p-3 text-sm text-white focus:border-lagoon focus:outline-none focus:ring-2 focus:ring-lagoon/40" required />
+          </div>
+          <div class="flex justify-end gap-3">
+            <button type="button" data-close="convertModal" class="rounded-full border border-white/20 px-4 py-2 text-sm text-white/70">Cancel</button>
+            <button type="submit" class="rounded-full bg-lagoon px-5 py-2 text-sm font-semibold text-night shadow-glow transition hover:brightness-110">Convert</button>
+          </div>
+        </form>
       </div>
     </div>
 
