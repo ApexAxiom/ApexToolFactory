@@ -33,6 +33,9 @@
   let convertQuoteTargetId = null;
   let demoVendorNoticeShown = false;
   let demoClientNoticeShown = false;
+  let currentView = 'quote-builder';
+  let clientDetailSelection = null;
+  let clientSearchTerm = '';
 
   const amplifyGlobal = window.aws_amplify || {};
   const API = amplifyGlobal.API;
@@ -172,13 +175,73 @@
 
   function remoteStatus(message, tone = 'info') {
     const el = $('remoteStatus');
-    if (!el) return;
-    el.textContent = message || '';
-    el.classList.remove('text-lagoon', 'text-amber-400', 'text-rose-400');
-    if (!message) return;
-    if (tone === 'success') el.classList.add('text-lagoon');
-    else if (tone === 'warn') el.classList.add('text-amber-400');
-    else if (tone === 'error') el.classList.add('text-rose-400');
+    if (el) {
+      if (!message) {
+        el.classList.add('hidden');
+        el.textContent = '';
+      } else {
+        el.classList.remove('hidden');
+        el.textContent = message;
+        el.className = 'rounded-full border px-4 py-2 text-xs font-medium';
+        el.classList.add('bg-white', 'border-slate-200', 'text-slate-600');
+        if (tone === 'success') {
+          el.classList.add('text-emerald-600');
+        } else if (tone === 'warn') {
+          el.classList.add('text-amber-600');
+        } else if (tone === 'error') {
+          el.classList.add('text-rose-600');
+        }
+      }
+    }
+  }
+
+  function setView(view) {
+    currentView = view;
+    document.querySelectorAll('[data-view]').forEach((section) => {
+      const isActive = section.getAttribute('data-view') === view;
+      section.classList.toggle('hidden', !isActive);
+    });
+    document.querySelectorAll('#appSidebar [data-nav]').forEach((btn) => {
+      const isActive = btn.getAttribute('data-nav') === view;
+      btn.classList.toggle('bg-slate-800', isActive);
+      btn.classList.toggle('text-white', isActive);
+      btn.classList.toggle('font-semibold', isActive);
+    });
+
+    const pageTitle = document.getElementById('pageTitle');
+    const pageSubtitle = document.getElementById('pageSubtitle');
+    if (pageTitle && pageSubtitle) {
+      if (view === 'dashboard') {
+        pageTitle.textContent = 'Dashboard';
+        pageSubtitle.textContent = 'Overview of quotes and invoices';
+      } else if (view === 'clients') {
+        pageTitle.textContent = 'Clients';
+        pageSubtitle.textContent = 'Manage your client list and history';
+      } else if (view === 'quotes') {
+        pageTitle.textContent = 'Quotes';
+        pageSubtitle.textContent = 'All quotes across clients';
+      } else if (view === 'invoices') {
+        pageTitle.textContent = 'Invoices';
+        pageSubtitle.textContent = 'Track invoices and payments';
+      } else if (view === 'vendor-settings') {
+        pageTitle.textContent = 'Vendors & Settings';
+        pageSubtitle.textContent = 'Company profile and vendor accounts';
+      } else {
+        pageTitle.textContent = 'Quote Builder';
+        pageSubtitle.textContent = 'Create or edit a quote';
+      }
+    }
+
+    if (view === 'dashboard') {
+      renderDashboard();
+    } else if (view === 'clients') {
+      renderClientList();
+      if (clientDetailSelection) openClientDetail(clientDetailSelection);
+    } else if (view === 'quotes') {
+      renderQuotesTable();
+    } else if (view === 'invoices') {
+      renderInvoicesTable();
+    }
   }
 
   async function ensureBackendSession(options = {}) {
@@ -282,6 +345,7 @@
     } else if (!clients.some((c) => c.id === activeClientId)) {
       activeClientId = clients[0].id;
       historyFilters.clientId = activeClientId;
+      clientDetailSelection = activeClientId;
       populateJobDetailsFromClient(clients[0]);
     }
     renderClientSelect();
@@ -307,6 +371,8 @@
         remoteStatus('Connect AWS Amplify to manage clients.', 'warn');
         demoClientNoticeShown = true;
       }
+      updateClientFilters();
+      renderClientList();
       return;
     }
 
@@ -322,6 +388,8 @@
         manageBtn.disabled = true;
         manageBtn.classList.add('opacity-50', 'cursor-not-allowed');
       }
+      updateClientFilters();
+      renderClientList();
       return;
     }
     select.disabled = false;
@@ -335,6 +403,8 @@
       opt.textContent = 'No clients yet';
       select.appendChild(opt);
       select.disabled = true;
+      updateClientFilters();
+      renderClientList();
       return;
     }
     clientCache.forEach((client) => {
@@ -343,6 +413,26 @@
       opt.textContent = client.name || 'Client';
       if (client.id === activeClientId) opt.selected = true;
       select.appendChild(opt);
+    });
+    updateClientFilters();
+    renderClientList();
+  }
+
+  function updateClientFilters() {
+    const filterEls = [
+      $('quotesFilterClient'),
+      $('invoicesFilterClient')
+    ].filter(Boolean);
+    filterEls.forEach((select) => {
+      const current = select.value;
+      select.innerHTML = '<option value="">All clients</option>';
+      clientCache.forEach((client) => {
+        const opt = document.createElement('option');
+        opt.value = client.id;
+        opt.textContent = client.name || 'Client';
+        if (client.id === current) opt.selected = true;
+        select.appendChild(opt);
+      });
     });
   }
 
@@ -457,6 +547,9 @@
       }
       historyNextToken = payload?.nextToken || null;
       renderHistoryList();
+      renderDashboard();
+      renderQuotesTable();
+      renderInvoicesTable();
       remoteStatus(reset ? 'History updated' : 'Loaded more history', 'success');
     } catch (err) {
       console.error('[Pestimator] Failed to load history', err);
@@ -541,15 +634,21 @@
 
   function renderAuthUser() {
     const el = document.getElementById("authUser");
-    if (!el) return;
+    const sidebarEmail = $('sidebarUserEmail');
     if (!activeSession) {
-      el.textContent = "";
-      el.classList.add("hidden");
+      if (el) {
+        el.textContent = "";
+        el.classList.add("hidden");
+      }
+      if (sidebarEmail) sidebarEmail.textContent = '';
       return;
     }
     const name = activeSession.attributes?.name || activeSession.attributes?.email || activeSession.username || "Signed in";
-    el.textContent = `Signed in as ${name}`;
-    el.classList.remove("hidden");
+    if (el) {
+      el.textContent = `Signed in as ${name}`;
+      el.classList.remove("hidden");
+    }
+    if (sidebarEmail) sidebarEmail.textContent = activeSession.attributes?.email || activeSession.username || '';
   }
 
   function renderVendorSelect() {
@@ -593,37 +692,348 @@
   }
 
   function renderVendorList() {
-    const list = $('vendorList');
-    if (!list) return;
-    list.innerHTML = '';
-    if (!hasBackend) {
-      list.insertAdjacentHTML('beforeend', '<p class="text-sm text-white/60">Connect Amplify to manage vendors.</p>');
-      return;
-    }
-    if (!vendorCache.length) {
-      list.insertAdjacentHTML('beforeend', '<p class="text-sm text-white/60">No vendors yet. Create one above to get started.</p>');
-      return;
-    }
-    vendorCache.forEach((vendor) => {
-      const created = vendor.createdAt ? new Date(vendor.createdAt).toLocaleString() : '';
-      list.insertAdjacentHTML(
-        'beforeend',
-        `<article class="rounded-2xl border border-white/10 bg-white/5 p-4">
-          <div class="flex items-center justify-between gap-3">
-            <div>
-              <h4 class="text-sm font-semibold text-white">${vendor.name || 'Vendor'}</h4>
-              <p class="text-xs text-white/60">${created ? `Created ${created}` : 'Created in workspace'}</p>
+    const containers = [
+      $('vendorList'),
+      $('vendorModalList')
+    ].filter(Boolean);
+    if (!containers.length) return;
+    containers.forEach((list) => {
+      list.innerHTML = '';
+      if (!hasBackend) {
+        list.insertAdjacentHTML('beforeend', '<p class="text-sm text-slate-500">Connect Amplify to manage vendors.</p>');
+        return;
+      }
+      if (!vendorCache.length) {
+        list.insertAdjacentHTML('beforeend', '<p class="text-sm text-slate-500">No vendors yet. Create one to get started.</p>');
+        return;
+      }
+      vendorCache.forEach((vendor) => {
+        const created = vendor.createdAt ? new Date(vendor.createdAt).toLocaleString() : '';
+        list.insertAdjacentHTML(
+          'beforeend',
+          `<article class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+            <div class="flex items-center justify-between gap-3">
+              <div>
+                <h4 class="text-sm font-semibold text-slate-900">${vendor.name || 'Vendor'}</h4>
+                <p class="text-xs text-slate-500">${created ? `Created ${created}` : 'Created in workspace'}</p>
+              </div>
+              <button type="button" data-vendor-id="${vendor.id}" class="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-50 vendor-select-btn">Select</button>
             </div>
-            <button type="button" data-vendor-id="${vendor.id}" class="rounded-full border border-white/20 px-3 py-1 text-xs font-semibold text-white/80 hover:border-white/40 hover:bg-white/10 vendor-select-btn">Select</button>
-          </div>
-          <div class="mt-2 space-y-1 text-xs text-white/70">
-            ${vendor.contactEmail ? `<div>Email: ${vendor.contactEmail}</div>` : ''}
-            ${vendor.contactPhone ? `<div>Phone: ${vendor.contactPhone}</div>` : ''}
-            ${vendor.notes ? `<div class="text-white/60">${vendor.notes}</div>` : ''}
-          </div>
-        </article>`
-      );
+            <div class="mt-2 space-y-1 text-xs text-slate-600">
+              ${vendor.contactEmail ? `<div>Email: ${vendor.contactEmail}</div>` : ''}
+              ${vendor.contactPhone ? `<div>Phone: ${vendor.contactPhone}</div>` : ''}
+              ${vendor.notes ? `<div class=\"text-slate-500\">${vendor.notes}</div>` : ''}
+            </div>
+          </article>`
+        );
+      });
     });
+    renderDashboard();
+  }
+
+  function renderDashboard() {
+    const openQuotesEl = $('dashboardOpenQuotes');
+    const openInvoicesEl = $('dashboardOpenInvoices');
+    const monthlyValueEl = $('dashboardMonthlyValue');
+    const recentList = $('dashboardRecentActivity');
+    const vendorListEl = $('dashboardVendors');
+    const vendorEmpty = $('dashboardVendorsEmpty');
+
+    if (openQuotesEl) {
+      const count = historyCache.filter((item) => item.status === 'QUOTE').length;
+      openQuotesEl.textContent = count;
+    }
+    if (openInvoicesEl) {
+      const count = historyCache.filter((item) => item.status === 'INVOICE').length;
+      openInvoicesEl.textContent = count;
+    }
+    if (monthlyValueEl) {
+      const now = new Date();
+      const month = now.getMonth();
+      const year = now.getFullYear();
+      const total = historyCache.reduce((sum, item) => {
+        if (!item.createdAt) return sum;
+        const created = new Date(item.createdAt);
+        if (created.getMonth() === month && created.getFullYear() === year) {
+          return sum + Number(item.grandTotal || 0);
+        }
+        return sum;
+      }, 0);
+      monthlyValueEl.textContent = currency(total);
+    }
+    if (recentList) {
+      recentList.innerHTML = '';
+      if (!historyCache.length) {
+        recentList.insertAdjacentHTML('beforeend', '<li class="text-xs text-slate-500">Save a quote to see activity.</li>');
+      } else {
+        historyCache
+          .slice()
+          .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0))
+          .slice(0, 5)
+          .forEach((item) => {
+            const created = item.createdAt ? new Date(item.createdAt).toLocaleString() : '—';
+            recentList.insertAdjacentHTML(
+              'beforeend',
+              `<li class="flex items-center justify-between gap-3">
+                <div>
+                  <div class="text-sm font-medium text-slate-700">${item.quoteNumber || 'Quote'}</div>
+                  <div class="text-xs text-slate-500">${item.clientName || 'Client'} • ${item.status}</div>
+                </div>
+                <div class="text-xs text-slate-500">${created}</div>
+              </li>`
+            );
+          });
+      }
+    }
+    if (vendorListEl && vendorEmpty) {
+      vendorListEl.innerHTML = '';
+      if (!vendorCache.length) {
+        vendorEmpty.classList.remove('hidden');
+      } else {
+        vendorEmpty.classList.add('hidden');
+        vendorCache.slice(0, 5).forEach((vendor) => {
+          vendorListEl.insertAdjacentHTML(
+            'beforeend',
+            `<li class="flex items-center justify-between text-sm">
+              <span class="font-medium text-slate-700">${vendor.name || 'Vendor'}</span>
+              <span class="text-xs text-slate-500">${vendor.createdAt ? new Date(vendor.createdAt).toLocaleDateString() : ''}</span>
+            </li>`
+          );
+        });
+      }
+    }
+  }
+
+  function renderClientList() {
+    const listEl = $('clientList');
+    const emptyEl = $('clientDetailEmpty');
+    if (!listEl) return;
+    listEl.innerHTML = '';
+    if (!hasBackend) {
+      listEl.insertAdjacentHTML('beforeend', '<li class="px-3 py-2 text-xs text-slate-500">Connect Amplify to manage clients.</li>');
+      if (emptyEl) emptyEl.classList.remove('hidden');
+      return;
+    }
+    if (!activeVendorId) {
+      listEl.insertAdjacentHTML('beforeend', '<li class="px-3 py-2 text-xs text-slate-500">Select a vendor to load clients.</li>');
+      if (emptyEl) emptyEl.classList.remove('hidden');
+      return;
+    }
+    const search = clientSearchTerm.trim().toLowerCase();
+    const matches = clientCache.filter((client) => {
+      if (!search) return true;
+      return [client.name, client.email, client.phone]
+        .filter(Boolean)
+        .some((value) => value.toLowerCase().includes(search));
+    });
+    if (!matches.length) {
+      listEl.insertAdjacentHTML('beforeend', '<li class="px-3 py-2 text-xs text-slate-500">No clients found.</li>');
+      if (emptyEl) emptyEl.classList.remove('hidden');
+      return;
+    }
+    matches
+      .sort((a, b) => (a.name || '').localeCompare(b.name || ''))
+      .forEach((client) => {
+        const isActive = client.id === clientDetailSelection;
+        listEl.insertAdjacentHTML(
+          'beforeend',
+          `<li data-client-id="${client.id}" class="cursor-pointer px-3 py-3 text-sm ${isActive ? 'bg-slate-100' : 'hover:bg-slate-50'}">
+            <div class="font-medium text-slate-700">${client.name || 'Client'}</div>
+            <div class="text-xs text-slate-500">${client.email || 'No email'}${client.phone ? ` • ${client.phone}` : ''}</div>
+          </li>`
+        );
+      });
+  }
+
+  function clientHistoryFor(clientId) {
+    if (!clientId) return [];
+    return historyCache.filter((item) => item.clientId === clientId);
+  }
+
+  function openClientDetail(clientId) {
+    clientDetailSelection = clientId;
+    const wrapper = $('clientDetail');
+    const emptyEl = $('clientDetailEmpty');
+    if (!wrapper) return;
+    const client = clientCache.find((c) => c.id === clientId);
+    if (!client) {
+      if (wrapper) wrapper.classList.add('hidden');
+      if (emptyEl) emptyEl.classList.remove('hidden');
+      return;
+    }
+    if (emptyEl) emptyEl.classList.add('hidden');
+    wrapper.classList.remove('hidden');
+    const entries = clientHistoryFor(client.id);
+    const quotes = entries.filter((item) => item.status !== 'INVOICE');
+    const invoices = entries.filter((item) => item.status === 'INVOICE');
+    wrapper.innerHTML = `
+      <div class="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <h3 class="text-lg font-semibold text-slate-900">${client.name || 'Client'}</h3>
+          <p class="text-xs text-slate-500">${client.email || 'No email on file'}${client.phone ? ` • ${client.phone}` : ''}</p>
+          <p class="mt-1 text-xs text-slate-500">${[client.address1, client.city, client.state, client.postalCode].filter(Boolean).join(', ') || ''}</p>
+        </div>
+        <div class="flex flex-wrap gap-2">
+          <button data-client-action="new-quote" class="rounded-full bg-emerald-500 px-3 py-2 text-xs font-semibold text-white hover:bg-emerald-600">New quote</button>
+        </div>
+      </div>
+      <div class="grid gap-4">
+        <section class="rounded-2xl border border-slate-200 bg-white p-4">
+          <div class="mb-2 flex items-center justify-between">
+            <h4 class="text-sm font-semibold text-slate-800">Quotes</h4>
+            <span class="text-xs text-slate-500">${quotes.length} total</span>
+          </div>
+          <div class="overflow-hidden rounded-xl border border-slate-100">
+            <table class="min-w-full text-sm">
+              <tbody>
+                ${quotes.map((item) => `<tr data-quote-id="${item.id}" class="cursor-pointer border-b border-slate-100 hover:bg-slate-50">
+                  <td class="px-3 py-2">
+                    <div class="font-medium text-slate-700">${item.quoteNumber || 'Quote'}</div>
+                    <div class="text-xs text-slate-500">${item.createdAt ? new Date(item.createdAt).toLocaleString() : ''}</div>
+                  </td>
+                  <td class="px-3 py-2 text-right text-slate-600">${currency(Number(item.grandTotal || 0))}</td>
+                </tr>`).join('') || '<tr><td class="px-3 py-2 text-xs text-slate-500">No quotes yet.</td></tr>'}
+              </tbody>
+            </table>
+          </div>
+        </section>
+        <section class="rounded-2xl border border-slate-200 bg-white p-4">
+          <div class="mb-2 flex items-center justify-between">
+            <h4 class="text-sm font-semibold text-slate-800">Invoices</h4>
+            <span class="text-xs text-slate-500">${invoices.length} total</span>
+          </div>
+          <div class="overflow-hidden rounded-xl border border-slate-100">
+            <table class="min-w-full text-sm">
+              <tbody>
+                ${invoices.map((item) => `<tr data-quote-id="${item.id}" class="cursor-pointer border-b border-slate-100 hover:bg-slate-50">
+                  <td class="px-3 py-2">
+                    <div class="font-medium text-slate-700">${item.invoiceNumber || item.quoteNumber || 'Invoice'}</div>
+                    <div class="text-xs text-slate-500">${item.invoiceDate ? new Date(item.invoiceDate).toLocaleDateString() : ''}</div>
+                  </td>
+                  <td class="px-3 py-2 text-right text-slate-600">${currency(Number(item.grandTotal || 0))}</td>
+                </tr>`).join('') || '<tr><td class="px-3 py-2 text-xs text-slate-500">No invoices yet.</td></tr>'}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </div>
+    `;
+  }
+
+  function renderQuotesTable() {
+    const tbody = $('quotesTableBody');
+    const empty = $('quotesEmptyState');
+    if (!tbody) return;
+    const clientFilter = $('quotesFilterClient')?.value || '';
+    const statusFilter = $('quotesFilterStatus')?.value || '';
+    const from = $('quotesFilterFrom')?.value ? new Date($('quotesFilterFrom').value) : null;
+    const to = $('quotesFilterTo')?.value ? new Date($('quotesFilterTo').value) : null;
+    const rows = historyCache.filter((item) => {
+      if (statusFilter && item.status !== statusFilter) return false;
+      if (clientFilter && item.clientId !== clientFilter) return false;
+      if (from && item.createdAt && new Date(item.createdAt) < from) return false;
+      if (to && item.createdAt && new Date(item.createdAt) > to) return false;
+      return true;
+    });
+    tbody.innerHTML = '';
+    if (!rows.length) {
+      if (empty) empty.classList.remove('hidden');
+      return;
+    }
+    if (empty) empty.classList.add('hidden');
+    rows
+      .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0))
+      .forEach((item) => {
+        tbody.insertAdjacentHTML(
+          'beforeend',
+          `<tr data-quote-id="${item.id}" class="cursor-pointer border-b border-slate-100 hover:bg-slate-50">
+            <td class="px-3 py-2">
+              <div class="font-medium text-slate-700">${item.quoteNumber || 'Quote'}</div>
+              <div class="text-xs text-slate-500">${item.clientName || 'Client'}</div>
+            </td>
+            <td class="px-3 py-2 text-slate-600">${item.clientName || '—'}</td>
+            <td class="px-3 py-2 text-slate-500">${item.createdAt ? new Date(item.createdAt).toLocaleString() : '—'}</td>
+            <td class="px-3 py-2 text-slate-600">${currency(Number(item.grandTotal || 0))}</td>
+            <td class="px-3 py-2">
+              <span class="rounded-full bg-emerald-50 px-2 py-1 text-xs font-semibold text-emerald-600">${item.status}</span>
+            </td>
+          </tr>`
+        );
+      });
+  }
+
+  function renderInvoicesTable() {
+    const tbody = $('invoicesTableBody');
+    const empty = $('invoicesEmptyState');
+    if (!tbody) return;
+    const clientFilter = $('invoicesFilterClient')?.value || '';
+    const from = $('invoicesFilterFrom')?.value ? new Date($('invoicesFilterFrom').value) : null;
+    const to = $('invoicesFilterTo')?.value ? new Date($('invoicesFilterTo').value) : null;
+    const rows = historyCache.filter((item) => {
+      if (item.status !== 'INVOICE') return false;
+      if (clientFilter && item.clientId !== clientFilter) return false;
+      if (from && item.invoiceDate && new Date(item.invoiceDate) < from) return false;
+      if (to && item.invoiceDate && new Date(item.invoiceDate) > to) return false;
+      return true;
+    });
+    tbody.innerHTML = '';
+    if (!rows.length) {
+      if (empty) empty.classList.remove('hidden');
+      return;
+    }
+    if (empty) empty.classList.add('hidden');
+    rows
+      .sort((a, b) => new Date(b.invoiceDate || b.createdAt || 0) - new Date(a.invoiceDate || a.createdAt || 0))
+      .forEach((item) => {
+        tbody.insertAdjacentHTML(
+          'beforeend',
+          `<tr data-quote-id="${item.id}" class="cursor-pointer border-b border-slate-100 hover:bg-slate-50">
+            <td class="px-3 py-2">
+              <div class="font-medium text-slate-700">${item.invoiceNumber || item.quoteNumber || 'Invoice'}</div>
+            </td>
+            <td class="px-3 py-2 text-slate-600">${item.clientName || 'Client'}</td>
+            <td class="px-3 py-2 text-slate-500">${item.invoiceDate ? new Date(item.invoiceDate).toLocaleDateString() : '—'}</td>
+            <td class="px-3 py-2 text-slate-600">${currency(Number(item.grandTotal || 0))}</td>
+            <td class="px-3 py-2">
+              <span class="rounded-full bg-emerald-50 px-2 py-1 text-xs font-semibold text-emerald-600">${item.status}</span>
+            </td>
+          </tr>`
+        );
+      });
+  }
+
+  async function openQuoteFromHistory(quoteId) {
+    const item = historyCache.find((entry) => entry.id === quoteId);
+    if (!item) return;
+    if (item.clientId) {
+      clientDetailSelection = item.clientId;
+    }
+    if (item.vendorId && item.vendorId !== activeVendorId) {
+      activeVendorId = item.vendorId;
+      historyFilters.vendorId = activeVendorId;
+      renderVendorSelect();
+      if (hasBackend && activeVendorId) {
+        await listClientsByVendor(activeVendorId);
+      }
+    }
+    const vendorSelect = $('vendorSelect');
+    if (vendorSelect && item.vendorId) vendorSelect.value = item.vendorId;
+    if (item.clientId) {
+      activeClientId = item.clientId;
+      historyFilters.clientId = item.clientId;
+      const client = clientCache.find((c) => c.id === item.clientId);
+      if (client) populateJobDetailsFromClient(client);
+      const clientSelect = $('clientSelect');
+      if (clientSelect) clientSelect.value = item.clientId;
+    }
+    renderClientList();
+    documentMode = item.status === 'INVOICE' ? 'invoice' : 'quote';
+    if (item.invoiceNumber && $('invoiceNumber')) $('invoiceNumber').value = item.invoiceNumber;
+    if (item.invoiceDate && $('invoiceDueDate')) {
+      $('invoiceDueDate').value = item.invoiceDate.slice(0, 10);
+    }
+    compute();
+    setView('quote-builder');
   }
 
   function renderHistoryList() {
@@ -641,23 +1051,23 @@
       .forEach((item) => {
         const created = item.createdAt ? new Date(item.createdAt).toLocaleString() : '—';
         const statusBadge = item.status === 'INVOICE'
-          ? '<span class="rounded-full bg-lime-400/20 px-2 py-1 text-xs font-semibold text-lime-300">Invoice</span>'
-          : '<span class="rounded-full bg-lagoon/10 px-2 py-1 text-xs font-semibold text-lagoon">Quote</span>';
+          ? '<span class="rounded-full bg-emerald-50 px-2 py-1 text-xs font-semibold text-emerald-600">Invoice</span>'
+          : '<span class="rounded-full bg-sky-50 px-2 py-1 text-xs font-semibold text-sky-600">Quote</span>';
         const action = item.status === 'INVOICE'
-          ? `<span class="text-xs text-white/50">Converted ${item.invoiceDate ? new Date(item.invoiceDate).toLocaleDateString() : ''}</span>`
-          : `<button type="button" data-action="convert" data-quote-id="${item.id}" class="rounded-full bg-lagoon px-3 py-1 text-xs font-semibold text-night hover:brightness-110">Convert to invoice</button>`;
-        const clientLine = item.clientName ? `<div class="text-xs text-white/50">${item.clientName}</div>` : '';
+          ? `<span class="text-xs text-slate-500">Converted ${item.invoiceDate ? new Date(item.invoiceDate).toLocaleDateString() : ''}</span>`
+          : `<button type="button" data-action="convert" data-quote-id="${item.id}" class="rounded-full bg-emerald-500 px-3 py-1 text-xs font-semibold text-white hover:bg-emerald-600">Convert to invoice</button>`;
+        const clientLine = item.clientName ? `<div class="text-xs text-slate-500">${item.clientName}</div>` : '';
         table.insertAdjacentHTML(
           'beforeend',
-          `<tr class="border-b border-white/5 last:border-0">
-            <td class="px-3 py-3 text-sm text-white/80">
-              <div>${item.quoteNumber || '—'}</div>
+          `<tr class="border-b border-slate-100 last:border-0">
+            <td class="px-3 py-3 text-sm text-slate-700">
+              <div class="font-medium">${item.quoteNumber || '—'}</div>
               ${clientLine}
             </td>
-            <td class="px-3 py-3 text-sm text-white/60">${created}</td>
-            <td class="px-3 py-3 text-sm text-white/60">${currency(Number(item.grandTotal || 0))}</td>
+            <td class="px-3 py-3 text-sm text-slate-500">${created}</td>
+            <td class="px-3 py-3 text-sm text-slate-600">${currency(Number(item.grandTotal || 0))}</td>
             <td class="px-3 py-3 text-sm">${statusBadge}</td>
-            <td class="px-3 py-3 text-right text-sm text-white/70">${action}</td>
+            <td class="px-3 py-3 text-right text-sm text-slate-600">${action}</td>
           </tr>`
         );
       });
@@ -693,7 +1103,7 @@
     container.innerHTML = '';
     if (!quoteAttachments.length) {
       const empty = document.createElement('p');
-      empty.className = 'text-xs text-white/50';
+      empty.className = 'text-xs text-slate-500';
       empty.textContent = hasBackend
         ? 'No site photos uploaded yet.'
         : 'Enable cloud sync to upload and store photos.';
@@ -703,7 +1113,7 @@
     }
     quoteAttachments.forEach((att) => {
       const wrapper = document.createElement('div');
-      wrapper.className = 'relative h-20 w-28 overflow-hidden rounded-xl border border-white/15 bg-white/5';
+      wrapper.className = 'relative h-20 w-28 overflow-hidden rounded-xl border border-slate-200 bg-slate-100';
       const img = document.createElement('img');
       img.className = 'absolute inset-0 h-full w-full object-cover';
       img.alt = att.fileName || 'Site photo';
@@ -712,7 +1122,7 @@
       }
       wrapper.appendChild(img);
       const placeholder = document.createElement('div');
-      placeholder.className = 'absolute inset-0 flex items-center justify-center px-2 text-center text-[11px] text-white/70 backdrop-blur-xs transition-opacity duration-300';
+      placeholder.className = 'absolute inset-0 flex items-center justify-center px-2 text-center text-[11px] text-slate-600 backdrop-blur-xs transition-opacity duration-300';
       placeholder.textContent = att.fileName || 'Photo';
       if (att.url) {
         placeholder.classList.add('opacity-0');
@@ -1337,6 +1747,13 @@
       console.warn("[Pestimator] Auth module missing; proceeding without enforced login.");
     }
 
+    document.querySelectorAll('#appSidebar [data-nav]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const target = btn.getAttribute('data-nav');
+        if (target) setView(target);
+      });
+    });
+
     renderPestPicker();
     restore();
     renderPhotoPreview();
@@ -1344,8 +1761,22 @@
     refreshBlocks();
     renderHistoryList();
 
+    const cloudStatusInitial = $('cloudStatus');
+    if (cloudStatusInitial) {
+      if (hasBackend) {
+        cloudStatusInitial.textContent = 'Cloud sync: Connecting…';
+        cloudStatusInitial.className = 'inline-flex items-center gap-1 text-xs text-slate-500';
+      } else {
+        cloudStatusInitial.textContent = 'Cloud sync: Demo only';
+        cloudStatusInitial.className = 'inline-flex items-center gap-1 text-xs text-amber-600';
+      }
+    }
+
+    setView('quote-builder');
+
     if (hasBackend) {
       remoteStatus('Syncing cloud workspace…');
+      const cloudStatusEl = $('cloudStatus');
       bootstrapVendors()
         .then(() => {
           historyFilters.vendorId = activeVendorId;
@@ -1354,10 +1785,18 @@
         })
         .then(() => {
           remoteStatus('Cloud sync connected', 'success');
+          if (cloudStatusEl) {
+            cloudStatusEl.textContent = 'Cloud sync: Connected';
+            cloudStatusEl.className = 'inline-flex items-center gap-1 text-xs text-emerald-600';
+          }
         })
         .catch((err) => {
           console.error('[Pestimator] Vendor bootstrap failed', err);
           remoteStatus('Amplify sync failed — see console', 'error');
+          if (cloudStatusEl) {
+            cloudStatusEl.textContent = 'Cloud sync: Error';
+            cloudStatusEl.className = 'inline-flex items-center gap-1 text-xs text-rose-600';
+          }
         });
     } else {
       remoteStatus('Offline demo — cloud sync disabled', 'warn');
@@ -1632,6 +2071,14 @@
         historyFilters.vendorId = activeVendorId || null;
         activeClientId = null;
         historyFilters.clientId = null;
+        clientSearchTerm = '';
+        clientDetailSelection = null;
+        const searchInput = $('clientSearch');
+        if (searchInput) searchInput.value = '';
+        const detail = $('clientDetail');
+        const detailEmpty = $('clientDetailEmpty');
+        if (detail) detail.classList.add('hidden');
+        if (detailEmpty) detailEmpty.classList.remove('hidden');
         renderClientSelect();
         if (hasBackend && activeVendorId) {
           await listClientsByVendor(activeVendorId);
@@ -1653,6 +2100,14 @@
         historyFilters.vendorId = activeVendorId || null;
         activeClientId = null;
         historyFilters.clientId = null;
+        clientSearchTerm = '';
+        clientDetailSelection = null;
+        const searchInput = $('clientSearch');
+        if (searchInput) searchInput.value = '';
+        const detail = $('clientDetail');
+        const detailEmpty = $('clientDetailEmpty');
+        if (detail) detail.classList.add('hidden');
+        if (detailEmpty) detailEmpty.classList.remove('hidden');
         renderVendorSelect();
         closeModal('vendorModal');
         if (hasBackend && activeVendorId) {
@@ -1661,6 +2116,36 @@
         if (hasBackend) {
           await loadHistory(true);
         }
+      });
+    }
+
+    const clientListEl = $('clientList');
+    if (clientListEl) {
+      clientListEl.addEventListener('click', (event) => {
+        const item = event.target.closest('li[data-client-id]');
+        if (!item) return;
+        openClientDetail(item.getAttribute('data-client-id'));
+        renderClientList();
+      });
+    }
+
+    const clientDetailEl = $('clientDetail');
+    if (clientDetailEl) {
+      clientDetailEl.addEventListener('click', (event) => {
+        const actionBtn = event.target.closest('[data-client-action]');
+        if (!actionBtn) return;
+        if (actionBtn.getAttribute('data-client-action') === 'new-quote') {
+          documentMode = 'quote';
+          setView('quote-builder');
+        }
+      });
+    }
+
+    const clientSearchInput = $('clientSearch');
+    if (clientSearchInput) {
+      clientSearchInput.addEventListener('input', (event) => {
+        clientSearchTerm = (event.target.value || '').toString();
+        renderClientList();
       });
     }
 
@@ -1679,6 +2164,94 @@
       });
     }
 
+    const btnVendorNew = $('btnVendorNew');
+    if (btnVendorNew) {
+      btnVendorNew.addEventListener('click', (event) => {
+        event.preventDefault();
+        if (!hasBackend) {
+          alert('Connect Amplify to manage vendors.');
+          return;
+        }
+        const form = $('vendorForm');
+        form?.reset();
+        openModal('vendorModal');
+      });
+    }
+
+    const btnOpenVendorModal = $('btnOpenVendorModal');
+    if (btnOpenVendorModal) {
+      btnOpenVendorModal.addEventListener('click', (event) => {
+        event.preventDefault();
+        if (!hasBackend) {
+          alert('Connect Amplify to manage vendors.');
+          return;
+        }
+        openModal('vendorModal');
+      });
+    }
+
+    const btnQuotesRefresh = $('btnQuotesRefresh');
+    if (btnQuotesRefresh) {
+      btnQuotesRefresh.addEventListener('click', async (event) => {
+        event.preventDefault();
+        if (hasBackend) {
+          await loadHistory(true);
+        }
+        renderQuotesTable();
+      });
+    }
+
+    const btnInvoicesRefresh = $('btnInvoicesRefresh');
+    if (btnInvoicesRefresh) {
+      btnInvoicesRefresh.addEventListener('click', async (event) => {
+        event.preventDefault();
+        if (hasBackend) {
+          await loadHistory(true);
+        }
+        renderInvoicesTable();
+      });
+    }
+
+    const btnNewQuote = $('btnNewQuote');
+    if (btnNewQuote) {
+      btnNewQuote.addEventListener('click', (event) => {
+        event.preventDefault();
+        documentMode = 'quote';
+        setView('quote-builder');
+      });
+    }
+
+    const btnInvoicesNewQuote = $('btnInvoicesNewQuote');
+    if (btnInvoicesNewQuote) {
+      btnInvoicesNewQuote.addEventListener('click', (event) => {
+        event.preventDefault();
+        documentMode = 'quote';
+        setView('quote-builder');
+      });
+    }
+
+    const btnInvoicesApply = $('btnInvoicesApply');
+    if (btnInvoicesApply) {
+      btnInvoicesApply.addEventListener('click', (event) => {
+        event.preventDefault();
+        renderInvoicesTable();
+      });
+    }
+
+    const quotesFilterForm = $('quotesFilterForm');
+    if (quotesFilterForm) {
+      quotesFilterForm.addEventListener('change', () => {
+        renderQuotesTable();
+      });
+    }
+
+    const invoicesFilterForm = $('invoicesFilterForm');
+    if (invoicesFilterForm) {
+      invoicesFilterForm.addEventListener('change', () => {
+        renderInvoicesTable();
+      });
+    }
+
     const btnManageClients = $('btnManageClients');
     if (btnManageClients) {
       btnManageClients.addEventListener('click', (event) => {
@@ -1689,6 +2262,26 @@
         }
         if (!activeVendorId) {
           alert('Select a vendor before managing clients.');
+          return;
+        }
+        const form = $('clientForm');
+        form?.reset();
+        const idInput = $('clientId');
+        if (idInput) idInput.value = '';
+        openModal('clientModal');
+      });
+    }
+
+    const btnNewClient = $('btnNewClient');
+    if (btnNewClient) {
+      btnNewClient.addEventListener('click', (event) => {
+        event.preventDefault();
+        if (!hasBackend) {
+          alert('Connect Amplify to manage clients.');
+          return;
+        }
+        if (!activeVendorId) {
+          alert('Select a vendor before creating clients.');
           return;
         }
         const form = $('clientForm');
@@ -1907,6 +2500,24 @@
         if (label) label.textContent = quote?.quoteNumber || 'Selected quote';
         convertQuoteTargetId = quoteId;
         openModal('convertModal');
+      });
+    }
+
+    const quotesTableBody = $('quotesTableBody');
+    if (quotesTableBody) {
+      quotesTableBody.addEventListener('click', (event) => {
+        const row = event.target.closest('tr[data-quote-id]');
+        if (!row) return;
+        openQuoteFromHistory(row.getAttribute('data-quote-id'));
+      });
+    }
+
+    const invoicesTableBody = $('invoicesTableBody');
+    if (invoicesTableBody) {
+      invoicesTableBody.addEventListener('click', (event) => {
+        const row = event.target.closest('tr[data-quote-id]');
+        if (!row) return;
+        openQuoteFromHistory(row.getAttribute('data-quote-id'));
       });
     }
 
