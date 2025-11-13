@@ -29,7 +29,10 @@
   let historyNextToken = null;
   let historyFilters = { vendorId: null, clientId: null, quoteNumber: '', from: null, to: null };
   let quoteAttachments = [];
+  let attachmentFetches = new WeakMap();
   let convertQuoteTargetId = null;
+  let demoVendorNoticeShown = false;
+  let demoClientNoticeShown = false;
 
   const amplifyGlobal = window.aws_amplify || {};
   const API = amplifyGlobal.API;
@@ -290,10 +293,29 @@
     const manageBtn = $('btnManageClients');
     if (!select) return;
     select.innerHTML = '';
-    if (!hasBackend || !activeVendorId) {
+    if (!hasBackend) {
       const opt = document.createElement('option');
       opt.value = '';
-      opt.textContent = hasBackend ? 'Select a vendor first' : 'Connect Amplify to manage clients';
+      opt.textContent = 'Connect Amplify to manage clients';
+      select.appendChild(opt);
+      select.disabled = true;
+      if (manageBtn) {
+        manageBtn.disabled = true;
+        manageBtn.classList.add('opacity-50', 'cursor-not-allowed');
+      }
+      if (!demoClientNoticeShown) {
+        remoteStatus('Connect AWS Amplify to manage clients.', 'warn');
+        demoClientNoticeShown = true;
+      }
+      return;
+    }
+
+    demoClientNoticeShown = false;
+
+    if (!activeVendorId) {
+      const opt = document.createElement('option');
+      opt.value = '';
+      opt.textContent = 'Select a vendor first';
       select.appendChild(opt);
       select.disabled = true;
       if (manageBtn) {
@@ -540,8 +562,13 @@
       container.disabled = true;
       if (manageBtn) manageBtn.classList.add('hidden');
       if (historyBtn) historyBtn.classList.add('hidden');
+      if (!demoVendorNoticeShown) {
+        remoteStatus('Connect AWS Amplify to manage vendors and cloud history.', 'warn');
+        demoVendorNoticeShown = true;
+      }
       return;
     }
+    demoVendorNoticeShown = false;
     container.parentElement?.classList.remove('hidden');
     container.disabled = false;
     container.innerHTML = '';
@@ -685,21 +712,33 @@
       }
       wrapper.appendChild(img);
       const placeholder = document.createElement('div');
-      placeholder.className = 'absolute inset-0 flex items-center justify-center px-2 text-center text-[11px] text-white/70 backdrop-blur-xs';
+      placeholder.className = 'absolute inset-0 flex items-center justify-center px-2 text-center text-[11px] text-white/70 backdrop-blur-xs transition-opacity duration-300';
       placeholder.textContent = att.fileName || 'Photo';
+      if (att.url) {
+        placeholder.classList.add('opacity-0');
+      }
       wrapper.appendChild(placeholder);
       container.appendChild(wrapper);
       if (!att.url && Storage?.get && att.key) {
-        Storage.get(att.key, { level: 'private' })
-          .then((url) => {
-            if (!url) return;
-            att.url = url;
-            img.src = url;
-            placeholder.classList.add('opacity-0');
-          })
-          .catch((err) => {
-            console.warn('[Pestimator] Failed to load photo preview', err);
-          });
+        const existing = attachmentFetches.get(att);
+        if (!existing) {
+          const fetchPromise = Storage.get(att.key, { level: 'private' })
+            .then((url) => {
+              if (!url) return;
+              att.url = url;
+              img.src = url;
+              placeholder.classList.add('opacity-0');
+            })
+            .catch((err) => {
+              console.warn('[Pestimator] Failed to load photo preview', err);
+            })
+            .finally(() => {
+              if (attachmentFetches.get(att) === fetchPromise) {
+                attachmentFetches.delete(att);
+              }
+            });
+          attachmentFetches.set(att, fetchPromise);
+        }
       }
     });
     saveQuote();
@@ -731,14 +770,20 @@
       const safeName = file.name.replace(/\s+/g, '_');
       const key = `pestimator/uploads/${ts}-${safeName}`;
       await Storage.put(key, file, { level: 'private', contentType: file.type });
-      quoteAttachments.push({ key, fileName: file.name });
-      renderPhotoPreview();
+      return { key, fileName: file.name };
     });
 
-    Promise.all(uploads).catch((err) => {
-      console.error('[Pestimator] Photo upload failed', err);
-      remoteStatus('Photo upload failed. See console.', 'error');
-    });
+    Promise.all(uploads)
+      .then((items) => {
+        const additions = items.filter(Boolean);
+        if (!additions.length) return;
+        quoteAttachments.push(...additions);
+        renderPhotoPreview();
+      })
+      .catch((err) => {
+        console.error('[Pestimator] Photo upload failed', err);
+        remoteStatus('Photo upload failed. See console.', 'error');
+      });
     if (input) input.value = '';
   }
 
@@ -806,6 +851,7 @@
       selectedPests = Array.isArray(d.selectedPests) ? d.selectedPests : [];
       pestPricing = d.pestPricing || {};
       quoteAttachments = Array.isArray(d.attachments) ? d.attachments : [];
+      attachmentFetches = new WeakMap();
       renderPhotoPreview();
     } catch {}
   }
@@ -1306,6 +1352,9 @@
           renderVendorSelect();
           return loadHistory(true);
         })
+        .then(() => {
+          remoteStatus('Cloud sync connected', 'success');
+        })
         .catch((err) => {
           console.error('[Pestimator] Vendor bootstrap failed', err);
           remoteStatus('Amplify sync failed — see console', 'error');
@@ -1514,6 +1563,7 @@
         pestPricing = {};
         documentMode = "quote";
         quoteAttachments = [];
+        attachmentFetches = new WeakMap();
         renderPhotoPreview();
 
         const checks = document.querySelectorAll('#pestPicker input[type="checkbox"]');
