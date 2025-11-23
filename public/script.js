@@ -30,6 +30,7 @@
   let historyFilters = { vendorId: null, clientId: null, quoteNumber: '', from: null, to: null };
   let quoteAttachments = [];
   let attachmentFetches = new WeakMap();
+  let currentQuoteId = null;
   let convertQuoteTargetId = null;
   let demoVendorNoticeShown = false;
   let demoClientNoticeShown = false;
@@ -52,11 +53,15 @@
         clientName
         quoteNumber
         status
+        payload
         subtotal
         taxTotal
         grandTotal
         invoiceNumber
         invoiceDate
+        paidAt
+        paymentMethod
+        paymentNotes
         createdAt
         updatedAt
       }
@@ -72,6 +77,31 @@
         updatedAt
       }
     }`,
+    updateQuote: `mutation UpdateQuote($input: UpdateQuoteInput!) {
+      updateQuote(input: $input) {
+        id
+        vendorId
+        clientId
+        clientName
+        quoteNumber
+        status
+        subtotal
+        taxTotal
+        grandTotal
+        invoiceNumber
+        invoiceDate
+        paidAt
+        paymentMethod
+        paymentNotes
+        createdAt
+        updatedAt
+      }
+    }`,
+    deleteQuote: `mutation DeleteQuote($input: DeleteQuoteInput!) {
+      deleteQuote(input: $input) {
+        id
+      }
+    }`,
     listQuotes: `query ListQuotes($filter: ModelQuoteFilterInput, $limit: Int, $nextToken: String) {
       listQuotes(filter: $filter, limit: $limit, nextToken: $nextToken) {
         items {
@@ -81,11 +111,15 @@
           clientName
           quoteNumber
           status
+          payload
           subtotal
           taxTotal
           grandTotal
           invoiceNumber
           invoiceDate
+          paidAt
+          paymentMethod
+          paymentNotes
           createdAt
           updatedAt
         }
@@ -504,6 +538,7 @@
     });
     const quote = result?.data?.createQuoteWithNumber;
     if (quote) {
+      currentQuoteId = quote.id;
       historyCache = [quote, ...historyCache];
       renderHistoryList();
       remoteStatus(`Quote ${quote.quoteNumber} saved`, 'success');
@@ -574,6 +609,79 @@
       remoteStatus(`Invoice ${updated.invoiceNumber} created`, 'success');
     }
     return updated;
+  }
+
+  async function markInvoicePaid(quoteId, { paymentMethod, paymentNotes } = {}) {
+    if (!hasBackend) return null;
+    try {
+      remoteStatus('Marking invoice paid…');
+      const result = await callGraphQL(GRAPHQL.updateQuote, {
+        input: {
+          id: quoteId,
+          status: 'PAID',
+          paidAt: new Date().toISOString(),
+          paymentMethod: paymentMethod || null,
+          paymentNotes: paymentNotes || null
+        }
+      });
+      const updated = result?.data?.updateQuote;
+      if (updated) {
+        historyCache = historyCache.map((item) => (item.id === updated.id ? { ...item, ...updated } : item));
+        renderHistoryList();
+        renderDashboard();
+        renderInvoicesTable();
+        remoteStatus('Invoice marked paid', 'success');
+      }
+      return updated;
+    } catch (err) {
+      console.error('[Pestimator] Failed to mark paid', err);
+      remoteStatus('Failed to mark invoice paid', 'error');
+      return null;
+    }
+  }
+
+  async function voidInvoice(quoteId) {
+    if (!hasBackend) return null;
+    try {
+      remoteStatus('Voiding invoice…');
+      const result = await callGraphQL(GRAPHQL.updateQuote, {
+        input: { id: quoteId, status: 'VOID', paidAt: null }
+      });
+      const updated = result?.data?.updateQuote;
+      if (updated) {
+        historyCache = historyCache.map((item) => (item.id === updated.id ? { ...item, ...updated } : item));
+        renderHistoryList();
+        renderDashboard();
+        renderInvoicesTable();
+        remoteStatus('Invoice voided', 'success');
+      }
+      return updated;
+    } catch (err) {
+      console.error('[Pestimator] Failed to void invoice', err);
+      remoteStatus('Failed to void invoice', 'error');
+      return null;
+    }
+  }
+
+  async function deleteQuoteRemote(quoteId) {
+    if (!hasBackend) return null;
+    const confirmed = window.confirm('Delete this quote/invoice? This cannot be undone.');
+    if (!confirmed) return null;
+    try {
+      remoteStatus('Deleting…');
+      await callGraphQL(GRAPHQL.deleteQuote, { input: { id: quoteId } });
+      historyCache = historyCache.filter((item) => item.id !== quoteId);
+      renderHistoryList();
+      renderDashboard();
+      renderQuotesTable();
+      renderInvoicesTable();
+      remoteStatus('Deleted', 'success');
+      return true;
+    } catch (err) {
+      console.error('[Pestimator] Failed to delete quote', err);
+      remoteStatus('Delete failed', 'error');
+      return null;
+    }
   }
   async function deriveKey(pass, saltB) {
     const km = await crypto.subtle.importKey("raw", enc.encode(pass), "PBKDF2", false, ["deriveKey"]);
@@ -735,6 +843,8 @@
     const openQuotesEl = $('dashboardOpenQuotes');
     const openInvoicesEl = $('dashboardOpenInvoices');
     const monthlyValueEl = $('dashboardMonthlyValue');
+    const invoicedMonthEl = $('dashboardInvoicedMonth');
+    const paidMonthEl = $('dashboardPaidMonth');
     const recentList = $('dashboardRecentActivity');
     const vendorListEl = $('dashboardVendors');
     const vendorEmpty = $('dashboardVendorsEmpty');
@@ -747,10 +857,15 @@
       const count = historyCache.filter((item) => item.status === 'INVOICE').length;
       openInvoicesEl.textContent = count;
     }
+    const now = new Date();
+    const month = now.getMonth();
+    const year = now.getFullYear();
+    const monthMatches = (dateStr) => {
+      if (!dateStr) return false;
+      const d = new Date(dateStr);
+      return d.getMonth() === month && d.getFullYear() === year;
+    };
     if (monthlyValueEl) {
-      const now = new Date();
-      const month = now.getMonth();
-      const year = now.getFullYear();
       const total = historyCache.reduce((sum, item) => {
         if (!item.createdAt) return sum;
         const created = new Date(item.createdAt);
@@ -760,6 +875,22 @@
         return sum;
       }, 0);
       monthlyValueEl.textContent = currency(total);
+    }
+    if (invoicedMonthEl) {
+      const total = historyCache.reduce((sum, item) => {
+        if (!['INVOICE', 'PAID'].includes(item.status)) return sum;
+        if (!monthMatches(item.invoiceDate || item.createdAt)) return sum;
+        return sum + Number(item.grandTotal || 0);
+      }, 0);
+      invoicedMonthEl.textContent = currency(total);
+    }
+    if (paidMonthEl) {
+      const total = historyCache.reduce((sum, item) => {
+        if (item.status !== 'PAID') return sum;
+        if (!monthMatches(item.paidAt)) return sum;
+        return sum + Number(item.grandTotal || 0);
+      }, 0);
+      paidMonthEl.textContent = currency(total);
     }
     if (recentList) {
       recentList.innerHTML = '';
@@ -864,8 +995,8 @@
     if (emptyEl) emptyEl.classList.add('hidden');
     wrapper.classList.remove('hidden');
     const entries = clientHistoryFor(client.id);
-    const quotes = entries.filter((item) => item.status !== 'INVOICE');
-    const invoices = entries.filter((item) => item.status === 'INVOICE');
+    const quotes = entries.filter((item) => item.status === 'QUOTE');
+    const invoices = entries.filter((item) => ['INVOICE', 'PAID', 'VOID'].includes(item.status));
     wrapper.innerHTML = `
       <div class="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
         <div>
@@ -944,19 +1075,31 @@
     rows
       .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0))
       .forEach((item) => {
+        const badgeClass = item.status === 'QUOTE'
+          ? 'bg-sky-50 text-sky-700'
+          : item.status === 'INVOICE'
+            ? 'bg-amber-50 text-amber-700'
+            : item.status === 'PAID'
+              ? 'bg-emerald-50 text-emerald-700'
+              : 'bg-slate-100 text-slate-700';
+        const actions = [
+          `<button type="button" data-action="open" data-quote-id="${item.id}" class="text-emerald-600 hover:underline">Open</button>`
+        ];
+        if (item.status === 'QUOTE') {
+          actions.push(`<button type="button" data-action="convert" data-quote-id="${item.id}" class="text-sky-600 hover:underline">Convert</button>`);
+        }
+        actions.push(`<button type="button" data-action="delete" data-quote-id="${item.id}" class="text-rose-600 hover:underline">Delete</button>`);
         tbody.insertAdjacentHTML(
           'beforeend',
-          `<tr data-quote-id="${item.id}" class="cursor-pointer border-b border-slate-100 hover:bg-slate-50">
+          `<tr class="border-b border-slate-100 last:border-0">
             <td class="px-3 py-2">
               <div class="font-medium text-slate-700">${item.quoteNumber || 'Quote'}</div>
               <div class="text-xs text-slate-500">${item.clientName || 'Client'}</div>
             </td>
-            <td class="px-3 py-2 text-slate-600">${item.clientName || '—'}</td>
             <td class="px-3 py-2 text-slate-500">${item.createdAt ? new Date(item.createdAt).toLocaleString() : '—'}</td>
             <td class="px-3 py-2 text-slate-600">${currency(Number(item.grandTotal || 0))}</td>
-            <td class="px-3 py-2">
-              <span class="rounded-full bg-emerald-50 px-2 py-1 text-xs font-semibold text-emerald-600">${item.status}</span>
-            </td>
+            <td class="px-3 py-2"><span class="rounded-full px-2 py-1 text-xs font-semibold ${badgeClass}">${item.status}</span></td>
+            <td class="px-3 py-2 space-x-2 text-xs text-slate-700">${actions.join(' • ')}</td>
           </tr>`
         );
       });
@@ -970,7 +1113,7 @@
     const from = $('invoicesFilterFrom')?.value ? new Date($('invoicesFilterFrom').value) : null;
     const to = $('invoicesFilterTo')?.value ? new Date($('invoicesFilterTo').value) : null;
     const rows = historyCache.filter((item) => {
-      if (item.status !== 'INVOICE') return false;
+      if (!['INVOICE', 'PAID', 'VOID'].includes(item.status)) return false;
       if (clientFilter && item.clientId !== clientFilter) return false;
       if (from && item.invoiceDate && new Date(item.invoiceDate) < from) return false;
       if (to && item.invoiceDate && new Date(item.invoiceDate) > to) return false;
@@ -985,21 +1128,65 @@
     rows
       .sort((a, b) => new Date(b.invoiceDate || b.createdAt || 0) - new Date(a.invoiceDate || a.createdAt || 0))
       .forEach((item) => {
+        const badgeClass = item.status === 'PAID'
+          ? 'bg-emerald-50 text-emerald-700'
+          : item.status === 'VOID'
+            ? 'bg-slate-100 text-slate-600'
+            : 'bg-amber-50 text-amber-700';
+        const actions = [
+          `<button type="button" data-action="open" data-quote-id="${item.id}" class="text-emerald-600 hover:underline">Open</button>`
+        ];
+        if (item.status === 'INVOICE') {
+          actions.push(`<button type=\"button\" data-action=\"mark-paid\" data-quote-id=\"${item.id}\" class=\"text-sky-600 hover:underline\">Mark paid</button>`);
+          actions.push(`<button type=\"button\" data-action=\"void\" data-quote-id=\"${item.id}\" class=\"text-slate-600 hover:underline\">Void</button>`);
+        }
+        actions.push(`<button type=\"button\" data-action=\"delete\" data-quote-id=\"${item.id}\" class=\"text-rose-600 hover:underline\">Delete</button>`);
         tbody.insertAdjacentHTML(
           'beforeend',
-          `<tr data-quote-id="${item.id}" class="cursor-pointer border-b border-slate-100 hover:bg-slate-50">
+          `<tr class="border-b border-slate-100 last:border-0">
             <td class="px-3 py-2">
               <div class="font-medium text-slate-700">${item.invoiceNumber || item.quoteNumber || 'Invoice'}</div>
+              <div class="text-xs text-slate-500">${item.clientName || 'Client'}</div>
             </td>
-            <td class="px-3 py-2 text-slate-600">${item.clientName || 'Client'}</td>
-            <td class="px-3 py-2 text-slate-500">${item.invoiceDate ? new Date(item.invoiceDate).toLocaleDateString() : '—'}</td>
+            <td class="px-3 py-2 text-slate-500">${item.invoiceDate ? new Date(item.invoiceDate).toLocaleDateString() : item.createdAt ? new Date(item.createdAt).toLocaleDateString() : '—'}</td>
             <td class="px-3 py-2 text-slate-600">${currency(Number(item.grandTotal || 0))}</td>
-            <td class="px-3 py-2">
-              <span class="rounded-full bg-emerald-50 px-2 py-1 text-xs font-semibold text-emerald-600">${item.status}</span>
-            </td>
+            <td class="px-3 py-2"><span class="rounded-full px-2 py-1 text-xs font-semibold ${badgeClass}">${item.status}</span></td>
+            <td class="px-3 py-2 space-x-2 text-xs text-slate-700">${actions.join(' • ')}</td>
           </tr>`
         );
       });
+  }
+
+  function loadQuoteIntoBuilder(quote) {
+    if (!quote) return;
+    currentQuoteId = quote.id || null;
+    documentMode = quote.status === 'INVOICE' || quote.status === 'PAID' || quote.status === 'VOID' ? 'invoice' : 'quote';
+    if (quote.invoiceNumber && $('invoiceNumber')) $('invoiceNumber').value = quote.invoiceNumber;
+    if (quote.invoiceDate && $('invoiceDueDate')) $('invoiceDueDate').value = quote.invoiceDate.slice(0, 10);
+    if (quote.payload) {
+      try {
+        const payload = JSON.parse(quote.payload);
+        fields.forEach((f) => {
+          const el = $(f);
+          if (!el || payload[f] == null) return;
+          if (el.type === 'checkbox') {
+            el.checked = payload[f] === true || payload[f] === 'true' || payload[f] === 'on';
+          } else {
+            el.value = payload[f];
+          }
+        });
+        selectedPests = Array.isArray(payload.selectedPests) ? payload.selectedPests : [];
+        pestPricing = payload.pestPricing || {};
+        quoteAttachments = Array.isArray(payload.attachments) ? payload.attachments : [];
+        attachmentFetches = new WeakMap();
+        renderPestPicker();
+        renderPestChargeRows();
+        renderPhotoPreview();
+      } catch (err) {
+        console.warn('[Pestimator] failed to load payload', err);
+      }
+    }
+    compute();
   }
 
   async function openQuoteFromHistory(quoteId) {
@@ -1027,12 +1214,7 @@
       if (clientSelect) clientSelect.value = item.clientId;
     }
     renderClientList();
-    documentMode = item.status === 'INVOICE' ? 'invoice' : 'quote';
-    if (item.invoiceNumber && $('invoiceNumber')) $('invoiceNumber').value = item.invoiceNumber;
-    if (item.invoiceDate && $('invoiceDueDate')) {
-      $('invoiceDueDate').value = item.invoiceDate.slice(0, 10);
-    }
-    compute();
+    loadQuoteIntoBuilder(item);
     setView('quote-builder');
   }
 
@@ -1097,6 +1279,11 @@
   }
 
   // ---- attachment helpers ----
+  function getAttachmentBasePrefix() {
+    if (!activeVendorId || !activeClientId) return null;
+    return `pestimator/${activeVendorId}/${activeClientId}`;
+  }
+
   function renderPhotoPreview() {
     const container = $('photoPreview');
     if (!container) return;
@@ -1106,12 +1293,12 @@
       empty.className = 'text-xs text-slate-500';
       empty.textContent = hasBackend
         ? 'No site photos uploaded yet.'
-        : 'Enable cloud sync to upload and store photos.';
+        : 'Connect Amplify to store and sync photos.';
       container.appendChild(empty);
       saveQuote();
       return;
     }
-    quoteAttachments.forEach((att) => {
+    quoteAttachments.forEach((att, idx) => {
       const wrapper = document.createElement('div');
       wrapper.className = 'relative h-20 w-28 overflow-hidden rounded-xl border border-slate-200 bg-slate-100';
       const img = document.createElement('img');
@@ -1128,6 +1315,20 @@
         placeholder.classList.add('opacity-0');
       }
       wrapper.appendChild(placeholder);
+      const remove = document.createElement('button');
+      remove.type = 'button';
+      remove.className = 'absolute right-1 top-1 rounded-full bg-white/80 px-2 text-xs text-slate-700 shadow';
+      remove.textContent = '✕';
+      remove.addEventListener('click', async (e) => {
+        e.preventDefault();
+        const target = quoteAttachments[idx];
+        quoteAttachments = quoteAttachments.filter((_, i) => i !== idx);
+        if (Storage?.remove && target?.key) {
+          try { await Storage.remove(target.key, { level: 'private' }); } catch (err) { console.warn('[Pestimator] remove photo failed', err); }
+        }
+        renderPhotoPreview();
+      });
+      wrapper.appendChild(remove);
       container.appendChild(wrapper);
       if (!att.url && Storage?.get && att.key) {
         const existing = attachmentFetches.get(att);
@@ -1154,47 +1355,51 @@
     saveQuote();
   }
 
-  async function onPhotoFilesSelected(evt) {
-    const input = evt.target;
+  async function handlePhotoUpload(event) {
+    const input = event.target;
     const files = Array.from(input?.files || []);
     if (!files.length) return;
-
     if (!hasBackend || !Storage?.put) {
-      files.forEach((file) => {
-        quoteAttachments.push({ key: null, fileName: file.name });
-      });
-      renderPhotoPreview();
-      if (input) input.value = '';
+      remoteStatus('Connect Amplify to store photos in the cloud.', 'warn');
+      input.value = '';
       return;
     }
-
+    if (!activeVendorId || !activeClientId) {
+      remoteStatus('Select a vendor and client before uploading photos.', 'warn');
+      input.value = '';
+      return;
+    }
+    const prefix = getAttachmentBasePrefix();
+    if (!prefix) {
+      remoteStatus('Select a client to attach photos.', 'warn');
+      input.value = '';
+      return;
+    }
     try {
       await ensureBackendSession({ silent: false });
     } catch (err) {
       remoteStatus(err?.message || 'Sign-in required for uploads', 'error');
+      input.value = '';
       return;
     }
-
-    const uploads = files.map(async (file) => {
-      const ts = Date.now();
-      const safeName = file.name.replace(/\s+/g, '_');
-      const key = `pestimator/uploads/${ts}-${safeName}`;
-      await Storage.put(key, file, { level: 'private', contentType: file.type });
-      return { key, fileName: file.name };
-    });
-
-    Promise.all(uploads)
-      .then((items) => {
-        const additions = items.filter(Boolean);
-        if (!additions.length) return;
-        quoteAttachments.push(...additions);
-        renderPhotoPreview();
-      })
-      .catch((err) => {
-        console.error('[Pestimator] Photo upload failed', err);
+    remoteStatus('Uploading photos…');
+    const uploaded = [];
+    for (const file of files) {
+      const key = `${prefix}/${currentQuoteId || 'draft'}/${Date.now()}-${file.name}`;
+      try {
+        await Storage.put(key, file, { level: 'private', contentType: file.type });
+        uploaded.push({ key, fileName: file.name, size: file.size, uploadedAt: new Date().toISOString() });
+      } catch (err) {
+        console.error('[Pestimator] upload failed', err);
         remoteStatus('Photo upload failed. See console.', 'error');
-      });
-    if (input) input.value = '';
+      }
+    }
+    if (uploaded.length) {
+      quoteAttachments.push(...uploaded);
+      renderPhotoPreview();
+      remoteStatus('Photos uploaded', 'success');
+    }
+    input.value = '';
   }
 
   function emailCurrentDocument() {
@@ -1969,7 +2174,7 @@
 
     const photoInput = $('quotePhotos');
     if (photoInput) {
-      photoInput.addEventListener('change', onPhotoFilesSelected);
+      photoInput.addEventListener('change', handlePhotoUpload);
     }
 
     // Reset button
@@ -2217,6 +2422,9 @@
       btnNewQuote.addEventListener('click', (event) => {
         event.preventDefault();
         documentMode = 'quote';
+        currentQuoteId = null;
+        quoteAttachments = [];
+        renderPhotoPreview();
         setView('quote-builder');
       });
     }
@@ -2226,6 +2434,9 @@
       btnInvoicesNewQuote.addEventListener('click', (event) => {
         event.preventDefault();
         documentMode = 'quote';
+        currentQuoteId = null;
+        quoteAttachments = [];
+        renderPhotoPreview();
         setView('quote-builder');
       });
     }
@@ -2505,19 +2716,49 @@
 
     const quotesTableBody = $('quotesTableBody');
     if (quotesTableBody) {
-      quotesTableBody.addEventListener('click', (event) => {
-        const row = event.target.closest('tr[data-quote-id]');
-        if (!row) return;
-        openQuoteFromHistory(row.getAttribute('data-quote-id'));
+      quotesTableBody.addEventListener('click', async (event) => {
+        const actionBtn = event.target.closest('button[data-action]');
+        if (!actionBtn) return;
+        const action = actionBtn.getAttribute('data-action');
+        const quoteId = actionBtn.getAttribute('data-quote-id');
+        if (!quoteId) return;
+        if (action === 'open') {
+          openQuoteFromHistory(quoteId);
+        } else if (action === 'convert') {
+          const quote = historyCache.find((q) => q.id === quoteId);
+          const invoiceNumber = prompt('Invoice number', quote?.invoiceNumber || `INV-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}`);
+          if (!invoiceNumber) return;
+          const invoiceDate = prompt('Invoice date (YYYY-MM-DD)', quote?.invoiceDate?.slice(0, 10) || new Date().toISOString().slice(0, 10));
+          if (!invoiceDate) return;
+          await convertQuoteRemote(quoteId, invoiceNumber, `${invoiceDate}T00:00:00.000Z`);
+          renderQuotesTable();
+          renderInvoicesTable();
+        } else if (action === 'delete') {
+          await deleteQuoteRemote(quoteId);
+        }
       });
     }
 
     const invoicesTableBody = $('invoicesTableBody');
     if (invoicesTableBody) {
-      invoicesTableBody.addEventListener('click', (event) => {
-        const row = event.target.closest('tr[data-quote-id]');
-        if (!row) return;
-        openQuoteFromHistory(row.getAttribute('data-quote-id'));
+      invoicesTableBody.addEventListener('click', async (event) => {
+        const actionBtn = event.target.closest('button[data-action]');
+        if (!actionBtn) return;
+        const action = actionBtn.getAttribute('data-action');
+        const quoteId = actionBtn.getAttribute('data-quote-id');
+        if (!quoteId) return;
+        if (action === 'open') {
+          openQuoteFromHistory(quoteId);
+        } else if (action === 'mark-paid') {
+          const method = prompt('Payment method (optional)');
+          const notes = prompt('Payment notes (optional)');
+          await markInvoicePaid(quoteId, { paymentMethod: method || null, paymentNotes: notes || null });
+          renderInvoicesTable();
+        } else if (action === 'void') {
+          await voidInvoice(quoteId);
+        } else if (action === 'delete') {
+          await deleteQuoteRemote(quoteId);
+        }
       });
     }
 

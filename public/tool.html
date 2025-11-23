@@ -147,6 +147,18 @@
                 <p class="mt-1 text-xs text-slate-500">Total quoted value in the current month.</p>
               </div>
             </div>
+            <div class="grid gap-4 md:grid-cols-3">
+              <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
+                <div class="text-xs font-semibold uppercase tracking-wide text-slate-500">Invoiced this month</div>
+                <div id="dashboardInvoicedMonth" class="mt-2 text-3xl font-semibold text-slate-900">$0</div>
+                <p class="mt-1 text-xs text-slate-500">Total invoiced value this month.</p>
+              </div>
+              <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
+                <div class="text-xs font-semibold uppercase tracking-wide text-slate-500">Paid this month</div>
+                <div id="dashboardPaidMonth" class="mt-2 text-3xl font-semibold text-slate-900">$0</div>
+                <p class="mt-1 text-xs text-slate-500">Payments recorded this month.</p>
+              </div>
+            </div>
             <div class="grid gap-4 lg:grid-cols-2">
               <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
                 <h2 class="text-lg font-semibold tracking-tight text-slate-900">Recent activity</h2>
@@ -217,6 +229,8 @@
                     <option value="">All</option>
                     <option value="QUOTE">Quotes</option>
                     <option value="INVOICE">Invoices</option>
+                    <option value="PAID">Paid</option>
+                    <option value="VOID">Void</option>
                   </select>
                 </div>
                 <div>
@@ -233,10 +247,10 @@
                   <thead class="bg-slate-50 text-xs font-semibold uppercase tracking-wide text-slate-500">
                     <tr>
                       <th class="px-3 py-2">Quote</th>
-                      <th class="px-3 py-2">Client</th>
                       <th class="px-3 py-2">Created</th>
                       <th class="px-3 py-2">Total</th>
                       <th class="px-3 py-2">Status</th>
+                      <th class="px-3 py-2">Actions</th>
                     </tr>
                   </thead>
                   <tbody id="quotesTableBody" class="divide-y divide-slate-100"></tbody>
@@ -286,10 +300,10 @@
                   <thead class="bg-slate-50 text-xs font-semibold uppercase tracking-wide text-slate-500">
                     <tr>
                       <th class="px-3 py-2">Invoice</th>
-                      <th class="px-3 py-2">Client</th>
                       <th class="px-3 py-2">Date</th>
                       <th class="px-3 py-2">Total</th>
                       <th class="px-3 py-2">Status</th>
+                      <th class="px-3 py-2">Actions</th>
                     </tr>
                   </thead>
                   <tbody id="invoicesTableBody" class="divide-y divide-slate-100"></tbody>
@@ -314,7 +328,7 @@
               </div>
             </div>
             <div class="grid gap-4 lg:grid-cols-2">
-              <section class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 space-y-4 no-print">
+              <section class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 space-y-4">
                 <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                   <div>
                     <h2 class="text-lg font-semibold tracking-tight text-slate-900">Job Details</h2>
@@ -398,7 +412,7 @@
                 </div>
               </section>
 
-              <section class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 space-y-4 no-print">
+              <section class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 space-y-4">
                 <div class="flex items-center justify-between">
                   <div>
                     <h2 class="text-lg font-semibold tracking-tight text-slate-900">Site Photos</h2>
