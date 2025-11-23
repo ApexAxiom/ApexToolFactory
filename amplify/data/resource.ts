@@ -3,7 +3,7 @@ import { defineData, a } from '@aws-amplify/backend';
 export const data = defineData({
   schema: a
     .schema({
-      QuoteStatus: a.enum(['QUOTE', 'INVOICE']),
+      QuoteStatus: a.enum(['QUOTE', 'INVOICE', 'PAID', 'VOID']),
       Vendor: a
         .model({
           id: a.id().required(),
@@ -52,6 +52,9 @@ export const data = defineData({
           invoiceNumber: a.string(),
           invoiceDate: a.datetime(),
           convertedAt: a.datetime(),
+          paidAt: a.datetime(),
+          paymentMethod: a.string(),
+          paymentNotes: a.string(),
           createdAt: a.datetime().required().defaultToNow(),
           updatedAt: a.datetime().required().updatedAt()
         })
