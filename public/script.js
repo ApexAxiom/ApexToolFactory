@@ -37,6 +37,7 @@
   let currentView = 'quote-builder';
   let clientDetailSelection = null;
   let clientSearchTerm = '';
+  let sidebarOpen = false;
 
   const amplifyGlobal = window.aws_amplify || {};
   const API = amplifyGlobal.API;
@@ -229,6 +230,19 @@
     }
   }
 
+  function setSidebar(open) {
+    sidebarOpen = open;
+    const sidebar = $('appSidebar');
+    const backdrop = $('sidebarBackdrop');
+    if (sidebar) {
+      sidebar.classList.toggle('-translate-x-full', !open);
+    }
+    if (backdrop) {
+      backdrop.classList.toggle('opacity-0', !open);
+      backdrop.classList.toggle('pointer-events-none', !open);
+    }
+  }
+
   function setView(view) {
     currentView = view;
     document.querySelectorAll('[data-view]').forEach((section) => {
@@ -389,14 +403,18 @@
   function renderClientSelect() {
     const select = $('clientSelect');
     const manageBtn = $('btnManageClients');
+    const typeInput = $('clientNameTypeahead');
+    const typeResults = $('clientTypeaheadResults');
     if (!select) return;
     select.innerHTML = '';
+    if (typeResults) typeResults.innerHTML = '';
     if (!hasBackend) {
       const opt = document.createElement('option');
       opt.value = '';
       opt.textContent = 'Connect Amplify to manage clients';
       select.appendChild(opt);
       select.disabled = true;
+      if (typeInput) typeInput.value = '';
       if (manageBtn) {
         manageBtn.disabled = true;
         manageBtn.classList.add('opacity-50', 'cursor-not-allowed');
@@ -418,6 +436,7 @@
       opt.textContent = 'Select a vendor first';
       select.appendChild(opt);
       select.disabled = true;
+      if (typeInput) typeInput.value = '';
       if (manageBtn) {
         manageBtn.disabled = true;
         manageBtn.classList.add('opacity-50', 'cursor-not-allowed');
@@ -437,17 +456,26 @@
       opt.textContent = 'No clients yet';
       select.appendChild(opt);
       select.disabled = true;
+      if (typeInput) typeInput.value = '';
       updateClientFilters();
       renderClientList();
       return;
     }
+    let selectedClient = null;
     clientCache.forEach((client) => {
       const opt = document.createElement('option');
       opt.value = client.id;
       opt.textContent = client.name || 'Client';
-      if (client.id === activeClientId) opt.selected = true;
+      if (client.id === activeClientId) {
+        opt.selected = true;
+        selectedClient = client;
+      }
       select.appendChild(opt);
     });
+    if (!selectedClient && clientCache.length) {
+      selectedClient = clientCache.find((c) => c.id === select.value) || clientCache[0];
+    }
+    if (typeInput) typeInput.value = selectedClient?.name || '';
     updateClientFilters();
     renderClientList();
   }
@@ -483,6 +511,7 @@
       historyFilters.clientId = activeClientId;
       populateJobDetailsFromClient(client);
       renderClientSelect();
+      openClientDetail(client.id);
       remoteStatus(`Client “${client.name}” saved`, 'success');
       await loadHistory(true);
     }
@@ -992,61 +1021,114 @@
       if (emptyEl) emptyEl.classList.remove('hidden');
       return;
     }
+    activeClientId = client.id;
+    historyFilters.clientId = client.id;
     if (emptyEl) emptyEl.classList.add('hidden');
     wrapper.classList.remove('hidden');
-    const entries = clientHistoryFor(client.id);
-    const quotes = entries.filter((item) => item.status === 'QUOTE');
-    const invoices = entries.filter((item) => ['INVOICE', 'PAID', 'VOID'].includes(item.status));
+    wrapper.classList.add('space-y-4');
+    const clientQuotes = historyCache.filter((item) => item.clientId === client.id && item.status !== 'VOID');
+    const quotesOnly = clientQuotes.filter((item) => item.status === 'QUOTE');
+    const invoicesOpen = clientQuotes.filter((item) => item.status === 'INVOICE');
+    const invoicesPaid = clientQuotes.filter((item) => item.status === 'PAID');
+    const invoicesAll = [...invoicesOpen, ...invoicesPaid];
+    const totalQuoted = clientQuotes.reduce((sum, item) => sum + Number(item.grandTotal || 0), 0);
+    const totalInvoiced = invoicesAll.reduce((sum, item) => sum + Number(item.grandTotal || 0), 0);
+    const totalPaid = invoicesPaid.reduce((sum, item) => sum + Number(item.grandTotal || 0), 0);
+    const outstanding = Math.max(0, totalInvoiced - totalPaid);
+    const stats = [
+      { label: 'Total Quoted', value: currency(totalQuoted) },
+      { label: 'Total Invoiced', value: currency(totalInvoiced) },
+      { label: 'Total Paid', value: currency(totalPaid) },
+      { label: 'Outstanding Balance', value: currency(outstanding) }
+    ];
+    const statusClass = (status) => (status === 'QUOTE'
+      ? 'bg-sky-50 text-sky-700'
+      : status === 'INVOICE'
+        ? 'bg-amber-50 text-amber-700'
+        : status === 'PAID'
+          ? 'bg-emerald-50 text-emerald-700'
+          : 'bg-slate-100 text-slate-600');
+    const sortedQuotes = quotesOnly
+      .slice()
+      .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+    const sortedInvoices = invoicesAll
+      .slice()
+      .sort((a, b) => new Date(b.invoiceDate || b.createdAt || 0) - new Date(a.invoiceDate || a.createdAt || 0));
+    const since = client.createdAt ? new Date(client.createdAt).toLocaleDateString() : '';
+    const typeInput = $('clientNameTypeahead');
+    if (typeInput) typeInput.value = client.name || '';
     wrapper.innerHTML = `
-      <div class="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-        <div>
-          <h3 class="text-lg font-semibold text-slate-900">${client.name || 'Client'}</h3>
-          <p class="text-xs text-slate-500">${client.email || 'No email on file'}${client.phone ? ` • ${client.phone}` : ''}</p>
-          <p class="mt-1 text-xs text-slate-500">${[client.address1, client.city, client.state, client.postalCode].filter(Boolean).join(', ') || ''}</p>
+      <div class="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+        <div class="space-y-1">
+          <h3 class="text-xl font-semibold text-slate-900">${client.name || 'Client'}</h3>
+          <p class="text-sm text-slate-600">${[client.address1, client.city, client.state, client.postalCode].filter(Boolean).join(', ') || 'No address provided'}</p>
+          <p class="text-sm text-slate-600">${[client.email || 'No email', client.phone || ''].filter(Boolean).join(' • ')}</p>
+          ${since ? `<p class="text-xs uppercase tracking-wide text-slate-500">Client since ${since}</p>` : ''}
         </div>
         <div class="flex flex-wrap gap-2">
-          <button data-client-action="new-quote" class="rounded-full bg-emerald-500 px-3 py-2 text-xs font-semibold text-white hover:bg-emerald-600">New quote</button>
+          <button type="button" data-client-action="edit-client" data-client-id="${client.id}" class="rounded-full border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50">Edit client</button>
+          <button type="button" data-client-action="new-quote" data-client-id="${client.id}" class="rounded-full bg-emerald-500 px-4 py-2 text-xs font-semibold text-white hover:bg-emerald-600">New quote</button>
+          <button type="button" data-client-action="new-invoice" data-client-id="${client.id}" class="rounded-full border border-emerald-100 bg-white px-4 py-2 text-xs font-semibold text-emerald-700 hover:bg-emerald-50">New invoice</button>
         </div>
       </div>
-      <div class="grid gap-4">
-        <section class="rounded-2xl border border-slate-200 bg-white p-4">
-          <div class="mb-2 flex items-center justify-between">
-            <h4 class="text-sm font-semibold text-slate-800">Quotes</h4>
-            <span class="text-xs text-slate-500">${quotes.length} total</span>
+      <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        ${stats.map((stat) => `
+          <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-4">
+            <div class="text-xs font-semibold uppercase tracking-wide text-slate-500">${stat.label}</div>
+            <div class="mt-2 text-2xl font-semibold text-slate-900">${stat.value}</div>
           </div>
-          <div class="overflow-hidden rounded-xl border border-slate-100">
-            <table class="min-w-full text-sm">
-              <tbody>
-                ${quotes.map((item) => `<tr data-quote-id="${item.id}" class="cursor-pointer border-b border-slate-100 hover:bg-slate-50">
-                  <td class="px-3 py-2">
-                    <div class="font-medium text-slate-700">${item.quoteNumber || 'Quote'}</div>
-                    <div class="text-xs text-slate-500">${item.createdAt ? new Date(item.createdAt).toLocaleString() : ''}</div>
-                  </td>
-                  <td class="px-3 py-2 text-right text-slate-600">${currency(Number(item.grandTotal || 0))}</td>
-                </tr>`).join('') || '<tr><td class="px-3 py-2 text-xs text-slate-500">No quotes yet.</td></tr>'}
-              </tbody>
-            </table>
+        `).join('')}
+      </div>
+      <div class="grid gap-4 lg:grid-cols-2">
+        <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 space-y-3">
+          <div class="flex items-center justify-between">
+            <h4 class="text-sm font-semibold text-slate-800">Quotes for ${client.name || 'Client'}</h4>
+            <button type="button" data-client-action="new-quote" data-client-id="${client.id}" class="rounded-full bg-emerald-500 px-3 py-2 text-xs font-semibold text-white hover:bg-emerald-600">New quote</button>
           </div>
-        </section>
-        <section class="rounded-2xl border border-slate-200 bg-white p-4">
-          <div class="mb-2 flex items-center justify-between">
-            <h4 class="text-sm font-semibold text-slate-800">Invoices</h4>
-            <span class="text-xs text-slate-500">${invoices.length} total</span>
+          <div class="divide-y divide-slate-100">
+            ${sortedQuotes.map((item) => `
+              <div class="flex flex-col gap-2 py-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <div class="text-sm font-semibold text-slate-800">${item.quoteNumber || 'Quote'}</div>
+                  <div class="text-xs text-slate-500">${item.createdAt ? new Date(item.createdAt).toLocaleDateString() : '—'}</div>
+                </div>
+                <div class="flex items-center gap-2">
+                  <span class="rounded-full px-2 py-1 text-[11px] font-semibold ${statusClass(item.status)}">${item.status}</span>
+                  <span class="text-sm text-slate-700">${currency(Number(item.grandTotal || 0))}</span>
+                  <button type="button" data-client-action="open-quote" data-quote-id="${item.id}" class="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-50">Open</button>
+                </div>
+              </div>
+            `).join('') || '<div class="py-3 text-xs text-slate-500">No quotes yet.</div>'}
           </div>
-          <div class="overflow-hidden rounded-xl border border-slate-100">
-            <table class="min-w-full text-sm">
-              <tbody>
-                ${invoices.map((item) => `<tr data-quote-id="${item.id}" class="cursor-pointer border-b border-slate-100 hover:bg-slate-50">
-                  <td class="px-3 py-2">
-                    <div class="font-medium text-slate-700">${item.invoiceNumber || item.quoteNumber || 'Invoice'}</div>
-                    <div class="text-xs text-slate-500">${item.invoiceDate ? new Date(item.invoiceDate).toLocaleDateString() : ''}</div>
-                  </td>
-                  <td class="px-3 py-2 text-right text-slate-600">${currency(Number(item.grandTotal || 0))}</td>
-                </tr>`).join('') || '<tr><td class="px-3 py-2 text-xs text-slate-500">No invoices yet.</td></tr>'}
-              </tbody>
-            </table>
+        </div>
+        <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 space-y-3">
+          <div class="flex items-center justify-between">
+            <h4 class="text-sm font-semibold text-slate-800">Invoices for ${client.name || 'Client'}</h4>
+            <button type="button" data-client-action="new-invoice" data-client-id="${client.id}" class="rounded-full border border-emerald-100 bg-white px-3 py-2 text-xs font-semibold text-emerald-700 hover:bg-emerald-50">New invoice</button>
           </div>
-        </section>
+          <div class="divide-y divide-slate-100">
+            ${sortedInvoices.map((item) => `
+              <div class="flex flex-col gap-2 py-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <div class="text-sm font-semibold text-slate-800">${item.invoiceNumber || item.quoteNumber || 'Invoice'}</div>
+                  <div class="text-xs text-slate-500">${item.invoiceDate ? new Date(item.invoiceDate).toLocaleDateString() : item.createdAt ? new Date(item.createdAt).toLocaleDateString() : '—'}</div>
+                  <span class="mt-1 inline-flex rounded-full px-2 py-1 text-[11px] font-semibold ${statusClass(item.status)}">${item.status}</span>
+                </div>
+                <div class="flex flex-wrap items-center gap-2">
+                  <span class="text-sm text-slate-700">${currency(Number(item.grandTotal || 0))}</span>
+                  <button type="button" data-client-action="open-quote" data-quote-id="${item.id}" class="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-50">Open</button>
+                  ${item.status === 'INVOICE' ? `<button type="button" data-client-action="mark-paid" data-quote-id="${item.id}" class="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-sky-700 hover:bg-slate-50">Mark paid</button>` : ''}
+                  <button type="button" data-client-action="print" data-quote-id="${item.id}" class="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-50">Print</button>
+                  <button type="button" data-client-action="delete" data-quote-id="${item.id}" class="rounded-full border border-rose-100 bg-white px-3 py-1 text-xs font-semibold text-rose-700 hover:bg-rose-50">Delete</button>
+                </div>
+              </div>
+            `).join('') || '<div class="py-3 text-xs text-slate-500">No invoices yet.</div>'}
+          </div>
+        </div>
+      </div>
+      <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
+        <h4 class="text-sm font-semibold text-slate-800">Site photos</h4>
+        <p class="mt-2 text-xs text-slate-500">Photos will appear here when attachments are enabled.</p>
       </div>
     `;
   }
@@ -1189,6 +1271,56 @@
     compute();
   }
 
+  function startNewQuoteForClient(clientId) {
+    const client = clientCache.find((c) => c.id === clientId);
+    if (!client) return;
+    activeClientId = client.id;
+    historyFilters.clientId = client.id;
+    clientDetailSelection = client.id;
+    const select = $('clientSelect');
+    if (select) select.value = client.id;
+    const typeInput = $('clientNameTypeahead');
+    if (typeInput) typeInput.value = client.name || '';
+    populateJobDetailsFromClient(client);
+    currentQuoteId = null;
+    quoteAttachments = [];
+    renderPhotoPreview();
+    documentMode = 'quote';
+    renderClientSelect();
+    renderClientList();
+    renderQuotesTable();
+    renderInvoicesTable();
+    setView('quote-builder');
+    compute();
+  }
+
+  function startNewInvoiceForClient(clientId) {
+    const client = clientCache.find((c) => c.id === clientId);
+    if (!client) return;
+    activeClientId = client.id;
+    historyFilters.clientId = client.id;
+    clientDetailSelection = client.id;
+    const select = $('clientSelect');
+    if (select) select.value = client.id;
+    const typeInput = $('clientNameTypeahead');
+    if (typeInput) typeInput.value = client.name || '';
+    populateJobDetailsFromClient(client);
+    currentQuoteId = null;
+    quoteAttachments = [];
+    renderPhotoPreview();
+    documentMode = 'invoice';
+    const invoiceNumber = $('invoiceNumber');
+    const invoiceDueDate = $('invoiceDueDate');
+    if (invoiceNumber) invoiceNumber.value = '';
+    if (invoiceDueDate) invoiceDueDate.value = '';
+    renderClientSelect();
+    renderClientList();
+    renderQuotesTable();
+    renderInvoicesTable();
+    setView('quote-builder');
+    compute();
+  }
+
   async function openQuoteFromHistory(quoteId) {
     const item = historyCache.find((entry) => entry.id === quoteId);
     if (!item) return;
@@ -1209,7 +1341,11 @@
       activeClientId = item.clientId;
       historyFilters.clientId = item.clientId;
       const client = clientCache.find((c) => c.id === item.clientId);
-      if (client) populateJobDetailsFromClient(client);
+      if (client) {
+        populateJobDetailsFromClient(client);
+        const typeInput = $('clientNameTypeahead');
+        if (typeInput) typeInput.value = client.name || '';
+      }
       const clientSelect = $('clientSelect');
       if (clientSelect) clientSelect.value = item.clientId;
     }
@@ -1923,6 +2059,15 @@
 
   // ---- wire up ----
   document.addEventListener("DOMContentLoaded", async () => {
+    const sidebar = $('appSidebar');
+    const sidebarBackdrop = $('sidebarBackdrop');
+    const sidebarToggle = $('btnSidebarToggle');
+    setSidebar(false);
+    if (sidebar && sidebarBackdrop && sidebarToggle) {
+      sidebarToggle.addEventListener('click', () => setSidebar(!sidebarOpen));
+      sidebarBackdrop.addEventListener('click', () => setSidebar(false));
+    }
+
     const redirectTarget = "./login.html?next=tool.html";
     const auth = window.PestimatorAuth;
     if (auth) {
@@ -2326,22 +2471,90 @@
 
     const clientListEl = $('clientList');
     if (clientListEl) {
-      clientListEl.addEventListener('click', (event) => {
+      clientListEl.addEventListener('click', async (event) => {
         const item = event.target.closest('li[data-client-id]');
         if (!item) return;
-        openClientDetail(item.getAttribute('data-client-id'));
+        const clientId = item.getAttribute('data-client-id');
+        const client = clientCache.find((c) => c.id === clientId);
+        clientDetailSelection = clientId;
+        activeClientId = clientId;
+        historyFilters.clientId = clientId;
+        if (client) populateJobDetailsFromClient(client);
+        renderClientSelect();
+        openClientDetail(clientId);
         renderClientList();
+        renderQuotesTable();
+        renderInvoicesTable();
+        if (hasBackend) {
+          await loadHistory(true);
+        }
       });
     }
 
     const clientDetailEl = $('clientDetail');
     if (clientDetailEl) {
-      clientDetailEl.addEventListener('click', (event) => {
+      clientDetailEl.addEventListener('click', async (event) => {
         const actionBtn = event.target.closest('[data-client-action]');
         if (!actionBtn) return;
-        if (actionBtn.getAttribute('data-client-action') === 'new-quote') {
-          documentMode = 'quote';
-          setView('quote-builder');
+        const action = actionBtn.getAttribute('data-client-action');
+        const clientId = actionBtn.getAttribute('data-client-id') || clientDetailSelection;
+        if (!clientId) return;
+        if (action === 'new-quote') {
+          startNewQuoteForClient(clientId);
+          return;
+        }
+        if (action === 'new-invoice') {
+          startNewInvoiceForClient(clientId);
+          return;
+        }
+        if (action === 'open-quote') {
+          const quoteId = actionBtn.getAttribute('data-quote-id');
+          if (quoteId) openQuoteFromHistory(quoteId);
+          return;
+        }
+        if (action === 'mark-paid') {
+          const quoteId = actionBtn.getAttribute('data-quote-id');
+          if (quoteId) {
+            await markInvoicePaid(quoteId);
+            openClientDetail(clientId);
+            renderInvoicesTable();
+          }
+          return;
+        }
+        if (action === 'print') {
+          const quoteId = actionBtn.getAttribute('data-quote-id');
+          if (quoteId) {
+            await openQuoteFromHistory(quoteId);
+            compute();
+            window.print();
+          }
+          return;
+        }
+        if (action === 'delete') {
+          const quoteId = actionBtn.getAttribute('data-quote-id');
+          if (quoteId) {
+            await deleteQuoteRemote(quoteId);
+            openClientDetail(clientId);
+            renderQuotesTable();
+            renderInvoicesTable();
+          }
+          return;
+        }
+        if (action === 'edit-client') {
+          const client = clientCache.find((c) => c.id === clientId);
+          const form = $('clientForm');
+          if (client && form) {
+            $('clientId').value = client.id;
+            $('clientName').value = client.name || '';
+            $('clientEmail').value = client.email || '';
+            $('clientPhone').value = client.phone || '';
+            $('clientAddress1').value = client.address1 || '';
+            $('clientCity').value = client.city || '';
+            $('clientState').value = client.state || '';
+            $('clientPostalCode').value = client.postalCode || '';
+            $('clientNotes').value = client.notes || '';
+            openModal('clientModal');
+          }
         }
       });
     }
@@ -2354,6 +2567,48 @@
       });
     }
 
+    const typeInput = $('clientNameTypeahead');
+    const typeResults = $('clientTypeaheadResults');
+    if (typeInput && typeResults) {
+      typeInput.addEventListener('input', () => {
+        const term = typeInput.value.trim().toLowerCase();
+        if (!term) {
+          typeResults.innerHTML = '';
+          return;
+        }
+        const matches = clientCache
+          .filter((c) => (c.name || '').toLowerCase().includes(term))
+          .slice(0, 5);
+
+        typeResults.innerHTML = matches.map((c) => `
+          <button
+            type="button"
+            data-client-id="${c.id}"
+            class="w-full text-left rounded-lg px-2 py-1 hover:bg-slate-100"
+          >
+            ${c.name || 'Client'}
+          </button>
+        `).join('');
+      });
+
+      typeResults.addEventListener('click', (event) => {
+        const btn = event.target.closest('button[data-client-id]');
+        if (!btn) return;
+        const clientId = btn.getAttribute('data-client-id');
+        const client = clientCache.find((c) => c.id === clientId);
+        if (!client) return;
+
+        activeClientId = client.id;
+        historyFilters.clientId = client.id;
+        clientDetailSelection = client.id;
+        typeInput.value = client.name || '';
+        renderClientSelect();
+        populateJobDetailsFromClient(client);
+        openClientDetail(client.id);
+        loadHistory(true);
+      });
+    }
+
     const clientSelectEl = $('clientSelect');
     if (clientSelectEl) {
       clientSelectEl.addEventListener('change', async (event) => {
@@ -2361,7 +2616,12 @@
         historyFilters.clientId = activeClientId || null;
         if (activeClientId) {
           const client = clientCache.find((c) => c.id === activeClientId);
-          if (client) populateJobDetailsFromClient(client);
+          if (client) {
+            populateJobDetailsFromClient(client);
+            const typeahead = $('clientNameTypeahead');
+            if (typeahead) typeahead.value = client.name || '';
+            openClientDetail(client.id);
+          }
         }
         if (hasBackend) {
           await loadHistory(true);
