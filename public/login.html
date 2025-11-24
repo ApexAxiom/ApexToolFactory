@@ -5,20 +5,36 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Pestimator — Sign in</title>
     <meta name="description" content="Securely sign in to your Pestimator quoting studio." />
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><text y='24' font-size='24'>🐜</text></svg>">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><text y='24' font-size='24'>🐜</text></svg>" />
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
       tailwind.config = {
         theme: {
           extend: {
-            colors: {
-              night: '#0b1220',
-              mint: '#2dd4bf',
-              lagoon: '#0ea5e9'
-            },
             fontFamily: {
               display: ['"SF Pro Display"', 'Inter', 'system-ui', 'sans-serif'],
               sans: ['Inter', 'system-ui', 'sans-serif']
+            },
+            colors: {
+              night: '#0b1220',
+              midnight: '#111827',
+              abyss: '#020617',
+              mint: '#2dd4bf',
+              lagoon: '#0ea5e9',
+              ink: '#020617',
+              shell: '#0b1120',
+              canvas: '#f1f5f9',
+              'border-subtle': '#e5e7eb',
+              'border-strong': '#cbd5f5'
+            },
+            boxShadow: {
+              glass: '0 25px 65px rgba(15, 23, 42, 0.35)',
+              elevated: '0 18px 40px -24px rgba(15,23,42,0.3)',
+              glow: '0 0 0 1px rgba(45,212,191,0.2), 0 18px 40px -20px rgba(14,165,233,0.45)'
+            },
+            borderRadius: {
+              pill: '9999px',
+              xl: '1rem'
             }
           }
         }
@@ -28,63 +44,105 @@
     <script defer src="https://cdn.jsdelivr.net/npm/aws-amplify@5.3.6/dist/aws-amplify.min.js"></script>
     <script defer src="./auth.js"></script>
     <style>
-      body { min-height: 100vh; }
+      .saas-card {
+        background: rgba(255, 255, 255, 0.06);
+        border-radius: 1rem;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        box-shadow: 0 18px 40px -24px rgba(15, 23, 42, 0.4);
+        backdrop-filter: blur(16px);
+      }
+      .noise-overlay::before {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160' viewBox='0 0 160 160'%3E%3Cfilter id='n' x='0' y='0'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='1.25' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)' opacity='.12'/%3E%3C/svg%3E");
+        mix-blend-mode: soft-light;
+        pointer-events: none;
+      }
+      .accent-blur {
+        position: absolute;
+        width: 420px;
+        height: 420px;
+        border-radius: 100%;
+        filter: blur(120px);
+        opacity: 0.4;
+        background: radial-gradient(circle at center, rgba(45, 212, 191, 0.55), rgba(14, 165, 233, 0.05));
+      }
     </style>
   </head>
-  <body class="bg-night text-white">
-    <div class="relative flex min-h-screen flex-col lg:flex-row">
-      <section class="relative flex flex-1 items-center justify-center overflow-hidden bg-gradient-to-br from-night via-[#111c34] to-[#030712] px-8 py-16 text-center lg:text-left">
-        <div class="absolute inset-0 opacity-50" aria-hidden="true">
-          <svg class="absolute -left-10 top-10 h-72 w-72 text-lagoon/20" viewBox="0 0 200 200" fill="none"><path d="M52.1,-67.6C67.4,-56.9,80.5,-44.1,86.9,-28.6C93.3,-13.1,93.1,5.1,86.9,21.3C80.7,37.4,68.7,51.6,54.3,64.6C39.9,77.5,23.2,89.1,5.3,90.5C-12.6,91.9,-25.1,83.1,-39.8,73.4C-54.5,63.7,-71.4,53.1,-79.4,38.6C-87.4,24,-86.6,5.6,-79.7,-9.6C-72.7,-24.9,-59.6,-36.9,-46,-48.3C-32.4,-59.7,-18.3,-70.4,-1.9,-68.2C14.6,-66.1,29.2,-51.2,52.1,-67.6Z" fill="currentColor"/></svg>
-          <svg class="absolute -bottom-20 right-8 h-64 w-64 text-mint/20" viewBox="0 0 200 200" fill="none"><path d="M47.4,-61.1C61.4,-49.5,72.8,-33.4,77.3,-15.4C81.8,2.5,79.5,22.5,69.1,37.7C58.7,53,40.2,63.6,21.6,69.8C3,75.9,-15.6,77.5,-32,71.6C-48.4,65.7,-62.6,52.3,-72.4,35.4C-82.2,18.6,-87.7,-1.8,-82.1,-18.9C-76.6,-35.9,-60,-49.7,-43,-60.4C-26,-71.2,-8.7,-79,7.5,-78.1C23.7,-77.2,47.4,-67.6,47.4,-61.1Z" fill="currentColor"/></svg>
-        </div>
-        <div class="relative z-10 max-w-xl space-y-6">
-          <a href="./index.html" class="inline-flex items-center gap-3 rounded-full border border-white/15 bg-white/5 px-4 py-2 text-xs font-semibold uppercase tracking-[0.35em] text-white/80">
+  <body class="min-h-screen bg-night text-white">
+    <div class="relative flex min-h-screen items-center justify-center px-4 py-8">
+      <div class="noise-overlay pointer-events-none absolute inset-0"></div>
+      <div class="accent-blur -left-32 -top-20"></div>
+      <div class="accent-blur -bottom-40 right-0"></div>
+      <div class="relative z-10 w-full max-w-5xl grid gap-8 lg:grid-cols-[1.1fr_1fr] items-center">
+        <div class="space-y-6 text-center lg:text-left">
+          <div class="inline-flex items-center gap-3 rounded-full border border-white/15 bg-white/5 px-4 py-2 text-xs font-semibold uppercase tracking-[0.22em] text-white/80">
             <span class="text-lg">🐜</span> Pestimator
-          </a>
-          <h1 class="font-display text-4xl font-semibold leading-tight">Welcome back to your quoting studio.</h1>
-          <p class="text-base text-white/70">Securely access saved company profiles, pricing defaults, and polished proposal templates. Connect AWS Amplify for full Cognito-backed authentication with your Pestimator credentials.</p>
-          <ul class="space-y-3 text-sm text-white/60">
-            <li class="flex items-start gap-2"><span class="mt-1 h-2 w-2 flex-shrink-0 rounded-full bg-mint"></span> Encrypt company defaults and logos once you authenticate.</li>
-            <li class="flex items-start gap-2"><span class="mt-1 h-2 w-2 flex-shrink-0 rounded-full bg-lagoon"></span> Resume saved quotes instantly across desktop and mobile.</li>
-            <li class="flex items-start gap-2"><span class="mt-1 h-2 w-2 flex-shrink-0 rounded-full bg-white/50"></span> Serverless, no-maintenance infrastructure via AWS Amplify.</li>
-          </ul>
-        </div>
-      </section>
-
-      <section class="flex w-full max-w-xl flex-1 items-center justify-center bg-white px-8 py-16 text-night">
-        <div class="w-full max-w-md space-y-8">
-          <div>
-            <h2 class="font-display text-3xl font-semibold text-night">Sign in</h2>
-            <p class="mt-2 text-sm text-night/70">Access the quoting studio with your Pestimator account credentials.</p>
           </div>
-          <div class="rounded-3xl border border-slate-200/80 bg-white/70 p-6 shadow-[0_30px_50px_-45px_rgba(14,165,233,0.6)] backdrop-blur">
-            <form id="loginForm" class="space-y-6 rounded-3xl border border-white/40 bg-white/80 px-6 py-8 shadow-[0_35px_60px_-50px_rgba(15,23,42,0.45)]">
-              <div class="space-y-2">
-                <label for="username" class="text-xs font-semibold uppercase tracking-[0.3em] text-night/70">Username</label>
-                <input id="username" name="username" type="text" autocomplete="username" required class="w-full rounded-2xl border border-night/10 bg-white px-4 py-3 text-sm text-night shadow-inner focus:border-lagoon focus:outline-none focus:ring-2 focus:ring-lagoon/40" />
-              </div>
-              <div class="space-y-2">
-                <label for="password" class="text-xs font-semibold uppercase tracking-[0.3em] text-night/70">Password</label>
-                <input id="password" name="password" type="password" autocomplete="current-password" required class="w-full rounded-2xl border border-night/10 bg-white px-4 py-3 text-sm text-night shadow-inner focus:border-lagoon focus:outline-none focus:ring-2 focus:ring-lagoon/40" />
-              </div>
-              <div class="flex items-center justify-between text-xs text-night/60">
-                <label class="inline-flex items-center gap-2">
-                  <input id="remember" type="checkbox" class="h-4 w-4 rounded border-night/20 text-lagoon focus:ring-lagoon" />
-                  Remember me
-                </label>
-              </div>
-              <button type="submit" class="w-full rounded-full bg-night px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-lagoon/20 transition hover:bg-[#070c16]" id="submitBtn">Sign in</button>
-              <p id="status" class="min-h-[1.5rem] text-center text-sm text-night/60"></p>
-            </form>
+          <h1 class="font-display text-4xl font-semibold leading-tight">Sign in to your quoting workspace.</h1>
+          <p class="text-base text-white/70">Access saved company defaults, pricing guardrails, and beautifully branded proposals. Cloud mode uses your Amplify credentials; demo mode works offline for quick previews.</p>
+          <div class="flex flex-wrap justify-center gap-3 text-sm text-white/70 lg:justify-start">
+            <span class="saas-card inline-flex items-center gap-2 rounded-full px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-mint/90">Secure Auth</span>
+            <span class="saas-card inline-flex items-center gap-2 rounded-full px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-lagoon/90">Offline Demo</span>
+            <span class="saas-card inline-flex items-center gap-2 rounded-full px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-white/80">Amplify Ready</span>
           </div>
-          <p class="text-xs text-night/50">Configure your Amplify project via <span class="font-semibold text-night">public/config.js</span>. Store sensitive keys in AWS Secrets Manager and inject them during deployment—never commit secrets.</p>
         </div>
-      </section>
+        <div class="saas-card w-full max-w-xl border-white/15 bg-white/5 px-8 py-8">
+          <div class="flex items-center gap-3 mb-4">
+            <div class="flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-br from-mint to-lagoon text-night">🐜</div>
+            <div>
+              <p class="font-display text-lg font-semibold">Pestimator</p>
+              <p class="text-xs text-white/60">Quoting Studio Access</p>
+            </div>
+          </div>
+          <div class="flex items-center justify-between text-[11px] font-semibold uppercase tracking-[0.14em] text-white/70">
+            <span>Mode</span>
+            <span id="loginModeBadge" class="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-1 text-[11px] font-semibold text-white">Detecting…</span>
+          </div>
+          <form id="loginForm" class="mt-6 space-y-4">
+            <div>
+              <label for="username" class="text-xs font-medium text-white/70">Username or email</label>
+              <input
+                id="username"
+                name="username"
+                type="text"
+                autocomplete="username"
+                required
+                class="mt-1 block w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-mint focus:border-mint"
+              />
+            </div>
+            <div>
+              <label for="password" class="text-xs font-medium text-white/70">Password</label>
+              <input
+                id="password"
+                name="password"
+                type="password"
+                autocomplete="current-password"
+                required
+                class="mt-1 block w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-mint focus:border-mint"
+              />
+            </div>
+            <label class="inline-flex items-center gap-2 text-[11px] font-medium text-white/70">
+              <input id="remember" type="checkbox" class="h-4 w-4 rounded border-white/30 bg-white/10 text-mint focus:ring-mint" />
+              Remember me on this device
+            </label>
+            <button
+              id="submitBtn"
+              type="submit"
+              class="mt-2 w-full rounded-full bg-gradient-to-r from-mint to-lagoon px-4 py-2.5 text-sm font-semibold text-night shadow-lg shadow-lagoon/30 hover:shadow-xl hover:shadow-lagoon/40 hover:brightness-105 transition"
+            >
+              Sign in
+            </button>
+            <p id="status" class="min-h-[1.5rem] text-xs text-white/70"></p>
+          </form>
+          <p class="mt-4 text-[11px] text-white/60">For offline demo mode, use the demo credentials provided by your admin. Having trouble? <a href="mailto:hello@pestimator.com" class="font-semibold text-mint hover:text-white">Contact support</a>.</p>
+        </div>
+      </div>
     </div>
 
     <script>
-      (function() {
+      (function () {
         const auth = () => window.PestimatorAuth;
         const form = document.getElementById('loginForm');
         const status = document.getElementById('status');
@@ -92,20 +150,21 @@
         const usernameField = document.getElementById('username');
         const passwordField = document.getElementById('password');
         const rememberBox = document.getElementById('remember');
+        const modeBadge = document.getElementById('loginModeBadge');
 
         const params = new URLSearchParams(window.location.search);
         const nextPath = params.get('next') || 'tool.html';
 
         function setStatus(message, tone = 'info') {
           status.textContent = message || '';
-          status.classList.remove('text-lagoon', 'text-rose-500', 'text-night/60');
+          status.className = 'min-h-[1.5rem] text-xs';
           if (!message) {
-            status.classList.add('text-night/60');
+            status.classList.add('text-white/70');
             return;
           }
-          if (tone === 'error') status.classList.add('text-rose-500');
-          else if (tone === 'success') status.classList.add('text-lagoon');
-          else status.classList.add('text-night/60');
+          if (tone === 'error') status.classList.add('text-rose-300');
+          else if (tone === 'success') status.classList.add('text-mint');
+          else status.classList.add('text-white/70');
         }
 
         async function handleSubmit(e) {
@@ -130,11 +189,6 @@
           setStatus('Signing in…');
           try {
             await auth().signIn(username, password);
-            if (rememberBox.checked) {
-              localStorage.setItem('pestimator.remember', JSON.stringify({ username }));
-            } else {
-              localStorage.removeItem('pestimator.remember');
-            }
             setStatus('Signed in. Redirecting…', 'success');
             window.location.href = nextPath;
           } catch (err) {
@@ -144,14 +198,22 @@
           }
         }
 
+        function detectMode() {
+          if (!auth()?.isDemoMode) return;
+          const mode = auth().isDemoMode() ? 'Demo mode' : 'Cloud mode';
+          if (modeBadge) modeBadge.textContent = mode;
+        }
+
         form?.addEventListener('submit', handleSubmit);
+        detectMode();
+
         const stored = localStorage.getItem('pestimator.remember');
         if (stored) {
           try {
             const data = JSON.parse(stored);
             if (data?.username) {
               usernameField.value = data.username;
-              rememberBox.checked = true;
+              if (rememberBox) rememberBox.checked = true;
             }
           } catch (err) {
             console.warn('[Pestimator] Failed to parse remembered username', err);
