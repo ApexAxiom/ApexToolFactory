@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Pestimator — Quoting Studio</title>
     <meta name="description" content="Secure Pestimator workspace for creating and exporting polished pest control proposals." />
-    <!-- Tailwind CDN (no build step) -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script defer src="./config.js"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/aws-amplify@5.3.6/dist/aws-amplify.min.js"></script>
@@ -14,30 +13,36 @@
       tailwind.config = {
         theme: {
           extend: {
-            colors: {
-              night: '#0b1220',
-              midnight: '#111c34',
-              abyss: '#030712',
-              mint: '#2dd4bf',
-              lagoon: '#0ea5e9',
-              haze: '#1f2a44'
-            },
             fontFamily: {
               display: ['"SF Pro Display"', 'Inter', 'system-ui', 'sans-serif'],
               sans: ['Inter', 'system-ui', 'sans-serif']
             },
-            boxShadow: {
-              glow: '0 45px 80px -40px rgba(14,165,233,0.55)',
-              soft: '0 20px 45px -35px rgba(8,145,178,0.45)'
+            colors: {
+              night: '#0b1220',
+              midnight: '#111827',
+              abyss: '#020617',
+              mint: '#2dd4bf',
+              lagoon: '#0ea5e9',
+              ink: '#020617',
+              shell: '#0b1120',
+              canvas: '#f1f5f9',
+              'border-subtle': '#e5e7eb',
+              'border-strong': '#cbd5f5'
             },
-            backdropBlur: {
-              xs: '2px'
+            boxShadow: {
+              glass: '0 25px 65px rgba(15, 23, 42, 0.35)',
+              elevated: '0 18px 40px -24px rgba(15,23,42,0.3)',
+              glow: '0 0 0 1px rgba(45,212,191,0.2), 0 18px 40px -20px rgba(14,165,233,0.45)'
+            },
+            borderRadius: {
+              pill: '9999px',
+              xl: '1rem'
             }
           }
         }
       };
     </script>
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2232%22 height=%2232%22><text y=%2224%22 font-size=%2224%22>🐜</text></svg>">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2232%22 height=%2232%22><text y=%2224%22 font-size=%2224%22>🐜</text></svg>" />
     <style>
       *, *::before, *::after {
         box-sizing: border-box;
@@ -49,6 +54,23 @@
       body {
         min-height: 100vh;
         font-family: 'Inter', system-ui, sans-serif;
+      }
+      .saas-card {
+        background: #ffffff;
+        border-radius: 1rem;
+        border: 1px solid rgba(148, 163, 184, 0.25);
+        box-shadow: 0 18px 40px -24px rgba(15, 23, 42, 0.3);
+      }
+      .saas-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        border-radius: 9999px;
+        padding: 0.25rem 0.65rem;
+        font-size: 11px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
       }
       .avoid-break { break-inside: avoid; page-break-inside: avoid; }
       .print-only { display: none; }
@@ -67,147 +89,159 @@
       }
     </style>
   </head>
-  <body class="min-h-screen bg-slate-50 text-slate-900">
+  <body class="min-h-screen bg-canvas text-slate-900">
     <div class="flex min-h-screen">
-      <!-- Sidebar -->
       <aside
         id="appSidebar"
-        class="fixed inset-y-0 left-0 z-30 w-64 transform bg-slate-900 text-slate-100 transition-transform duration-200 -translate-x-full md:static md:translate-x-0 md:flex md:flex-col"
+        class="fixed inset-y-0 left-0 z-30 w-64 transform bg-night text-slate-100 transition-transform duration-200 -translate-x-full md:static md:translate-x-0 md:flex md:flex-col border-r border-slate-800/70"
       >
-        <div class="flex h-16 items-center gap-3 px-4 border-b border-slate-800/60">
-          <div class="flex h-9 w-9 items-center justify-center rounded-full bg-emerald-400 text-slate-900 font-bold text-lg">
-            P
-          </div>
+        <div class="flex h-16 items-center gap-3 px-4 border-b border-slate-800/70">
+          <div class="flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-br from-mint to-lagoon text-night text-lg">🐜</div>
           <div class="flex flex-col">
-            <span class="text-sm font-semibold">Pestimator</span>
-            <span class="text-[11px] text-slate-400">Quoting &amp; Invoicing</span>
+            <span class="text-sm font-semibold font-display tracking-tight">Pestimator</span>
+            <span class="text-[11px] text-slate-400">Quoting Studio</span>
           </div>
         </div>
-        <nav class="flex-1 py-4 text-sm">
-          <button data-nav="dashboard" class="nav-link w-full flex items-center gap-2 px-4 py-2 text-left text-slate-200/80 hover:bg-slate-800 text-[13px]">
-            <span class="text-slate-500">📊</span>
+        <nav class="flex-1 py-4 text-sm space-y-1">
+          <button data-nav="dashboard" type="button" class="nav-link flex w-full items-center gap-2 px-4 py-2 text-left text-slate-200/80 rounded-lg hover:bg-slate-800/80 hover:text-white transition">
+            <svg class="h-4 w-4 text-slate-400" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 13h6V4H4v9zm0 7h6v-5H4v5zm10 0h6V11h-6v9zm0-15v3h6V5h-6z"/></svg>
             <span>Dashboard</span>
           </button>
-          <button data-nav="clients" class="nav-link w-full flex items-center gap-2 px-4 py-2 text-left text-slate-200/80 hover:bg-slate-800 text-[13px]">
-            <span class="text-slate-500">👥</span>
+          <button data-nav="clients" type="button" class="nav-link flex w-full items-center gap-2 px-4 py-2 text-left text-slate-200/80 rounded-lg hover:bg-slate-800/80 hover:text-white transition">
+            <svg class="h-4 w-4 text-slate-400" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zm8 0a4 4 0 1 0 0-8 4 4 0 0 0 0 8z"/><path d="M3 20a5 5 0 0 1 10 0m4-5a5 5 0 0 1 5 5" stroke-linecap="round"/></svg>
             <span>Clients</span>
           </button>
-          <button data-nav="quotes" class="nav-link w-full flex items-center gap-2 px-4 py-2 text-left text-slate-200/80 hover:bg-slate-800 text-[13px]">
-            <span class="text-slate-500">🧾</span>
+          <button data-nav="quotes" type="button" class="nav-link flex w-full items-center gap-2 px-4 py-2 text-left text-slate-200/80 rounded-lg hover:bg-slate-800/80 hover:text-white transition">
+            <svg class="h-4 w-4 text-slate-400" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 4h9l3 3v13a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1z"/><path d="M9 9h6m-6 4h4" stroke-linecap="round"/></svg>
             <span>Quotes</span>
           </button>
-          <button data-nav="invoices" class="nav-link w-full flex items-center gap-2 px-4 py-2 text-left text-slate-200/80 hover:bg-slate-800 text-[13px]">
-            <span class="text-slate-500">💳</span>
+          <button data-nav="invoices" type="button" class="nav-link flex w-full items-center gap-2 px-4 py-2 text-left text-slate-200/80 rounded-lg hover:bg-slate-800/80 hover:text-white transition">
+            <svg class="h-4 w-4 text-slate-400" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 4h12a1 1 0 0 1 1 1v14l-3-2-3 2-3-2-3 2V5a1 1 0 0 1 1-1z"/><path d="M9 9h6m-6 4h4" stroke-linecap="round"/></svg>
             <span>Invoices</span>
           </button>
-          <button data-nav="vendor-settings" class="nav-link w-full flex items-center gap-2 px-4 py-2 text-left text-slate-200/80 hover:bg-slate-800 text-[13px]">
-            <span class="text-slate-500">⚙️</span>
+          <button data-nav="vendor-settings" type="button" class="nav-link flex w-full items-center gap-2 px-4 py-2 text-left text-slate-200/80 rounded-lg hover:bg-slate-800/80 hover:text-white transition">
+            <svg class="h-4 w-4 text-slate-400" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z"/><path d="m19.4 15 .8 1.4-1.2 2.1-1.6-.2a7.3 7.3 0 0 1-1.2.7l-.4 1.6h-2.4l-.4-1.6a7.3 7.3 0 0 1-1.2-.7l-1.6.2-1.2-2.1.8-1.4a7.7 7.7 0 0 1 0-1.4l-.8-1.4 1.2-2.1 1.6.2a7.3 7.3 0 0 1 1.2-.7l.4-1.6h2.4l.4 1.6a7.3 7.3 0 0 1 1.2.7l1.6-.2 1.2 2.1-.8 1.4a7.7 7.7 0 0 1 0 1.4z"/></svg>
             <span>Vendors &amp; Settings</span>
           </button>
         </nav>
-        <div class="border-t border-slate-800/60 px-4 py-4 text-[11px] text-slate-500">
-          <div id="sidebarUserEmail" class="truncate"></div>
-          <div class="text-slate-600/70">Signed in</div>
+        <div class="border-t border-slate-800/70 px-4 py-4 text-[11px] text-slate-500">
+          <div id="sidebarUserEmail" class="truncate font-medium text-slate-200"></div>
+          <div class="text-slate-500">Signed in</div>
         </div>
       </aside>
       <div id="sidebarBackdrop" class="fixed inset-0 z-20 bg-slate-900/40 opacity-0 pointer-events-none transition-opacity duration-200 md:hidden"></div>
 
-      <!-- Main area -->
-      <div class="flex-1 flex flex-col">
-        <!-- Top bar -->
-        <header class="flex items-center justify-between border-b border-slate-200 bg-white px-6 py-3">
+      <div class="flex flex-1 flex-col">
+        <header class="flex items-center justify-between border-b border-slate-200 bg-white/90 backdrop-blur px-6 py-3 sticky top-0 z-20">
           <div class="flex items-center gap-2">
             <button
               id="btnSidebarToggle"
               class="inline-flex h-8 w-8 items-center justify-center rounded-full border border-slate-200 text-slate-500 hover:bg-slate-50 md:hidden"
+              aria-label="Toggle navigation"
+              type="button"
             >
-              <span class="sr-only">Toggle navigation</span>
               <svg class="h-4 w-4" viewBox="0 0 24 24" aria-hidden="true">
                 <path d="M4 7h16M4 12h16M4 17h16" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
               </svg>
             </button>
-            <h1 id="pageTitle" class="text-lg font-semibold tracking-tight">Quote Builder</h1>
-            <span id="pageSubtitle" class="text-xs text-slate-500">Create a new quote</span>
+            <div>
+              <h1 id="pageTitle" class="text-base md:text-lg font-semibold tracking-tight text-slate-900">Quote Builder</h1>
+              <span id="pageSubtitle" class="text-xs text-slate-500">Create a new quote</span>
+            </div>
           </div>
-          <div class="flex items-center gap-4 text-xs text-slate-500">
-            <span id="cloudStatus"></span>
+          <div class="flex items-center gap-3 text-xs text-slate-600">
+            <span id="cloudStatus" class="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-[11px] font-medium text-slate-600"></span>
             <span id="authUser" class="hidden"></span>
-            <button id="btnSignOut" class="rounded-full border border-slate-200 px-3 py-1 text-xs hover:bg-slate-50">
+            <button
+              id="btnSignOut"
+              type="button"
+              class="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 hover:text-slate-900 transition"
+            >
               Sign out
             </button>
           </div>
         </header>
 
-        <!-- Main content views -->
-        <main id="appMain" class="mx-auto flex-1 w-full max-w-6xl px-6 py-6 space-y-6">
-          <div id="remoteStatus" class="hidden rounded-full border border-slate-200 bg-white px-4 py-2 text-xs text-slate-600"></div>
+        <main id="appMain" class="mx-auto flex-1 w-full max-w-6xl px-4 md:px-6 py-6 space-y-6">
+          <div id="remoteStatus" class="hidden rounded-full border border-slate-200 bg-white px-4 py-2 text-xs text-slate-700 shadow-sm"></div>
 
           <section data-view="dashboard" class="space-y-4 hidden">
             <div class="grid gap-4 md:grid-cols-3">
-              <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
+              <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 flex flex-col gap-2">
                 <div class="text-xs font-semibold uppercase tracking-wide text-slate-500">Open Quotes</div>
-                <div id="dashboardOpenQuotes" class="mt-2 text-3xl font-semibold text-slate-900">0</div>
-                <p class="mt-1 text-xs text-slate-500">Quotes awaiting action.</p>
+                <div id="dashboardOpenQuotes" class="text-3xl font-semibold text-slate-900">0</div>
+                <p class="text-xs text-slate-500">Quotes awaiting action.</p>
               </div>
-              <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
+              <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 flex flex-col gap-2">
                 <div class="text-xs font-semibold uppercase tracking-wide text-slate-500">Open Invoices</div>
-                <div id="dashboardOpenInvoices" class="mt-2 text-3xl font-semibold text-slate-900">0</div>
-                <p class="mt-1 text-xs text-slate-500">Invoices awaiting payment.</p>
+                <div id="dashboardOpenInvoices" class="text-3xl font-semibold text-slate-900">0</div>
+                <p class="text-xs text-slate-500">Invoices awaiting payment.</p>
               </div>
-              <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
+              <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 flex flex-col gap-2">
                 <div class="text-xs font-semibold uppercase tracking-wide text-slate-500">Quoted this month</div>
-                <div id="dashboardMonthlyValue" class="mt-2 text-3xl font-semibold text-slate-900">$0</div>
-                <p class="mt-1 text-xs text-slate-500">Total quoted value in the current month.</p>
+                <div id="dashboardMonthlyValue" class="text-3xl font-semibold text-slate-900">$0</div>
+                <p class="text-xs text-slate-500">Total quoted value in the current month.</p>
               </div>
             </div>
             <div class="grid gap-4 md:grid-cols-3">
-              <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
+              <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 flex flex-col gap-2">
                 <div class="text-xs font-semibold uppercase tracking-wide text-slate-500">Invoiced this month</div>
-                <div id="dashboardInvoicedMonth" class="mt-2 text-3xl font-semibold text-slate-900">$0</div>
-                <p class="mt-1 text-xs text-slate-500">Total invoiced value this month.</p>
+                <div id="dashboardInvoicedMonth" class="text-3xl font-semibold text-slate-900">$0</div>
+                <p class="text-xs text-slate-500">Total invoiced value this month.</p>
               </div>
-              <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
+              <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 flex flex-col gap-2">
                 <div class="text-xs font-semibold uppercase tracking-wide text-slate-500">Paid this month</div>
-                <div id="dashboardPaidMonth" class="mt-2 text-3xl font-semibold text-slate-900">$0</div>
-                <p class="mt-1 text-xs text-slate-500">Payments recorded this month.</p>
+                <div id="dashboardPaidMonth" class="text-3xl font-semibold text-slate-900">$0</div>
+                <p class="text-xs text-slate-500">Payments recorded this month.</p>
               </div>
             </div>
             <div class="grid gap-4 lg:grid-cols-2">
-              <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
+              <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
                 <h2 class="text-lg font-semibold tracking-tight text-slate-900">Recent activity</h2>
-                <ul id="dashboardRecentActivity" class="mt-4 space-y-3 text-sm text-slate-600"></ul>
+                <ul id="dashboardRecentActivity" class="mt-4 space-y-3 text-sm text-slate-700"></ul>
               </div>
-              <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
+              <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
                 <h2 class="text-lg font-semibold tracking-tight text-slate-900">Saved vendors</h2>
-                <div id="dashboardVendorsEmpty" class="mt-4 text-xs text-slate-500">Connect Amplify to sync vendor profiles.</div>
-                <ul id="dashboardVendors" class="mt-4 space-y-2 text-sm text-slate-600"></ul>
+                <div id="dashboardVendorsEmpty" class="mt-4 text-xs text-slate-400 italic">Connect Amplify to sync vendor profiles.</div>
+                <ul id="dashboardVendors" class="mt-4 space-y-2 text-sm text-slate-700"></ul>
               </div>
             </div>
           </section>
+
           <section data-view="clients" class="space-y-4 hidden">
-            <div class="flex items-center justify-between">
+            <div class="flex items-center justify-between gap-3 flex-wrap">
               <div>
-                <h2 class="text-xl font-semibold tracking-tight">Clients</h2>
+                <h2 class="text-xl font-semibold tracking-tight text-slate-900">Clients</h2>
                 <p class="text-xs text-slate-500">Search, review history, and create new clients.</p>
               </div>
-              <button id="btnNewClient" class="rounded-full bg-emerald-500 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-600">
+              <button
+                id="btnNewClient"
+                type="button"
+                class="rounded-full bg-mint px-4 py-2 text-sm font-semibold text-night shadow-sm hover:bg-emerald-400 hover:shadow-md transition"
+              >
                 New client
               </button>
             </div>
             <div class="mt-4 grid gap-4 lg:grid-cols-[2.2fr,3fr]">
-              <section class="bg-white rounded-2xl shadow-sm border border-slate-100 p-4">
-                <div class="mb-3 flex items-center gap-2">
-                  <input id="clientSearch" placeholder="Search clients…" class="w-full rounded-full border border-slate-200 px-3 py-2 text-sm" />
+              <section class="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 space-y-3">
+                <div class="flex items-center gap-2">
+                  <input
+                    id="clientSearch"
+                    placeholder="Search clients…"
+                    class="w-full rounded-full border border-slate-200 bg-slate-50 px-3 py-2 text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-mint focus:border-mint"
+                  />
                 </div>
-                <div class="max-h-[480px] overflow-y-auto">
-                  <ul id="clientList" class="divide-y divide-slate-100 text-sm"></ul>
+                <div class="flex items-center justify-between text-xs text-slate-500">
+                  <span>Client list</span>
+                  <button id="btnRefreshClients" type="button" class="rounded-full border border-slate-200 bg-white px-3 py-1 text-[11px] font-semibold hover:bg-slate-50">Refresh</button>
                 </div>
+                <ul id="clientsList" class="max-h-[480px] overflow-y-auto divide-y divide-slate-100 text-sm"></ul>
               </section>
-              <section class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
-                <div id="clientDetailEmpty" class="text-xs text-slate-400">
-                  Select a client from the list to see their quotes, invoices, and photos.
+              <section class="bg-white rounded-2xl border border-slate-200 shadow-sm p-4">
+                <div id="clientDetailEmpty" class="text-xs text-slate-400 flex items-center justify-center h-full text-center">
+                  Select a client to view details.
                 </div>
-                <div id="clientDetail" class="hidden space-y-4"></div>
+                <div id="clientDetail" class="hidden space-y-4 text-sm text-slate-700"></div>
               </section>
             </div>
           </section>
@@ -215,750 +249,250 @@
           <section data-view="quotes" class="space-y-4 hidden">
             <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
               <div>
-                <h2 class="text-xl font-semibold tracking-tight">Quotes</h2>
-                <p class="text-xs text-slate-500">All quotes across clients.</p>
+                <h2 class="text-xl font-semibold tracking-tight text-slate-900">Quotes</h2>
+                <p class="text-xs text-slate-500">Manage draft and sent quotes.</p>
               </div>
               <div class="flex flex-wrap gap-2">
-                <button id="btnQuotesRefresh" class="rounded-full border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50">
-                  Refresh
-                </button>
-                <button id="btnHistory" class="rounded-full border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50">
-                  History
-                </button>
-                <button id="btnNewQuote" class="rounded-full bg-emerald-500 px-4 py-2 text-xs font-semibold text-white hover:bg-emerald-600">
-                  New quote
-                </button>
+                <button id="btnRefreshQuotes" type="button" class="rounded-full border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 hover:text-slate-900 transition">Refresh</button>
+                <button id="btnQuoteHistory" type="button" class="rounded-full border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 hover:text-slate-900 transition">History</button>
+                <button id="btnNewQuote" type="button" class="rounded-full bg-gradient-to-r from-mint to-lagoon px-4 py-2 text-xs font-semibold text-night shadow-sm hover:shadow-md">New quote</button>
               </div>
             </div>
-            <section class="bg-white rounded-2xl shadow-sm border border-slate-100 p-4 space-y-4">
-              <form id="quotesFilterForm" class="grid gap-3 md:grid-cols-4">
-                <div>
-                  <label class="text-xs font-medium text-slate-500" for="quotesFilterClient">Client</label>
-                  <select id="quotesFilterClient" class="mt-1 w-full rounded-full border border-slate-200 px-3 py-2 text-sm"></select>
-                </div>
-                <div>
-                  <label class="text-xs font-medium text-slate-500" for="quotesFilterStatus">Status</label>
-                  <select id="quotesFilterStatus" class="mt-1 w-full rounded-full border border-slate-200 px-3 py-2 text-sm">
-                    <option value="">All</option>
-                    <option value="QUOTE">Quotes</option>
-                    <option value="INVOICE">Invoices</option>
-                    <option value="PAID">Paid</option>
-                    <option value="VOID">Void</option>
-                  </select>
-                </div>
-                <div>
-                  <label class="text-xs font-medium text-slate-500" for="quotesFilterFrom">From</label>
-                  <input id="quotesFilterFrom" type="date" class="mt-1 w-full rounded-full border border-slate-200 px-3 py-2 text-sm" />
-                </div>
-                <div>
-                  <label class="text-xs font-medium text-slate-500" for="quotesFilterTo">To</label>
-                  <input id="quotesFilterTo" type="date" class="mt-1 w-full rounded-full border border-slate-200 px-3 py-2 text-sm" />
-                </div>
-              </form>
-              <div class="overflow-hidden rounded-2xl border border-slate-100">
-                <table class="min-w-full divide-y divide-slate-100 text-left text-sm">
-                  <thead class="bg-slate-50 text-xs font-semibold uppercase tracking-wide text-slate-500">
-                    <tr>
-                      <th class="px-3 py-2">Quote</th>
-                      <th class="px-3 py-2">Created</th>
-                      <th class="px-3 py-2">Total</th>
-                      <th class="px-3 py-2">Status</th>
-                      <th class="px-3 py-2">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody id="quotesTableBody" class="divide-y divide-slate-100"></tbody>
-                </table>
-                <div id="quotesEmptyState" class="px-4 py-6 text-center text-xs text-slate-500">No quotes yet.</div>
-              </div>
-            </section>
+            <form id="quotesFilterForm" class="grid gap-3 md:grid-cols-4">
+              <label class="text-xs font-medium text-slate-500">
+                Status
+                <select id="quotesStatusFilter" class="mt-1 w-full rounded-full border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-mint focus:border-mint">
+                  <option value="">All</option>
+                  <option value="QUOTE">Quote</option>
+                  <option value="INVOICE">Invoice</option>
+                  <option value="PAID">Paid</option>
+                  <option value="VOID">Void</option>
+                </select>
+              </label>
+              <label class="text-xs font-medium text-slate-500">
+                Client
+                <input id="quotesClientFilter" type="text" class="mt-1 w-full rounded-full border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-mint focus:border-mint" />
+              </label>
+              <label class="text-xs font-medium text-slate-500">
+                Date from
+                <input id="quotesDateFrom" type="date" class="mt-1 w-full rounded-full border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-mint focus:border-mint" />
+              </label>
+              <label class="text-xs font-medium text-slate-500">
+                Date to
+                <input id="quotesDateTo" type="date" class="mt-1 w-full rounded-full border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-mint focus:border-mint" />
+              </label>
+            </form>
+            <div class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+              <table class="min-w-full divide-y divide-slate-100 text-left text-sm">
+                <thead class="bg-slate-50 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  <tr>
+                    <th class="px-3 py-2">Client</th>
+                    <th class="px-3 py-2">Status</th>
+                    <th class="px-3 py-2">Amount</th>
+                    <th class="px-3 py-2">Date</th>
+                    <th class="px-3 py-2">Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="quotesTableBody" class="divide-y divide-slate-100"></tbody>
+              </table>
+              <div id="quotesEmptyState" class="px-6 py-10 text-center text-xs text-slate-400">No quotes yet. Create your first quote.</div>
+            </div>
           </section>
 
           <section data-view="invoices" class="space-y-4 hidden">
             <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
               <div>
-                <h2 class="text-xl font-semibold tracking-tight">Invoices</h2>
+                <h2 class="text-xl font-semibold tracking-tight text-slate-900">Invoices</h2>
                 <p class="text-xs text-slate-500">Track invoices and payments.</p>
               </div>
               <div class="flex flex-wrap gap-2">
-                <button id="btnInvoicesRefresh" class="rounded-full border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50">
-                  Refresh
-                </button>
-                <button id="btnInvoicesNewQuote" class="rounded-full bg-emerald-500 px-4 py-2 text-xs font-semibold text-white hover:bg-emerald-600">
-                  New quote
-                </button>
+                <button id="btnRefreshInvoices" type="button" class="rounded-full border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 hover:text-slate-900 transition">Refresh</button>
+                <button id="btnInvoiceHistory" type="button" class="rounded-full border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 hover:text-slate-900 transition">History</button>
               </div>
             </div>
-            <section class="bg-white rounded-2xl shadow-sm border border-slate-100 p-4 space-y-4">
-              <form id="invoicesFilterForm" class="grid gap-3 md:grid-cols-4">
-                <div>
-                  <label class="text-xs font-medium text-slate-500" for="invoicesFilterClient">Client</label>
-                  <select id="invoicesFilterClient" class="mt-1 w-full rounded-full border border-slate-200 px-3 py-2 text-sm"></select>
-                </div>
-                <div>
-                  <label class="text-xs font-medium text-slate-500" for="invoicesFilterFrom">From</label>
-                  <input id="invoicesFilterFrom" type="date" class="mt-1 w-full rounded-full border border-slate-200 px-3 py-2 text-sm" />
-                </div>
-                <div>
-                  <label class="text-xs font-medium text-slate-500" for="invoicesFilterTo">To</label>
-                  <input id="invoicesFilterTo" type="date" class="mt-1 w-full rounded-full border border-slate-200 px-3 py-2 text-sm" />
-                </div>
-                <div class="flex items-end">
-                  <button id="btnInvoicesApply" class="w-full rounded-full border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50">
-                    Apply
-                  </button>
-                </div>
-              </form>
-              <div class="overflow-hidden rounded-2xl border border-slate-100">
-                <table class="min-w-full divide-y divide-slate-100 text-left text-sm">
-                  <thead class="bg-slate-50 text-xs font-semibold uppercase tracking-wide text-slate-500">
-                    <tr>
-                      <th class="px-3 py-2">Invoice</th>
-                      <th class="px-3 py-2">Date</th>
-                      <th class="px-3 py-2">Total</th>
-                      <th class="px-3 py-2">Status</th>
-                      <th class="px-3 py-2">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody id="invoicesTableBody" class="divide-y divide-slate-100"></tbody>
-                </table>
-                <div id="invoicesEmptyState" class="px-4 py-6 text-center text-xs text-slate-500">No invoices yet.</div>
-              </div>
-            </section>
+            <form id="invoicesFilterForm" class="grid gap-3 md:grid-cols-4">
+              <label class="text-xs font-medium text-slate-500">
+                Status
+                <select id="invoicesStatusFilter" class="mt-1 w-full rounded-full border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-mint focus:border-mint">
+                  <option value="">All</option>
+                  <option value="OPEN">Open</option>
+                  <option value="PAID">Paid</option>
+                  <option value="VOID">Void</option>
+                </select>
+              </label>
+              <label class="text-xs font-medium text-slate-500">
+                Client
+                <input id="invoicesClientFilter" type="text" class="mt-1 w-full rounded-full border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-mint focus:border-mint" />
+              </label>
+              <label class="text-xs font-medium text-slate-500">
+                Date from
+                <input id="invoicesDateFrom" type="date" class="mt-1 w-full rounded-full border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-mint focus:border-mint" />
+              </label>
+              <label class="text-xs font-medium text-slate-500">
+                Date to
+                <input id="invoicesDateTo" type="date" class="mt-1 w-full rounded-full border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-mint focus:border-mint" />
+              </label>
+            </form>
+            <div class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+              <table class="min-w-full divide-y divide-slate-100 text-left text-sm">
+                <thead class="bg-slate-50 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  <tr>
+                    <th class="px-3 py-2">Client</th>
+                    <th class="px-3 py-2">Status</th>
+                    <th class="px-3 py-2">Amount</th>
+                    <th class="px-3 py-2">Date</th>
+                    <th class="px-3 py-2">Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="invoicesTableBody" class="divide-y divide-slate-100"></tbody>
+              </table>
+              <div id="invoicesEmptyState" class="px-6 py-10 text-center text-xs text-slate-400">No invoices yet. Convert a quote to invoice.</div>
+            </div>
           </section>
+
           <section data-view="quote-builder" class="space-y-4">
             <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
               <div>
-                <h2 class="text-xl font-semibold tracking-tight">Quote builder</h2>
-                <p class="text-xs text-slate-500">Select a client and vendor, then build a quote.</p>
+                <h2 class="text-xl font-semibold tracking-tight text-slate-900">Quote builder</h2>
+                <p class="text-xs text-slate-500">Build, preview, and share proposals.</p>
               </div>
-              <div class="flex flex-wrap gap-2">
-                <button id="btnEmailDocument" class="rounded-full border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50">
-                  Email
-                </button>
-                <button id="btnPrint" class="rounded-full bg-emerald-500 px-4 py-2 text-xs font-semibold text-white hover:bg-emerald-600">
-                  Print / PDF
-                </button>
+              <div class="flex flex-wrap gap-2 no-print">
+                <button id="emailQuoteBtn" type="button" class="rounded-full border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50">Email</button>
+                <button id="printBtn" type="button" class="rounded-full bg-mint px-4 py-2 text-xs font-semibold text-night shadow-sm hover:bg-emerald-400 hover:shadow-md">Print / PDF</button>
               </div>
             </div>
+
             <div class="grid gap-4 lg:grid-cols-2">
-              <section class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 space-y-4">
-                <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-4">
+                <div class="flex items-start justify-between">
                   <div>
-                    <h2 class="text-lg font-semibold tracking-tight text-slate-900">Job Details</h2>
-                    <p class="text-xs text-slate-500">Capture site context.</p>
-                  </div>
-                  <div class="flex flex-wrap gap-2 text-xs">
-                    <label class="flex items-center gap-2 text-slate-600">
-                      <span class="text-[11px] uppercase tracking-wide">Customer</span>
-                      <select id="bizType" class="rounded-full border border-slate-200 px-3 py-1 text-xs">
-                        <option value="res">Residential</option>
-                        <option value="com">Commercial</option>
-                      </select>
-                    </label>
-                    <div class="flex items-center gap-2">
-                      <label class="text-[11px] uppercase tracking-wide text-slate-500" for="vendorSelect">Vendor</label>
-                      <select id="vendorSelect" class="rounded-full border border-slate-200 px-3 py-1 text-xs"></select>
-                      <button id="btnManageVendors" class="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-50">
-                        Manage
-                      </button>
-                    </div>
+                    <h3 class="text-lg font-semibold tracking-tight text-slate-900">Job details</h3>
+                    <p class="text-xs text-slate-500">Enter service scope and customer context.</p>
                   </div>
                 </div>
-                <div class="grid gap-4">
-                  <div class="grid gap-2">
-                    <label class="text-xs font-semibold text-slate-500">Client</label>
-                    <div class="flex flex-col gap-2 sm:flex-row sm:items-center">
-                      <div class="space-y-2 flex-1">
-                        <input
-                          id="clientNameTypeahead"
-                          type="text"
-                          placeholder="Start typing a client name…"
-                          class="w-full rounded-full border border-slate-200 px-3 py-2 text-sm"
-                          autocomplete="off"
-                        />
-                        <select
-                          id="clientSelect"
-                          class="w-full rounded-full border border-slate-200 px-3 py-2 text-sm"
-                        ></select>
-                        <div id="clientTypeaheadResults" class="mt-1 space-y-1 text-xs text-slate-500"></div>
-                      </div>
-                      <button type="button" id="btnManageClients" class="rounded-full border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50">
-                        Manage
-                      </button>
-                    </div>
-                  </div>
-                  <div class="grid gap-2">
-                    <label class="text-xs font-semibold text-slate-500">Customer Name</label>
-                    <input id="custName" class="rounded-xl border border-slate-200 px-3 py-2 text-sm" placeholder="Jane Doe" />
-                  </div>
-                  <div class="grid gap-2">
-                    <label class="text-xs font-semibold text-slate-500">Address</label>
-                    <input id="address" class="rounded-xl border border-slate-200 px-3 py-2 text-sm" placeholder="123 Main St" />
-                  </div>
-                  <div class="grid gap-4 sm:grid-cols-2">
-                    <div class="grid gap-2">
-                      <label class="text-xs font-semibold text-slate-500">Invoice Number</label>
-                      <input id="invoiceNumber" class="rounded-xl border border-slate-200 px-3 py-2 text-sm" placeholder="INV-001" />
-                    </div>
-                    <div class="grid gap-2">
-                      <label class="text-xs font-semibold text-slate-500">Invoice Due Date</label>
-                      <input id="invoiceDueDate" type="date" class="rounded-xl border border-slate-200 px-3 py-2 text-sm" />
-                    </div>
-                  </div>
-                  <div class="grid gap-2">
-                    <label class="text-xs font-semibold text-slate-500">Square Footage</label>
-                    <input id="sqft" type="number" min="0" step="1" value="0" class="rounded-xl border border-slate-200 px-3 py-2 text-sm" />
-                  </div>
-                  <div class="grid gap-2">
-                    <label class="text-xs font-semibold text-slate-500">Pest Types (select all that apply)</label>
-                    <div id="pestPicker" class="flex flex-wrap gap-3"></div>
-                  </div>
-                  <div class="grid gap-2">
-                    <label class="text-xs font-semibold text-slate-500">Visit Type</label>
-                    <select id="visitType" class="rounded-full border border-slate-200 px-3 py-2 text-sm">
-                      <option value="one">One-time</option>
-                      <option value="monthly">Monthly</option>
-                      <option value="quarterly">Quarterly</option>
-                    </select>
-                  </div>
-                  <div id="termiteRow" class="grid gap-4 sm:grid-cols-2 hidden">
-                    <div class="grid gap-2">
-                      <label class="text-xs font-semibold text-slate-500">Perimeter (linear ft)</label>
-                      <input id="linearFt" type="number" min="0" step="1" value="0" class="rounded-xl border border-slate-200 px-3 py-2 text-sm" />
-                    </div>
-                    <div class="grid gap-2">
-                      <label class="text-xs font-semibold text-slate-500">Rate ($/linear ft)</label>
-                      <input id="lfRate" type="number" min="0" step="0.1" value="7" class="rounded-xl border border-slate-200 px-3 py-2 text-sm" />
-                    </div>
-                  </div>
-                  <div class="grid gap-2">
-                    <label class="text-xs font-semibold text-slate-500">Comments / Notes</label>
-                    <textarea id="comments" rows="3" class="rounded-xl border border-slate-200 px-3 py-2 text-sm" placeholder="Special instructions, areas of concern, access notes..."></textarea>
-                  </div>
+                <div class="grid gap-3 md:grid-cols-2">
+                  <label class="text-xs font-medium text-slate-500">
+                    Client name
+                    <input
+                      id="clientNameTypeahead"
+                      name="clientNameTypeahead"
+                      type="text"
+                      autocomplete="off"
+                      class="mt-1 rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-mint focus:border-mint"
+                    />
+                  </label>
+                  <label class="text-xs font-medium text-slate-500">
+                    Select existing client
+                    <select
+                      id="clientSelect"
+                      name="clientSelect"
+                      class="mt-1 rounded-full border border-slate-200 px-3 py-2 text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-mint focus:border-mint"
+                    ></select>
+                  </label>
                 </div>
-              </section>
+                <div id="clientTypeaheadResults" class="text-xs text-slate-600"></div>
+                <label class="text-xs font-medium text-slate-500">
+                  Service address
+                  <input id="serviceAddress" name="serviceAddress" type="text" class="mt-1 rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-mint focus:border-mint" />
+                </label>
+                <label class="text-xs font-medium text-slate-500">
+                  Property square footage
+                  <input id="squareFeet" name="squareFeet" type="number" class="mt-1 rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-mint focus:border-mint" />
+                </label>
+                <div class="grid gap-3 md:grid-cols-2">
+                  <label class="text-xs font-medium text-slate-500">
+                    Invoice number
+                    <input id="invoiceNumber" name="invoiceNumber" type="text" class="mt-1 rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-mint focus:border-mint" />
+                  </label>
+                  <label class="text-xs font-medium text-slate-500">
+                    Due date
+                    <input id="invoiceDueDate" name="invoiceDueDate" type="date" class="mt-1 rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-mint focus:border-mint" />
+                  </label>
+                </div>
+                <label class="text-xs font-medium text-slate-500">
+                  Notes
+                  <textarea
+                    id="specialInstructions"
+                    name="specialInstructions"
+                    rows="3"
+                    placeholder="Notes about access, scope, or any special instructions…"
+                    class="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-mint focus:border-mint"
+                  ></textarea>
+                </label>
+              </div>
 
-              <section class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 space-y-4">
-                <div class="flex items-center justify-between">
-                  <div>
-                    <h2 class="text-lg font-semibold tracking-tight text-slate-900">Site Photos</h2>
-                    <p class="text-xs text-slate-500">Optional documentation.</p>
-                  </div>
-                </div>
-                <div class="grid gap-3">
-                  <div class="grid gap-2">
-                    <label class="text-xs font-semibold text-slate-500">Upload Photos</label>
-                    <input id="quotePhotos" type="file" accept="image/*" multiple class="rounded-xl border border-slate-200 px-3 py-2 text-sm" />
-                    <p class="text-xs text-slate-500">These will be stored securely and appear below the quote/invoice when printed.</p>
-                  </div>
-                  <div id="photoPreview" class="flex flex-wrap gap-3"></div>
-                </div>
-              </section>
-
-              <section id="pricingCard" class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 space-y-4 no-print">
-                <div class="flex items-center justify-between">
-                  <div>
-                    <h2 class="text-lg font-semibold tracking-tight text-slate-900">Pricing Parameters</h2>
-                    <p class="text-xs text-slate-500">Dial in revenue targets.</p>
-                  </div>
-                </div>
-                <div class="grid gap-4">
-                  <div class="grid gap-2">
-                    <label class="text-xs font-semibold text-slate-500">Base Rate ($/sqft)</label>
-                    <input id="baseRateSqft" type="number" min="0" step="0.001" value="0" placeholder="Base rate per sqft" aria-label="Base Rate per square foot" class="rounded-xl border border-slate-200 px-3 py-2 text-sm">
-                  </div>
-                  <div id="pestChargesBlock" class="grid gap-2 hidden">
-                    <div class="text-xs font-semibold uppercase tracking-wide text-slate-500">Pest Coverage Pricing</div>
-                    <div id="pestChargeRows" class="grid gap-2"></div>
-                    <div class="text-xs text-slate-500">Mark "Included" to charge $0 for that pest; otherwise enter an added cost.</div>
-                  </div>
-                  <div id="resTierBlock" class="grid gap-3 hidden">
-                    <div class="grid gap-2">
-                      <label class="text-xs font-semibold text-slate-500">Residential Tier</label>
-                      <select id="resTierPlan" class="rounded-full border border-slate-200 px-3 py-2 text-sm">
-                        <option value="0">Standard</option>
-                        <option value="1">Premium</option>
-                        <option value="2">Elite</option>
-                        <option value="custom">Custom</option>
-                      </select>
-                    </div>
-                    <div id="resTierCustom" class="grid gap-2 hidden">
-                      <label class="text-xs font-semibold text-slate-500">Custom Tier Name</label>
-                      <input id="resTierName" class="rounded-xl border border-slate-200 px-3 py-2 text-sm" placeholder="Custom tier" />
-                    </div>
-                  </div>
-                  <div id="resTierPricing" class="grid gap-2 hidden">
-                    <label class="text-xs font-semibold text-slate-500">Tiered pricing (residential)</label>
-                    <div class="grid gap-3">
-                      <div class="grid gap-2">
-                        <label class="text-xs text-slate-500">0 - 1,000 sqft</label>
-                        <input id="tier_0_1000" type="number" min="0" step="0.01" class="rounded-xl border border-slate-200 px-3 py-2 text-sm" />
-                      </div>
-                      <div class="grid gap-2">
-                        <label class="text-xs text-slate-500">1,000 - 4,000 sqft</label>
-                        <input id="tier_1000_4000" type="number" min="0" step="0.01" class="rounded-xl border border-slate-200 px-3 py-2 text-sm" />
-                      </div>
-                      <div class="grid gap-2">
-                        <label class="text-xs text-slate-500">4,000 - 6,000 sqft</label>
-                        <input id="tier_4000_6000" type="number" min="0" step="0.01" class="rounded-xl border border-slate-200 px-3 py-2 text-sm" />
-                      </div>
-                      <div class="grid gap-2">
-                        <label class="text-xs text-slate-500">6,000+ sqft</label>
-                        <input id="tier_6000_plus" type="number" min="0" step="0.01" class="rounded-xl border border-slate-200 px-3 py-2 text-sm" />
-                      </div>
-                    </div>
-                  </div>
-                  <div class="grid gap-2">
-                    <label class="text-xs font-semibold text-slate-500">Labor rate ($/hr)</label>
-                    <input id="laborRate" type="number" min="0" step="0.01" value="0" class="rounded-xl border border-slate-200 px-3 py-2 text-sm" />
-                  </div>
-                  <div class="grid gap-2">
-                    <label class="text-xs font-semibold text-slate-500">Hours</label>
-                    <input id="hours" type="number" min="0" step="0.1" value="0" class="rounded-xl border border-slate-200 px-3 py-2 text-sm" />
-                  </div>
-                  <div class="grid gap-2">
-                    <label class="text-xs font-semibold text-slate-500">Materials</label>
-                    <input id="materials" type="number" min="0" step="0.01" value="0" class="rounded-xl border border-slate-200 px-3 py-2 text-sm" />
-                  </div>
-                  <div class="grid gap-2">
-                    <label class="text-xs font-semibold text-slate-500">Travel Flat Fee</label>
-                    <input id="travel" type="number" min="0" step="0.01" value="0" class="rounded-xl border border-slate-200 px-3 py-2 text-sm" />
-                  </div>
-                  <div class="grid gap-2">
-                    <label class="text-xs font-semibold text-slate-500">Travel Miles</label>
-                    <input id="travelMiles" type="number" min="0" step="1" value="0" class="rounded-xl border border-slate-200 px-3 py-2 text-sm" />
-                  </div>
-                  <div class="grid gap-2">
-                    <label class="text-xs font-semibold text-slate-500">Per-mile Rate</label>
-                    <input id="perMile" type="number" min="0" step="0.01" value="0" class="rounded-xl border border-slate-200 px-3 py-2 text-sm" />
-                  </div>
-                  <div class="grid gap-2">
-                    <label class="text-xs font-semibold text-slate-500">Markup %</label>
-                    <input id="markupPct" type="number" min="0" step="0.1" value="0" class="rounded-xl border border-slate-200 px-3 py-2 text-sm" />
-                  </div>
-                  <div class="grid gap-2">
-                    <label class="text-xs font-semibold text-slate-500">Tax %</label>
-                    <input id="taxPct" type="number" min="0" step="0.1" value="0" class="rounded-xl border border-slate-200 px-3 py-2 text-sm" />
-                  </div>
-                  <div class="grid gap-2">
-                    <label class="text-xs font-semibold text-slate-500">Rodent Stations</label>
-                    <input id="rodentStations" type="number" min="0" step="1" value="0" class="rounded-xl border border-slate-200 px-3 py-2 text-sm" />
-                  </div>
-                  <div class="grid gap-2">
-                    <label class="text-xs font-semibold text-slate-500">Rodent Rate</label>
-                    <input id="rodentRate" type="number" min="0" step="0.01" value="0" class="rounded-xl border border-slate-200 px-3 py-2 text-sm" />
-                  </div>
-                  <div class="grid gap-2">
-                    <label class="text-xs font-semibold text-slate-500">ILT Count</label>
-                    <input id="iltCount" type="number" min="0" step="1" value="0" class="rounded-xl border border-slate-200 px-3 py-2 text-sm" />
-                  </div>
-                  <div class="grid gap-2">
-                    <label class="text-xs font-semibold text-slate-500">ILT Rate</label>
-                    <input id="iltRate" type="number" min="0" step="0.01" value="0" class="rounded-xl border border-slate-200 px-3 py-2 text-sm" />
-                  </div>
-                  <div class="grid gap-2">
-                    <label class="text-xs font-semibold text-slate-500">Compliance Fee</label>
-                    <input id="complianceFee" type="number" min="0" step="0.01" value="0" class="rounded-xl border border-slate-200 px-3 py-2 text-sm" />
-                  </div>
-                  <div class="grid gap-4 sm:grid-cols-2">
-                    <div class="grid gap-2">
-                      <label class="text-xs font-semibold text-slate-500">After-hours Surcharge (%)</label>
-                      <input id="afterHoursPct" type="number" min="0" step="1" value="0" class="rounded-xl border border-slate-200 px-3 py-2 text-sm" />
-                    </div>
-                    <div class="grid gap-2">
-                      <label class="text-xs font-semibold text-slate-500">Discount (%)</label>
-                      <input id="discountPct" type="number" min="0" step="1" value="0" class="rounded-xl border border-slate-200 px-3 py-2 text-sm" />
-                    </div>
-                  </div>
-                </div>
-              </section>
-              <section class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 space-y-4 no-print lg:col-span-2">
-                <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-                  <div>
-                    <h2 class="text-lg font-semibold tracking-tight text-slate-900">Quote Summary</h2>
-                    <p class="text-xs text-slate-500">Review totals and finalize the document.</p>
-                  </div>
-                  <div class="flex flex-wrap gap-2">
-                    <button id="btnCalc" class="rounded-full bg-emerald-500 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-600">Calculate</button>
-                    <button id="btnInvoice" class="rounded-full bg-emerald-500 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-600">Create Invoice</button>
-                    <button id="btnSave" class="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">Save</button>
-                    <button id="btnExport" class="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">Download JSON</button>
-                    <button id="btnReset" class="rounded-full bg-rose-500 px-4 py-2 text-sm font-semibold text-white hover:bg-rose-600">Reset</button>
-                  </div>
-                </div>
-                <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                  <div class="rounded-2xl border border-slate-100 bg-slate-50 p-5">
-                    <div class="text-xs font-semibold uppercase tracking-wide text-slate-500">Base</div>
-                    <div id="baseOut" class="mt-2 text-3xl font-semibold">$0.00</div>
-                    <div class="text-xs text-slate-500">Per-sqft base</div>
-                  </div>
-                  <div class="rounded-2xl border border-slate-100 bg-slate-50 p-5">
-                    <div class="text-xs font-semibold uppercase tracking-wide text-slate-500">Labor + Fees</div>
-                    <div id="laborOut" class="mt-2 text-3xl font-semibold">$0.00</div>
-                    <div class="text-xs text-slate-500">Labor + materials + travel</div>
-                  </div>
-                  <div class="rounded-2xl border border-slate-100 bg-slate-50 p-5">
-                    <div class="text-xs font-semibold uppercase tracking-wide text-slate-500">Total</div>
-                    <div id="totalOut" class="mt-2 text-4xl font-bold text-slate-900">$0.00</div>
-                    <div class="text-xs text-slate-500" id="ppsOut">$/sqft</div>
-                  </div>
-                </div>
-                <div class="overflow-x-auto rounded-2xl border border-slate-100">
-                  <table class="min-w-full text-sm">
-                    <tbody>
-                      <tr><td class="px-4 py-3 text-slate-500">Company</td><td class="px-4 py-3 font-medium text-slate-900" id="compOut">—</td></tr>
-                      <tr><td class="px-4 py-3 text-slate-500">Contact</td><td class="px-4 py-3 font-medium text-slate-900" id="contactOut">—</td></tr>
-                      <tr><td class="px-4 py-3 text-slate-500">Customer</td><td class="px-4 py-3 font-medium text-slate-900" id="custOut">—</td></tr>
-                      <tr><td class="px-4 py-3 text-slate-500">Address</td><td class="px-4 py-3 font-medium text-slate-900" id="addrOut">—</td></tr>
-                      <tr><td class="px-4 py-3 text-slate-500">Service</td><td class="px-4 py-3 font-medium text-slate-900" id="svcOut">—</td></tr>
-                      <tr id="invoiceNumberRow" class="hidden"><td class="px-4 py-3 text-slate-500">Invoice #</td><td class="px-4 py-3 font-medium text-slate-900" id="invoiceOut">—</td></tr>
-                      <tr id="invoiceDueRow" class="hidden"><td class="px-4 py-3 text-slate-500">Due Date</td><td class="px-4 py-3 font-medium text-slate-900" id="invoiceDueOut">—</td></tr>
-                      <tr><td class="px-4 py-3 text-slate-500">Subtotal</td><td class="px-4 py-3 font-medium text-slate-900" id="subOut">$0.00</td></tr>
-                      <tr><td class="px-4 py-3 text-slate-500">Tax</td><td class="px-4 py-3 font-medium text-slate-900" id="taxOut">$0.00</td></tr>
-                      <tr><td class="px-4 py-3 text-slate-500">Total</td><td class="px-4 py-3 font-bold text-slate-900" id="grandOut">$0.00</td></tr>
-                    </tbody>
-                  </table>
-                </div>
-                <div class="rounded-2xl border border-slate-100 bg-slate-50 p-6 space-y-4">
-                  <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <div class="space-y-4">
+                <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+                  <div class="flex items-start justify-between">
                     <div>
-                      <h3 class="text-lg font-semibold text-slate-900">Accepted Plan</h3>
-                      <p class="text-xs text-slate-500">Track recurring commitments once your client gives the green light.</p>
+                      <h3 class="text-lg font-semibold tracking-tight text-slate-900">Site photos</h3>
+                      <p class="text-xs text-slate-500">Attach visuals for context.</p>
                     </div>
-                    <label class="flex items-center gap-2 text-sm text-slate-600">
-                      <input id="acceptedPlanEnabled" type="checkbox" class="h-4 w-4 rounded border-slate-300 text-emerald-500 focus:ring-emerald-500" />
-                      Client accepted plan
+                  </div>
+                  <input id="quotePhotos" name="quotePhotos" type="file" multiple class="mt-3 block w-full text-sm text-slate-600" />
+                  <div id="photoPreview" class="mt-4 grid grid-cols-2 sm:grid-cols-3 gap-3"></div>
+                </div>
+                <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-4">
+                  <div class="flex items-start justify-between">
+                    <div>
+                      <h3 class="text-lg font-semibold tracking-tight text-slate-900">Pricing parameters</h3>
+                      <p class="text-xs text-slate-500">Dial in revenue targets.</p>
+                    </div>
+                  </div>
+                  <label class="text-xs font-medium text-slate-500">
+                    Base rate
+                    <input id="baseRate" name="baseRate" type="number" class="mt-1 rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-mint focus:border-mint" />
+                  </label>
+                  <div class="grid gap-3 md:grid-cols-2">
+                    <label class="text-xs font-medium text-slate-500">
+                      Pest coverage pricing
+                      <input id="pestCoveragePrice" name="pestCoveragePrice" type="number" class="mt-1 rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-mint focus:border-mint" />
+                    </label>
+                    <label class="text-xs font-medium text-slate-500">
+                      Residential tier
+                      <select id="residentialTier" name="residentialTier" class="mt-1 rounded-full border border-slate-200 px-3 py-2 text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-mint focus:border-mint"></select>
                     </label>
                   </div>
-                  <div class="grid gap-4 sm:grid-cols-2">
-                    <div class="grid gap-2">
-                      <label class="text-xs font-semibold text-slate-500">Monthly Fee ($)</label>
-                      <input id="acceptedMonthlyFee" type="number" min="0" step="0.01" class="rounded-xl border border-slate-200 px-3 py-2 text-sm" placeholder="125.00" />
-                    </div>
-                    <div class="grid gap-2">
-                      <label class="text-xs font-semibold text-slate-500">Plan Start Date</label>
-                      <input id="acceptedStartDate" type="date" class="rounded-xl border border-slate-200 px-3 py-2 text-sm" />
-                    </div>
-                  </div>
-                  <div class="grid gap-2">
-                    <label class="text-xs font-semibold text-slate-500">Accepted Add-ons</label>
-                    <textarea id="acceptedAddOns" rows="2" class="rounded-xl border border-slate-200 px-3 py-2 text-sm" placeholder="Monthly mosquito treatment, attic stations, etc."></textarea>
-                  </div>
-                  <div class="grid gap-2">
-                    <label class="text-xs font-semibold text-slate-500">Notes</label>
-                    <textarea id="acceptedNotes" rows="2" class="rounded-xl border border-slate-200 px-3 py-2 text-sm" placeholder="Payment cadence, scope reminders, or authorization details."></textarea>
-                  </div>
+                  <label class="text-xs font-medium text-slate-500">
+                    Tiered pricing
+                    <textarea id="tieredPricing" name="tieredPricing" rows="3" class="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-mint focus:border-mint"></textarea>
+                  </label>
                 </div>
-                <p class="text-xs text-slate-500">All estimates are subject to site verification and product availability.</p>
-              </section>
+              </div>
             </div>
 
-            <div class="print-only mx-auto max-w-4xl px-6 py-8 card-printable">
-              <div class="mb-8 flex items-start gap-6 border-b-2 border-slate-300 pb-6">
-                <img id="printLogo" class="h-20 w-auto" alt="Company logo" />
-                <div class="flex-1">
-                  <h1 id="printCompanyName" class="mb-2 text-3xl font-bold">Company Name</h1>
-                  <div id="printCompanyInfo" class="text-sm">
-                    <div id="printAddress"></div>
-                    <div id="printContact"></div>
-                  </div>
+            <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-4 card-printable">
+              <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                <div>
+                  <h3 class="text-lg font-semibold tracking-tight text-slate-900">Quote output</h3>
+                  <p class="text-xs text-slate-500">Preview totals and taxes.</p>
                 </div>
-                <div class="text-right">
-                  <div class="text-xs uppercase tracking-wide" id="printDocLabel">Quote</div>
-                  <div id="printDocDate" class="text-sm font-medium"></div>
-                  <div id="printDocMeta" class="text-xs text-slate-500"></div>
+                <div class="flex flex-wrap gap-2 no-print">
+                  <button id="btnSaveQuote" type="button" class="rounded-full border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50">Save quote</button>
+                  <button id="btnConvertInvoice" type="button" class="rounded-full border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50">Convert to invoice</button>
                 </div>
               </div>
-              <div class="mb-8">
-                <h2 class="mb-3 text-lg font-semibold">Customer Information</h2>
-                <div class="grid grid-cols-2 gap-4 text-sm">
-                  <div><span class="font-medium">Name:</span> <span id="printCustName"></span></div>
-                  <div><span class="font-medium">Address:</span> <span id="printCustAddr"></span></div>
-                </div>
-                <div id="printInvoiceDetails" class="mt-4 grid grid-cols-2 gap-4 text-sm hidden">
-                  <div><span class="font-medium">Invoice #:</span> <span id="printInvoiceNumber"></span></div>
-                  <div><span class="font-medium">Due Date:</span> <span id="printInvoiceDue"></span></div>
-                </div>
+              <div class="grid gap-3 md:grid-cols-2">
+                <label class="text-xs font-medium text-slate-500">
+                  Quote total
+                  <input id="quoteTotal" name="quoteTotal" type="number" class="mt-1 rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-mint focus:border-mint" />
+                </label>
+                <label class="text-xs font-medium text-slate-500">
+                  Taxes
+                  <input id="taxes" name="taxes" type="number" class="mt-1 rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-mint focus:border-mint" />
+                </label>
               </div>
-              <div class="mb-8">
-                <h2 class="mb-3 text-lg font-semibold">Service Details</h2>
-                <div class="mb-2 text-sm" id="printServiceDesc"></div>
-                <div class="text-sm"><span class="font-medium">Square Footage:</span> <span id="printSqft"></span></div>
-              </div>
-              <div class="mb-8">
-                <h2 class="mb-3 text-lg font-semibold" id="printBreakdownTitle">Quote Breakdown</h2>
-                <table class="w-full border-collapse text-sm">
-                  <thead>
-                    <tr class="border-b-2 border-slate-300">
-                      <th class="py-2 text-left">Description</th>
-                      <th class="w-32 py-2 text-right">Amount</th>
-                    </tr>
-                  </thead>
-                  <tbody id="printLineItems" class="divide-y divide-slate-200"></tbody>
-                  <tfoot class="border-t-2 border-slate-300">
-                    <tr><td class="py-2 font-medium">Subtotal</td><td class="text-right" id="printSubtotal"></td></tr>
-                    <tr id="printTaxRow"><td class="py-1">Tax</td><td class="text-right" id="printTax"></td></tr>
-                    <tr class="text-lg font-bold"><td class="pt-2">Total</td><td class="pt-2 text-right" id="printTotal"></td></tr>
-                  </tfoot>
-                </table>
-              </div>
-              <div id="printAcceptedPlanSection" class="mb-8" style="display:none;">
-                <h2 class="mb-3 text-lg font-semibold">Accepted Plan</h2>
-                <div class="space-y-2 text-sm">
-                  <div id="printAcceptedPlanSummary" class="font-medium text-slate-700"></div>
-                  <div><span class="font-medium">Add-ons:</span> <span id="printAcceptedPlanAddOns"></span></div>
-                  <div>
-                    <div class="font-medium">Notes</div>
-                    <div id="printAcceptedPlanNotes" class="mt-1 whitespace-pre-wrap rounded border border-slate-200 bg-slate-50 p-3"></div>
-                  </div>
-                </div>
-              </div>
-              <div id="printPhotosSection" class="mb-8" style="display:none;">
-                <h2 class="mb-3 text-lg font-semibold">Site Photos</h2>
-                <ul id="printPhotoList" class="list-disc space-y-1 pl-5 text-sm"></ul>
-              </div>
-              <div id="printCommentsSection" class="mb-8">
-                <h2 class="mb-3 text-lg font-semibold">Notes</h2>
-                <div id="printComments" class="whitespace-pre-wrap rounded border border-slate-200 bg-slate-50 p-4 text-sm"></div>
-              </div>
-              <div class="mt-12 border-t border-slate-300 pt-6 text-xs">
-                <div id="printFooterPrimary">All estimates are subject to site verification and product availability.</div>
-                <div id="printFooterSecondary" class="mt-2">This quote is valid for 30 days from the date above.</div>
-              </div>
+              <label class="text-xs font-medium text-slate-500">
+                Output notes
+                <textarea id="outputNotes" name="outputNotes" rows="3" class="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-mint focus:border-mint"></textarea>
+              </label>
+              <div id="quotePreview" class="text-sm text-slate-700"></div>
             </div>
           </section>
-          <section data-view="vendor-settings" class="space-y-4 hidden">
-            <div class="flex items-center justify-between">
-              <div>
-                <h2 class="text-xl font-semibold tracking-tight">Vendors &amp; Settings</h2>
-                <p class="text-xs text-slate-500">Company profile and vendor accounts.</p>
-              </div>
-              <button id="btnVendorNew" class="rounded-full bg-emerald-500 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-600">
-                New vendor
-              </button>
-            </div>
-            <div class="grid gap-4">
-              <section class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 space-y-4 no-print">
-                <div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-                  <div class="flex items-start gap-4">
-                    <img id="companyLogoOutput" class="h-16 w-auto rounded-xl border border-slate-200 bg-slate-50 p-2" alt="Company logo" />
-                    <div>
-                      <h2 class="text-lg font-semibold tracking-tight text-slate-900">Company Profile</h2>
-                      <p class="text-xs text-slate-500">Branding exported securely.</p>
-                    </div>
-                  </div>
-                  <div class="flex flex-wrap gap-2 text-sm font-semibold">
-                    <button id="btnProfileSave" class="rounded-full bg-emerald-500 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-600">Save (secured)</button>
-                    <button id="btnProfileLoad" class="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">Load</button>
-                    <button id="btnProfileExport" class="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">Export</button>
-                    <label class="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">
-                      Import <input id="profileImport" type="file" accept="application/json" class="hidden">
-                    </label>
-                  </div>
-                </div>
-                <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                  <div class="grid gap-2">
-                    <label class="text-xs font-semibold text-slate-500">Company Name</label>
-                    <input id="companyName" class="rounded-xl border border-slate-200 px-3 py-2 text-sm" placeholder="Acme Pest Co." />
-                  </div>
-                  <div class="grid gap-2">
-                    <label class="text-xs font-semibold text-slate-500">Address</label>
-                    <input id="companyAddress" class="rounded-xl border border-slate-200 px-3 py-2 text-sm" placeholder="123 Main St, City, ST" />
-                  </div>
-                  <div class="grid gap-2">
-                    <label class="text-xs font-semibold text-slate-500">License #</label>
-                    <input id="companyLicense" class="rounded-xl border border-slate-200 px-3 py-2 text-sm" placeholder="TX-XXXXXX" />
-                  </div>
-                  <div class="grid gap-2">
-                    <label class="text-xs font-semibold text-slate-500">Phone</label>
-                    <input id="companyPhone" class="rounded-xl border border-slate-200 px-3 py-2 text-sm" placeholder="(555) 555-5555" />
-                  </div>
-                  <div class="grid gap-2">
-                    <label class="text-xs font-semibold text-slate-500">Email</label>
-                    <input id="companyEmail" class="rounded-xl border border-slate-200 px-3 py-2 text-sm" placeholder="hello@acme.com" />
-                  </div>
-                  <div class="grid gap-2">
-                    <label class="text-xs font-semibold text-slate-500">Website</label>
-                    <input id="companyWebsite" class="rounded-xl border border-slate-200 px-3 py-2 text-sm" placeholder="acme.com" />
-                  </div>
-                  <div class="grid gap-2 sm:col-span-2 lg:col-span-3">
-                    <label class="text-xs font-semibold text-slate-500">Logo (optional)</label>
-                    <input id="companyLogo" type="file" accept="image/*" class="rounded-xl border border-slate-200 px-3 py-2 text-sm" />
-                    <img id="companyLogoPreview" class="mt-3 h-12 rounded-lg border border-slate-200 bg-slate-50 p-2" alt="" />
-                  </div>
-                </div>
-              </section>
-              <section class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 space-y-4 no-print">
-                <div class="flex items-center justify-between">
-                  <div>
-                    <h2 class="text-lg font-semibold tracking-tight text-slate-900">Vendor Directory</h2>
-                    <p class="text-xs text-slate-500">Manage vendor records to organize quote numbering.</p>
-                  </div>
-                  <button id="btnOpenVendorModal" class="rounded-full border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50">Manage vendors</button>
-                </div>
-                <div id="vendorList" class="space-y-3 overflow-y-auto pr-1" style="max-height: 18rem;"></div>
-              </section>
-            </div>
-          </section>
+
+          <section data-view="invoices-list" class="hidden"></section>
+          <section data-view="vendor-settings" class="hidden"></section>
         </main>
-      </div>
-    </div>
-    <div id="vendorModal" class="no-print fixed inset-0 z-40 hidden items-center justify-center bg-slate-900/70 px-6 py-12 backdrop-blur">
-      <div class="w-full max-w-xl rounded-3xl border border-slate-200 bg-white p-8 shadow-xl">
-        <div class="flex items-center justify-between">
-          <div>
-            <h3 class="text-xl font-semibold text-slate-900">Manage vendors</h3>
-            <p class="text-sm text-slate-500">Create vendor records to organize daily quote numbering.</p>
-          </div>
-          <button type="button" class="rounded-full border border-slate-200 px-3 py-1 text-xs font-semibold text-slate-600 hover:bg-slate-100" data-close-modal="vendorModal">Close</button>
-        </div>
-        <form id="vendorForm" class="mt-6 space-y-4">
-          <div>
-            <label for="vendorNameInput" class="block text-xs font-semibold uppercase tracking-wide text-slate-500">Vendor name</label>
-            <input id="vendorNameInput" name="name" type="text" required class="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 text-sm" placeholder="Northside Pest Control" />
-          </div>
-          <div class="grid gap-4 sm:grid-cols-2">
-            <div>
-              <label for="vendorEmailInput" class="block text-xs font-semibold uppercase tracking-wide text-slate-500">Email</label>
-              <input id="vendorEmailInput" name="email" type="email" class="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 text-sm" placeholder="team@example.com" />
-            </div>
-            <div>
-              <label for="vendorPhoneInput" class="block text-xs font-semibold uppercase tracking-wide text-slate-500">Phone</label>
-              <input id="vendorPhoneInput" name="phone" type="tel" class="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 text-sm" placeholder="555-123-4567" />
-            </div>
-          </div>
-          <div>
-            <label for="vendorNotesInput" class="block text-xs font-semibold uppercase tracking-wide text-slate-500">Notes</label>
-            <textarea id="vendorNotesInput" name="notes" rows="3" class="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 text-sm" placeholder="Branch details, internal references, etc."></textarea>
-          </div>
-          <div class="flex justify-end">
-            <button type="submit" class="rounded-full bg-emerald-500 px-5 py-2 text-sm font-semibold text-white hover:bg-emerald-600">Save vendor</button>
-          </div>
-        </form>
-        <div id="vendorModalList" class="mt-8 space-y-3 overflow-y-auto pr-1" style="max-height: 18rem;"></div>
-      </div>
-    </div>
-
-    <div id="clientModal" class="no-print fixed inset-0 z-40 hidden items-center justify-center bg-slate-900/60 px-4 py-8">
-      <div class="w-full max-w-lg rounded-3xl border border-slate-200 bg-white p-6 shadow-xl">
-        <div class="mb-4 flex items-center justify-between">
-          <h3 class="text-lg font-semibold text-slate-900">Client Profile</h3>
-          <button type="button" data-close="clientModal" class="text-sm text-slate-500 transition hover:text-slate-700">Close</button>
-        </div>
-        <form id="clientForm" class="grid gap-4">
-          <input type="hidden" id="clientId" />
-          <div class="grid gap-2">
-            <label class="text-xs font-semibold text-slate-500">Client Name</label>
-            <input id="clientName" class="rounded-xl border border-slate-200 px-3 py-2 text-sm" required placeholder="Homeowner / Business name" />
-          </div>
-          <div class="grid gap-2">
-            <label class="text-xs font-semibold text-slate-500">Email</label>
-            <input id="clientEmail" type="email" class="rounded-xl border border-slate-200 px-3 py-2 text-sm" placeholder="client@example.com" />
-          </div>
-          <div class="grid gap-2">
-            <label class="text-xs font-semibold text-slate-500">Phone</label>
-            <input id="clientPhone" type="tel" class="rounded-xl border border-slate-200 px-3 py-2 text-sm" placeholder="(555) 555-5555" />
-          </div>
-          <div class="grid gap-2">
-            <label class="text-xs font-semibold text-slate-500">Address</label>
-            <input id="clientAddress1" class="rounded-xl border border-slate-200 px-3 py-2 text-sm" placeholder="123 Main St" />
-          </div>
-          <div class="grid gap-2 sm:grid-cols-3">
-            <div class="grid gap-2">
-              <label class="text-xs font-semibold text-slate-500">City</label>
-              <input id="clientCity" class="rounded-xl border border-slate-200 px-3 py-2 text-sm" />
-            </div>
-            <div class="grid gap-2">
-              <label class="text-xs font-semibold text-slate-500">State</label>
-              <input id="clientState" class="rounded-xl border border-slate-200 px-3 py-2 text-sm" />
-            </div>
-            <div class="grid gap-2">
-              <label class="text-xs font-semibold text-slate-500">ZIP</label>
-              <input id="clientPostalCode" class="rounded-xl border border-slate-200 px-3 py-2 text-sm" />
-            </div>
-          </div>
-          <div class="grid gap-2">
-            <label class="text-xs font-semibold text-slate-500">Notes</label>
-            <textarea id="clientNotes" rows="3" class="rounded-xl border border-slate-200 px-3 py-2 text-sm" placeholder="Gate code, pets on site, etc."></textarea>
-          </div>
-          <div class="mt-4 flex justify-end gap-3">
-            <button type="button" data-close="clientModal" class="rounded-full border border-slate-200 px-4 py-2 text-sm text-slate-600 hover:bg-slate-100">Cancel</button>
-            <button type="submit" class="rounded-full bg-emerald-500 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-600">Save client</button>
-          </div>
-        </form>
-      </div>
-    </div>
-
-    <div id="historyModal" class="no-print fixed inset-0 z-40 hidden items-center justify-center bg-slate-900/70 px-6 py-12 backdrop-blur">
-      <div class="w-full max-w-5xl rounded-3xl border border-slate-200 bg-white p-8 shadow-xl">
-        <div class="flex items-center justify-between">
-          <div>
-            <h3 class="text-xl font-semibold text-slate-900">Quote &amp; invoice history</h3>
-            <p class="text-sm text-slate-500">Filter by vendor, date, or quote number and convert to invoices instantly.</p>
-          </div>
-          <button type="button" class="rounded-full border border-slate-200 px-3 py-1 text-xs font-semibold text-slate-600 hover:bg-slate-100" data-close-modal="historyModal">Close</button>
-        </div>
-        <form id="historyFilterForm" class="mt-6 grid gap-4 md:grid-cols-5">
-          <div class="md:col-span-2">
-            <label class="block text-xs font-semibold uppercase tracking-wide text-slate-500" for="historyQuery">Quote number</label>
-            <input id="historyQuery" name="query" type="text" class="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 text-sm" placeholder="Q20240519-001" />
-          </div>
-          <div>
-            <label class="block text-xs font-semibold uppercase tracking-wide text-slate-500" for="historyFrom">From</label>
-            <input id="historyFrom" name="from" type="date" class="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 text-sm" />
-          </div>
-          <div>
-            <label class="block text-xs font-semibold uppercase tracking-wide text-slate-500" for="historyTo">To</label>
-            <input id="historyTo" name="to" type="date" class="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 text-sm" />
-          </div>
-          <div class="flex items-end">
-            <button type="submit" class="w-full rounded-full bg-emerald-500 px-5 py-3 text-sm font-semibold text-white hover:bg-emerald-600">Apply</button>
-          </div>
-        </form>
-        <div class="mt-6 overflow-hidden rounded-3xl border border-slate-200">
-          <table class="min-w-full divide-y divide-slate-200 text-left text-sm">
-            <thead class="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
-              <tr>
-                <th class="px-3 py-3">Quote</th>
-                <th class="px-3 py-3">Created</th>
-                <th class="px-3 py-3">Total</th>
-                <th class="px-3 py-3">Status</th>
-                <th class="px-3 py-3 text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody id="historyTableBody" class="divide-y divide-slate-200"></tbody>
-          </table>
-          <div id="historyEmptyState" class="px-6 py-10 text-center text-sm text-slate-500">No cloud quotes yet. Save one to get started.</div>
-        </div>
-        <div class="mt-4 flex justify-end">
-          <button id="historyLoadMore" type="button" class="rounded-full border border-slate-200 px-5 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">Load more</button>
-        </div>
-      </div>
-    </div>
-
-    <div id="convertModal" class="no-print fixed inset-0 z-50 hidden items-center justify-center bg-slate-900/70 px-6 py-12 backdrop-blur">
-      <div class="w-full max-w-md rounded-3xl border border-slate-200 bg-white p-6 shadow-xl">
-        <div class="flex items-start justify-between gap-3">
-          <div>
-            <h3 class="text-lg font-semibold text-slate-900">Finalize invoice</h3>
-            <p class="text-xs uppercase tracking-wide text-slate-500">For quote <span id="convertQuoteLabel" class="text-slate-700">—</span></p>
-          </div>
-          <button type="button" data-close="convertModal" class="rounded-full border border-slate-200 px-3 py-1 text-xs font-semibold text-slate-600 hover:bg-slate-100">Close</button>
-        </div>
-        <form id="convertForm" class="mt-6 grid gap-4">
-          <div class="grid gap-2">
-            <label class="text-xs font-semibold uppercase tracking-wide text-slate-500">Invoice Number</label>
-            <input id="convertInvoiceNumber" class="rounded-xl border border-slate-200 px-3 py-2 text-sm" required />
-          </div>
-          <div class="grid gap-2">
-            <label class="text-xs font-semibold uppercase tracking-wide text-slate-500">Invoice Date</label>
-            <input id="convertInvoiceDate" type="date" class="rounded-xl border border-slate-200 px-3 py-2 text-sm" required />
-          </div>
-          <div class="flex justify-end gap-3">
-            <button type="button" data-close="convertModal" class="rounded-full border border-slate-200 px-4 py-2 text-sm text-slate-600 hover:bg-slate-100">Cancel</button>
-            <button type="submit" class="rounded-full bg-emerald-500 px-5 py-2 text-sm font-semibold text-white hover:bg-emerald-600">Convert</button>
-          </div>
-        </form>
       </div>
     </div>
 
