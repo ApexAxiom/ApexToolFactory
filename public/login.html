@@ -189,6 +189,11 @@
           setStatus('Signing in…');
           try {
             await auth().signIn(username, password);
+            if (rememberBox?.checked) {
+              localStorage.setItem('pestimator.remember', JSON.stringify({ username }));
+            } else {
+              localStorage.removeItem('pestimator.remember');
+            }
             setStatus('Signed in. Redirecting…', 'success');
             window.location.href = nextPath;
           } catch (err) {
@@ -199,8 +204,9 @@
         }
 
         function detectMode() {
-          if (!auth()?.isDemoMode) return;
-          const mode = auth().isDemoMode() ? 'Demo mode' : 'Cloud mode';
+          const modeValue = auth()?.getMode?.();
+          if (!modeValue) return;
+          const mode = modeValue === 'demo' ? 'Demo mode' : 'Cloud mode';
           if (modeBadge) modeBadge.textContent = mode;
         }
 

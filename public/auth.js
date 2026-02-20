@@ -27,6 +27,10 @@
     return window.PESTIMATOR_AMPLIFY_CONFIG ? 'cloud' : 'demo';
   }
 
+  function isDemoMode() {
+    return getMode() === 'demo';
+  }
+
   function readSession() {
     try {
       const value = sessionStorage.getItem(STORAGE_KEY);
@@ -189,7 +193,8 @@
     requireAuth,
     subscribe,
     syncFromAmplify,
-    getMode
+    getMode,
+    isDemoMode
   };
 
   // Bootstrap immediately for signed-in users.

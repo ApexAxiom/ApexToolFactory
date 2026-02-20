@@ -37,8 +37,8 @@ function resolveOwnerId(event: AppSyncEvent): string {
   return ownerId;
 }
 
-function sequenceKey(ownerId: string, vendorId: string, date: string): string {
-  return `${ownerId}#${vendorId}#${date}`;
+function sequenceKey(vendorId: string, date: string): string {
+  return `${vendorId}#${date}`;
 }
 
 export const handler = async (event: AppSyncEvent) => {
@@ -57,7 +57,7 @@ export const handler = async (event: AppSyncEvent) => {
 
   const today = new Date();
   const dateStamp = today.toISOString().slice(0, 10);
-  const counterKey = sequenceKey(ownerId, vendorId, dateStamp);
+  const counterKey = sequenceKey(vendorId, dateStamp);
   const timestamp = new Date().toISOString();
 
   const counterResult = await ddb.send(
@@ -65,13 +65,8 @@ export const handler = async (event: AppSyncEvent) => {
       TableName: counterTable,
       Key: marshall({ counterKey }),
       UpdateExpression:
-        'SET #owner = if_not_exists(#owner, :owner), lastSequence = if_not_exists(lastSequence, :zero) + :step, updatedAt = :ts',
-      ExpressionAttributeNames: {
-        '#owner': 'owner'
-      },
-      ConditionExpression: 'attribute_not_exists(#owner) OR #owner = :owner',
+        'SET lastSequence = if_not_exists(lastSequence, :zero) + :step, updatedAt = :ts',
       ExpressionAttributeValues: {
-        ':owner': { S: ownerId },
         ':zero': { N: '0' },
         ':step': { N: '1' },
         ':ts': { S: timestamp }

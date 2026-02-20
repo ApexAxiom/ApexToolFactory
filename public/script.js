@@ -1,5 +1,34 @@
 (function () {
-  const $ = (id) => document.getElementById(id);
+  const idAliases = {
+    custName: 'clientNameTypeahead',
+    clientList: 'clientsList',
+    btnSave: 'btnSaveQuote',
+    btnPrint: 'printBtn',
+    btnInvoice: 'btnConvertInvoice',
+    btnEmailDocument: 'emailQuoteBtn',
+    btnQuotesRefresh: 'btnRefreshQuotes',
+    btnInvoicesRefresh: 'btnRefreshInvoices',
+    btnHistory: 'btnQuoteHistory',
+    quotesFilterStatus: 'quotesStatusFilter',
+    quotesFilterClient: 'quotesClientFilter',
+    quotesFilterFrom: 'quotesDateFrom',
+    quotesFilterTo: 'quotesDateTo',
+    invoicesFilterStatus: 'invoicesStatusFilter',
+    invoicesFilterClient: 'invoicesClientFilter',
+    invoicesFilterFrom: 'invoicesDateFrom',
+    invoicesFilterTo: 'invoicesDateTo',
+    sqft: 'squareFeet',
+    address: 'serviceAddress',
+    comments: 'specialInstructions',
+    baseRateSqft: 'baseRate',
+    resTierPlan: 'residentialTier'
+  };
+  const $ = (id) => {
+    const direct = document.getElementById(id);
+    if (direct) return direct;
+    const alias = idAliases[id];
+    return alias ? document.getElementById(alias) : null;
+  };
   const enc = new TextEncoder(); const dec = new TextDecoder();
 
   // Pest catalog
@@ -182,6 +211,37 @@
         notes
         createdAt
         updatedAt
+      }
+    }`,
+    createQuoteLine: `mutation CreateQuoteLine($input: CreateQuoteLineInput!) {
+      createQuoteLine(input: $input) {
+        id
+        quoteId
+        lineNumber
+        description
+        qty
+        unitPrice
+        lineTotal
+      }
+    }`,
+    createQuoteRevision: `mutation CreateQuoteRevision($input: CreateQuoteRevisionInput!) {
+      createQuoteRevision(input: $input) {
+        id
+        quoteId
+        revisionNumber
+        subtotal
+        taxTotal
+        grandTotal
+      }
+    }`,
+    createQuoteAttachment: `mutation CreateQuoteAttachment($input: CreateQuoteAttachmentInput!) {
+      createQuoteAttachment(input: $input) {
+        id
+        quoteId
+        storageKey
+        fileName
+        mimeType
+        size
       }
     }`
   };
@@ -486,6 +546,7 @@
       $('invoicesFilterClient')
     ].filter(Boolean);
     filterEls.forEach((select) => {
+      if (!select || select.tagName !== 'SELECT') return;
       const current = select.value;
       select.innerHTML = '<option value="">All clients</option>';
       clientCache.forEach((client) => {
@@ -555,7 +616,8 @@
       throw new Error('Select a client before saving a quote.');
     }
     remoteStatus('Saving quote to cloud…');
-    const payload = JSON.stringify(serialize());
+    const payloadObject = serialize();
+    const payload = JSON.stringify(payloadObject);
     const result = await callGraphQL(GRAPHQL.createQuote, {
       vendorId: activeVendorId,
       clientId: activeClientId,
@@ -571,8 +633,120 @@
       historyCache = [quote, ...historyCache];
       renderHistoryList();
       remoteStatus(`Quote ${quote.quoteNumber} saved`, 'success');
+      persistQuoteNormalizationRemote(quote, payloadObject).catch((err) => {
+        console.error('[Pestimator] Quote normalization dual-write failed', err);
+        remoteStatus('Quote saved. Structured line-item sync failed.', 'warn');
+      });
     }
     return quote;
+  }
+
+  function getNormalizationContext(quote) {
+    const orgId =
+      quote?.organizationId ||
+      activeSession?.attributes?.['custom:organizationId'] ||
+      localStorage.getItem('pestimator.activeOrganizationId') ||
+      'default-org';
+    return orgId;
+  }
+
+  function buildQuoteLineDrafts(payloadObject) {
+    const lines = [];
+    const subtotal = Number(latestTotals.subtotal || 0);
+    if (subtotal > 0) {
+      lines.push({
+        description: 'Service subtotal',
+        qty: 1,
+        unitPrice: subtotal,
+        lineTotal: subtotal,
+        costBasis: 0
+      });
+    }
+    const selected = Array.isArray(payloadObject?.selectedPests) ? payloadObject.selectedPests : [];
+    const pricing = payloadObject?.pestPricing || {};
+    selected.forEach((pestId) => {
+      const amount = Number(pricing?.[pestId]?.cost || 0);
+      if (amount > 0) {
+        lines.push({
+          description: `Pest add-on: ${pestId}`,
+          qty: 1,
+          unitPrice: amount,
+          lineTotal: amount,
+          costBasis: 0
+        });
+      }
+    });
+    return lines.length
+      ? lines
+      : [
+          {
+            description: 'Service subtotal',
+            qty: 1,
+            unitPrice: 0,
+            lineTotal: 0,
+            costBasis: 0
+          }
+        ];
+  }
+
+  async function persistQuoteNormalizationRemote(quote, payloadObject) {
+    if (!hasBackend || !quote?.id) return;
+    const organizationId = getNormalizationContext(quote);
+    localStorage.setItem('pestimator.activeOrganizationId', organizationId);
+    const revisedAt = new Date().toISOString();
+    const revisionNumber = Number(quote.version || 1);
+
+    await callGraphQL(GRAPHQL.createQuoteRevision, {
+      input: {
+        id: crypto.randomUUID(),
+        organizationId,
+        quoteId: quote.id,
+        revisionNumber,
+        payload: JSON.stringify(payloadObject || {}),
+        subtotal: Number(latestTotals.subtotal || 0),
+        taxTotal: Number(latestTotals.taxTotal || 0),
+        grandTotal: Number(latestTotals.grandTotal || 0),
+        revisedBy: activeSession?.ownerId || activeSession?.username || null,
+        revisedAt,
+        notes: 'Dual-write revision from legacy payload'
+      }
+    });
+
+    const lineDrafts = buildQuoteLineDrafts(payloadObject);
+    for (let i = 0; i < lineDrafts.length; i += 1) {
+      const line = lineDrafts[i];
+      await callGraphQL(GRAPHQL.createQuoteLine, {
+        input: {
+          id: crypto.randomUUID(),
+          organizationId,
+          quoteId: quote.id,
+          lineNumber: i + 1,
+          description: line.description,
+          qty: Number(line.qty || 1),
+          unitPrice: Number(line.unitPrice || 0),
+          costBasis: Number(line.costBasis || 0),
+          lineTotal: Number(line.lineTotal || 0)
+        }
+      });
+    }
+
+    const attachments = Array.isArray(payloadObject?.attachments) ? payloadObject.attachments : [];
+    for (const att of attachments) {
+      if (!att?.key) continue;
+      await callGraphQL(GRAPHQL.createQuoteAttachment, {
+        input: {
+          id: crypto.randomUUID(),
+          organizationId,
+          quoteId: quote.id,
+          storageKey: att.key,
+          fileName: att.fileName || null,
+          mimeType: att.contentType || null,
+          size: Number(att.size || 0),
+          capturedAt: att.uploadedAt || revisedAt,
+          capturedBy: activeSession?.ownerId || activeSession?.username || null
+        }
+      });
+    }
   }
 
   async function loadHistory(reset = false) {
@@ -1137,13 +1311,18 @@
     const tbody = $('quotesTableBody');
     const empty = $('quotesEmptyState');
     if (!tbody) return;
-    const clientFilter = $('quotesFilterClient')?.value || '';
+    const clientFilter = ($('quotesFilterClient')?.value || '').trim();
     const statusFilter = $('quotesFilterStatus')?.value || '';
     const from = $('quotesFilterFrom')?.value ? new Date($('quotesFilterFrom').value) : null;
     const to = $('quotesFilterTo')?.value ? new Date($('quotesFilterTo').value) : null;
     const rows = historyCache.filter((item) => {
       if (statusFilter && item.status !== statusFilter) return false;
-      if (clientFilter && item.clientId !== clientFilter) return false;
+      if (clientFilter) {
+        const term = clientFilter.toLowerCase();
+        const matchesId = item.clientId === clientFilter;
+        const matchesName = (item.clientName || '').toLowerCase().includes(term);
+        if (!matchesId && !matchesName) return false;
+      }
       if (from && item.createdAt && new Date(item.createdAt) < from) return false;
       if (to && item.createdAt && new Date(item.createdAt) > to) return false;
       return true;
@@ -1191,12 +1370,17 @@
     const tbody = $('invoicesTableBody');
     const empty = $('invoicesEmptyState');
     if (!tbody) return;
-    const clientFilter = $('invoicesFilterClient')?.value || '';
+    const clientFilter = ($('invoicesFilterClient')?.value || '').trim();
     const from = $('invoicesFilterFrom')?.value ? new Date($('invoicesFilterFrom').value) : null;
     const to = $('invoicesFilterTo')?.value ? new Date($('invoicesFilterTo').value) : null;
     const rows = historyCache.filter((item) => {
       if (!['INVOICE', 'PAID', 'VOID'].includes(item.status)) return false;
-      if (clientFilter && item.clientId !== clientFilter) return false;
+      if (clientFilter) {
+        const term = clientFilter.toLowerCase();
+        const matchesId = item.clientId === clientFilter;
+        const matchesName = (item.clientName || '').toLowerCase().includes(term);
+        if (!matchesId && !matchesName) return false;
+      }
       if (from && item.invoiceDate && new Date(item.invoiceDate) < from) return false;
       if (to && item.invoiceDate && new Date(item.invoiceDate) > to) return false;
       return true;
@@ -1630,11 +1814,15 @@
     alert("Profile saved (encrypted in this browser).");
   }
 
-  async function loadProfile() {
+  async function loadProfile(options = {}) {
     let profile = null;
     const sec = localStorage.getItem("pestimator.profile.sec");
     if (sec && sessionKey) {
-      try { profile = await decryptJson(JSON.parse(sec), sessionKey); } catch { alert("Decryption failed."); }
+      try {
+        profile = await decryptJson(JSON.parse(sec), sessionKey);
+      } catch {
+        if (!options.silent) alert("Decryption failed.");
+      }
     }
     if (!profile) {
       const raw = localStorage.getItem("pestimator.profile"); if (raw) profile = JSON.parse(raw);
@@ -1650,7 +1838,9 @@
         ["laborRate","markupPct","taxPct"].forEach(k => { if ($(k) && profile.defaults[k]!=null) $(k).value = profile.defaults[k]; });
       }
       compute(); saveQuote(); renderCompany();
-    } else alert("No profile found.");
+    } else if (!options.silent) {
+      alert("No profile found.");
+    }
   }
 
   function exportProfile() {
@@ -1704,7 +1894,9 @@
   }
 
   function renderPestChargeRows(){
-    const host = $("pestChargeRows"); host.innerHTML = "";
+    const host = $("pestChargeRows");
+    if (!host) return;
+    host.innerHTML = "";
     selectedPests.forEach(pid => {
       const meta = pestCatalog.find(p=>p.id===pid);
       const rowId = `row_${pid}`;
@@ -2078,13 +2270,13 @@
       }
       await updateSessionKey(session);
       if (!profileHydrated) {
-        await loadProfile();
+        await loadProfile({ silent: true });
         profileHydrated = true;
       }
       auth.subscribe?.((s) => {
         updateSessionKey(s).then(() => {
           if (s) {
-            loadProfile().then(() => { profileHydrated = true; }).catch((err) => {
+            loadProfile({ silent: true }).then(() => { profileHydrated = true; }).catch((err) => {
               console.warn('[Pestimator] Failed to hydrate profile', err);
             });
           } else {

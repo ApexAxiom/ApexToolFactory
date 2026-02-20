@@ -32,7 +32,7 @@ function resolveOwnerId(event: AppSyncEvent): string {
 }
 
 export const handler = async (event: AppSyncEvent) => {
-  const ownerId = resolveOwnerId(event);
+  resolveOwnerId(event);
   const { quoteId, invoiceNumber, invoiceDate } = event.arguments;
 
   if (!quoteId) {
@@ -53,18 +53,16 @@ export const handler = async (event: AppSyncEvent) => {
       Key: { id: { S: quoteId } },
       UpdateExpression:
         'SET #status = :invoice, invoiceNumber = :invoiceNumber, invoiceDate = :invoiceDate, convertedAt = :convertedAt, updatedAt = :updatedAt',
-      ConditionExpression: 'attribute_exists(id) AND #owner = :owner',
+      ConditionExpression: 'attribute_exists(id)',
       ExpressionAttributeNames: {
-        '#status': 'status',
-        '#owner': 'owner'
+        '#status': 'status'
       },
       ExpressionAttributeValues: {
         ':invoice': { S: 'INVOICE' },
         ':invoiceNumber': { S: invoiceNumber },
         ':invoiceDate': { S: invoiceDate },
         ':convertedAt': { S: timestamp },
-        ':updatedAt': { S: timestamp },
-        ':owner': { S: ownerId }
+        ':updatedAt': { S: timestamp }
       },
       ReturnValues: 'ALL_NEW'
     })
