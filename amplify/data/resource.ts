@@ -1,237 +1,87 @@
-import { defineData, a } from '@aws-amplify/backend';
+import { a, defineData } from "@aws-amplify/backend";
 
-const TEAM_GROUPS = ['Owner', 'OfficeManager', 'Estimator', 'Technician', 'Accounting'];
-
-const companyAuth = (allow: any) => [allow.owner(), allow.groups(TEAM_GROUPS)];
+const TEAM_GROUPS = ["OWNER", "OFFICE_MANAGER", "ESTIMATOR", "TECHNICIAN", "ACCOUNTING"];
+const internalAuth = (allow: any) => [allow.groups(TEAM_GROUPS)];
 
 export const data = defineData({
   schema: a
     .schema({
-      RoleName: a.enum(['Owner', 'OfficeManager', 'Estimator', 'Technician', 'Accounting']),
-      QuoteStatus: a.enum(['QUOTE', 'INVOICE', 'PAID', 'VOID']),
-      InvoiceStatus: a.enum(['DRAFT', 'ISSUED', 'PARTIAL', 'PAID', 'VOID', 'OVERDUE']),
-      WorkOrderStatus: a.enum(['DRAFT', 'SCHEDULED', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED']),
-      InventoryTxnType: a.enum(['RECEIPT', 'ADJUSTMENT', 'CONSUMPTION', 'TRANSFER']),
+      RoleName: a.enum(["OWNER", "OFFICE_MANAGER", "ESTIMATOR", "TECHNICIAN", "ACCOUNTING"]),
+      MembershipStatus: a.enum(["INVITED", "ACTIVE", "DISABLED"]),
+      QuoteStatus: a.enum(["DRAFT", "SENT", "VIEWED", "ACCEPTED", "DECLINED", "EXPIRED", "VOID"]),
+      InvoiceStatus: a.enum(["DRAFT", "ISSUED", "PARTIAL", "PAID", "OVERDUE", "VOID"]),
+      PaymentStatus: a.enum(["PENDING", "SUCCEEDED", "FAILED", "REFUNDED"]),
+      SubscriptionStatus: a.enum(["TRIALING", "ACTIVE", "PAST_DUE", "CANCELED", "INCOMPLETE"]),
+      PortalEntityType: a.enum(["QUOTE", "INVOICE"]),
+      EmailTemplate: a.enum(["QUOTE_SENT", "INVOICE_SENT", "TEAM_INVITE", "REMINDER"]),
+      EmailStatus: a.enum(["QUEUED", "SENT", "DELIVERED", "BOUNCED", "COMPLAINED", "FAILED"]),
+      EmailEventType: a.enum(["DELIVERY", "BOUNCE", "COMPLAINT", "RENDERED", "FAILED"]),
 
       Organization: a
         .model({
           id: a.id().required(),
           name: a.string().required(),
           legalName: a.string(),
-          timezone: a.string(),
-          currencyCode: a.string(),
-          defaultTaxPct: a.float(),
-          defaultTerms: a.string(),
+          timezone: a.string().required(),
+          currencyCode: a.string().required(),
+          defaultTaxPercent: a.float().required(),
+          defaultTerms: a.string().required(),
+          supportEmail: a.email(),
+          supportPhone: a.phone(),
+          website: a.url(),
+          stripeCustomerId: a.string(),
           createdAt: a.datetime().required().defaultToNow(),
           updatedAt: a.datetime().required().updatedAt()
         })
-        .authorization(companyAuth),
+        .authorization(internalAuth),
 
       Branch: a
         .model({
           id: a.id().required(),
           organizationId: a.string().required(),
-          code: a.string(),
           name: a.string().required(),
-          phone: a.string(),
+          code: a.string().required(),
+          phone: a.phone(),
           address1: a.string(),
           city: a.string(),
           state: a.string(),
           postalCode: a.string(),
-          isActive: a.boolean(),
+          isActive: a.boolean().required(),
           createdAt: a.datetime().required().defaultToNow(),
           updatedAt: a.datetime().required().updatedAt()
         })
-        .authorization(companyAuth)
+        .authorization(internalAuth)
         .secondaryIndexes((index) => [
-          index('byOrganization', {
-            sortKey: 'createdAt',
-            queryField: 'branchesByOrganization'
+          index("byOrganization", {
+            sortKey: "createdAt",
+            queryField: "branchesByOrganization"
           })
         ]),
 
-      UserProfile: a
+      OrganizationMembership: a
         .model({
           id: a.id().required(),
           organizationId: a.string().required(),
-          branchId: a.string(),
+          userId: a.string(),
+          email: a.email().required(),
           displayName: a.string(),
-          email: a.string(),
-          phone: a.string(),
-          title: a.string(),
-          isActive: a.boolean(),
+          role: a.ref("RoleName").required(),
+          status: a.ref("MembershipStatus").required(),
+          branchIds: a.string().array().required(),
+          invitedAt: a.datetime(),
+          acceptedAt: a.datetime(),
           createdAt: a.datetime().required().defaultToNow(),
           updatedAt: a.datetime().required().updatedAt()
         })
-        .authorization(companyAuth)
+        .authorization(internalAuth)
         .secondaryIndexes((index) => [
-          index('byOrganization', {
-            sortKey: 'createdAt',
-            queryField: 'userProfilesByOrganization'
-          })
-        ]),
-
-      RoleAssignment: a
-        .model({
-          id: a.id().required(),
-          organizationId: a.string().required(),
-          userId: a.string().required(),
-          role: a.ref('RoleName').required(),
-          branchId: a.string(),
-          createdAt: a.datetime().required().defaultToNow(),
-          updatedAt: a.datetime().required().updatedAt()
-        })
-        .authorization(companyAuth)
-        .secondaryIndexes((index) => [
-          index('byOrganization', {
-            sortKey: 'createdAt',
-            queryField: 'roleAssignmentsByOrganization'
+          index("byOrganization", {
+            sortKey: "createdAt",
+            queryField: "organizationMembershipsByOrganization"
           }),
-          index('byUser', {
-            sortKey: 'createdAt',
-            queryField: 'roleAssignmentsByUser'
-          })
-        ]),
-
-      Vendor: a
-        .model({
-          id: a.id().required(),
-          organizationId: a.string(),
-          branchId: a.string(),
-          name: a.string().required(),
-          contactEmail: a.string(),
-          contactPhone: a.string(),
-          notes: a.string(),
-          defaultTerms: a.string(),
-          defaultTaxPct: a.float(),
-          createdAt: a.datetime().required().defaultToNow(),
-          updatedAt: a.datetime().required().updatedAt()
-        })
-        .authorization(companyAuth)
-        .secondaryIndexes((index) => [
-          index('byOrganization', {
-            sortKey: 'createdAt',
-            queryField: 'vendorsByOrganization'
-          }),
-          index('byBranch', {
-            sortKey: 'createdAt',
-            queryField: 'vendorsByBranch'
-          })
-        ]),
-
-      Supplier: a
-        .model({
-          id: a.id().required(),
-          organizationId: a.string().required(),
-          branchId: a.string(),
-          name: a.string().required(),
-          contactName: a.string(),
-          contactEmail: a.string(),
-          contactPhone: a.string(),
-          terms: a.string(),
-          leadTimeDays: a.integer(),
-          notes: a.string(),
-          createdAt: a.datetime().required().defaultToNow(),
-          updatedAt: a.datetime().required().updatedAt()
-        })
-        .authorization(companyAuth)
-        .secondaryIndexes((index) => [
-          index('byOrganization', {
-            sortKey: 'createdAt',
-            queryField: 'suppliersByOrganization'
-          }),
-          index('byBranch', {
-            sortKey: 'createdAt',
-            queryField: 'suppliersByBranch'
-          })
-        ]),
-
-      SupplierItem: a
-        .model({
-          id: a.id().required(),
-          organizationId: a.string().required(),
-          supplierId: a.string().required(),
-          sku: a.string().required(),
-          name: a.string().required(),
-          description: a.string(),
-          category: a.string(),
-          unitOfMeasure: a.string(),
-          isActive: a.boolean(),
-          createdAt: a.datetime().required().defaultToNow(),
-          updatedAt: a.datetime().required().updatedAt()
-        })
-        .authorization(companyAuth)
-        .secondaryIndexes((index) => [
-          index('bySupplier', {
-            sortKey: 'createdAt',
-            queryField: 'supplierItemsBySupplier'
-          }),
-          index('byOrganization', {
-            sortKey: 'createdAt',
-            queryField: 'supplierItemsByOrganization'
-          })
-        ]),
-
-      SupplierItemPrice: a
-        .model({
-          id: a.id().required(),
-          organizationId: a.string().required(),
-          supplierItemId: a.string().required(),
-          price: a.float().required(),
-          currencyCode: a.string(),
-          minOrderQty: a.integer(),
-          effectiveFrom: a.datetime().required(),
-          effectiveTo: a.datetime(),
-          createdAt: a.datetime().required().defaultToNow(),
-          updatedAt: a.datetime().required().updatedAt()
-        })
-        .authorization(companyAuth)
-        .secondaryIndexes((index) => [
-          index('bySupplierItem', {
-            sortKey: 'effectiveFrom',
-            queryField: 'supplierItemPricesByItem'
-          })
-        ]),
-
-      ServiceTemplate: a
-        .model({
-          id: a.id().required(),
-          organizationId: a.string().required(),
-          branchId: a.string(),
-          code: a.string().required(),
-          name: a.string().required(),
-          description: a.string(),
-          isActive: a.boolean(),
-          createdAt: a.datetime().required().defaultToNow(),
-          updatedAt: a.datetime().required().updatedAt()
-        })
-        .authorization(companyAuth)
-        .secondaryIndexes((index) => [
-          index('byOrganization', {
-            sortKey: 'createdAt',
-            queryField: 'serviceTemplatesByOrganization'
-          })
-        ]),
-
-      ServiceTemplateLine: a
-        .model({
-          id: a.id().required(),
-          organizationId: a.string().required(),
-          templateId: a.string().required(),
-          lineCode: a.string(),
-          description: a.string().required(),
-          quantity: a.float().required(),
-          unitPrice: a.float().required(),
-          costBasis: a.float(),
-          taxable: a.boolean(),
-          createdAt: a.datetime().required().defaultToNow(),
-          updatedAt: a.datetime().required().updatedAt()
-        })
-        .authorization(companyAuth)
-        .secondaryIndexes((index) => [
-          index('byTemplate', {
-            sortKey: 'createdAt',
-            queryField: 'serviceTemplateLinesByTemplate'
+          index("byUser", {
+            sortKey: "createdAt",
+            queryField: "organizationMembershipsByUser"
           })
         ]),
 
@@ -239,28 +89,29 @@ export const data = defineData({
         .model({
           id: a.id().required(),
           organizationId: a.string().required(),
-          branchId: a.string(),
           accountNumber: a.string(),
           name: a.string().required(),
-          email: a.string(),
-          phone: a.string(),
+          email: a.email(),
+          phone: a.phone(),
           billingAddress1: a.string(),
           billingCity: a.string(),
           billingState: a.string(),
           billingPostalCode: a.string(),
           notes: a.string(),
+          legacyClientId: a.string(),
+          stripeCustomerId: a.string(),
           createdAt: a.datetime().required().defaultToNow(),
           updatedAt: a.datetime().required().updatedAt()
         })
-        .authorization(companyAuth)
+        .authorization(internalAuth)
         .secondaryIndexes((index) => [
-          index('byOrganization', {
-            sortKey: 'createdAt',
-            queryField: 'customersByOrganization'
+          index("byOrganization", {
+            sortKey: "createdAt",
+            queryField: "customersByOrganization"
           }),
-          index('byBranch', {
-            sortKey: 'createdAt',
-            queryField: 'customersByBranch'
+          index("byLegacyClientId", {
+            sortKey: "createdAt",
+            queryField: "customerByLegacyClientId"
           })
         ]),
 
@@ -270,18 +121,18 @@ export const data = defineData({
           organizationId: a.string().required(),
           customerId: a.string().required(),
           name: a.string().required(),
-          email: a.string(),
-          phone: a.string(),
+          email: a.email(),
+          phone: a.phone(),
           role: a.string(),
-          isPrimary: a.boolean(),
+          isPrimary: a.boolean().required(),
           createdAt: a.datetime().required().defaultToNow(),
           updatedAt: a.datetime().required().updatedAt()
         })
-        .authorization(companyAuth)
+        .authorization(internalAuth)
         .secondaryIndexes((index) => [
-          index('byCustomer', {
-            sortKey: 'createdAt',
-            queryField: 'customerContactsByCustomer'
+          index("byCustomer", {
+            sortKey: "createdAt",
+            queryField: "customerContactsByCustomer"
           })
         ]),
 
@@ -289,49 +140,66 @@ export const data = defineData({
         .model({
           id: a.id().required(),
           organizationId: a.string().required(),
-          branchId: a.string(),
           customerId: a.string().required(),
-          name: a.string(),
-          address1: a.string(),
+          name: a.string().required(),
+          address1: a.string().required(),
           city: a.string(),
           state: a.string(),
           postalCode: a.string(),
           sqft: a.float(),
           structureType: a.string(),
           infestationNotes: a.string(),
-          lastServiceAt: a.datetime(),
+          legacyClientId: a.string(),
           createdAt: a.datetime().required().defaultToNow(),
           updatedAt: a.datetime().required().updatedAt()
         })
-        .authorization(companyAuth)
+        .authorization(internalAuth)
         .secondaryIndexes((index) => [
-          index('byCustomer', {
-            sortKey: 'createdAt',
-            queryField: 'propertiesByCustomer'
+          index("byCustomer", {
+            sortKey: "createdAt",
+            queryField: "propertiesByCustomer"
           }),
-          index('byOrganization', {
-            sortKey: 'createdAt',
-            queryField: 'propertiesByOrganization'
+          index("byOrganization", {
+            sortKey: "createdAt",
+            queryField: "propertiesByOrganization"
           })
         ]),
 
-      CustomerRateCard: a
+      ServiceTemplate: a
         .model({
           id: a.id().required(),
           organizationId: a.string().required(),
-          customerId: a.string().required(),
+          code: a.string().required(),
           name: a.string().required(),
-          effectiveFrom: a.datetime().required(),
-          effectiveTo: a.datetime(),
-          notes: a.string(),
+          description: a.string(),
+          isActive: a.boolean().required(),
           createdAt: a.datetime().required().defaultToNow(),
           updatedAt: a.datetime().required().updatedAt()
         })
-        .authorization(companyAuth)
+        .authorization(internalAuth)
         .secondaryIndexes((index) => [
-          index('byCustomer', {
-            sortKey: 'effectiveFrom',
-            queryField: 'customerRateCardsByCustomer'
+          index("byOrganization", {
+            sortKey: "createdAt",
+            queryField: "serviceTemplatesByOrganization"
+          })
+        ]),
+
+      RateCard: a
+        .model({
+          id: a.id().required(),
+          organizationId: a.string().required(),
+          name: a.string().required(),
+          isDefault: a.boolean().required(),
+          effectiveFrom: a.datetime().required(),
+          effectiveTo: a.datetime(),
+          createdAt: a.datetime().required().defaultToNow(),
+          updatedAt: a.datetime().required().updatedAt()
+        })
+        .authorization(internalAuth)
+        .secondaryIndexes((index) => [
+          index("byOrganization", {
+            sortKey: "effectiveFrom",
+            queryField: "rateCardsByOrganization"
           })
         ]),
 
@@ -340,120 +208,67 @@ export const data = defineData({
           id: a.id().required(),
           organizationId: a.string().required(),
           rateCardId: a.string().required(),
-          serviceTemplateId: a.string(),
-          lineCode: a.string(),
-          ruleType: a.string(),
+          code: a.string().required(),
+          description: a.string().required(),
           value: a.float().required(),
           minimumCharge: a.float(),
           maximumCharge: a.float(),
           createdAt: a.datetime().required().defaultToNow(),
           updatedAt: a.datetime().required().updatedAt()
         })
-        .authorization(companyAuth)
+        .authorization(internalAuth)
         .secondaryIndexes((index) => [
-          index('byRateCard', {
-            sortKey: 'createdAt',
-            queryField: 'rateRulesByRateCard'
-          })
-        ]),
-
-      Client: a
-        .model({
-          id: a.id().required(),
-          organizationId: a.string(),
-          branchId: a.string(),
-          vendorId: a.string().required(),
-          name: a.string().required(),
-          email: a.string(),
-          phone: a.string(),
-          address1: a.string(),
-          city: a.string(),
-          state: a.string(),
-          postalCode: a.string(),
-          notes: a.string(),
-          createdAt: a.datetime().required().defaultToNow(),
-          updatedAt: a.datetime().required().updatedAt()
-        })
-        .authorization(companyAuth)
-        .secondaryIndexes((index) => [
-          index('byVendor', {
-            sortKey: 'createdAt',
-            queryField: 'clientsByVendor'
+          index("byRateCard", {
+            sortKey: "createdAt",
+            queryField: "rateRulesByRateCard"
           })
         ]),
 
       Quote: a
         .model({
           id: a.id().required(),
-          organizationId: a.string(),
-          branchId: a.string(),
-          vendorId: a.string().required(),
-          clientId: a.string().required(),
-          customerId: a.string(),
+          organizationId: a.string().required(),
+          customerId: a.string().required(),
           propertyId: a.string(),
-          clientName: a.string(),
           quoteNumber: a.string().required(),
-          status: a.ref('QuoteStatus').required(),
-          payload: a.string().required(),
-          version: a.integer(),
+          status: a.ref("QuoteStatus").required(),
+          title: a.string().required(),
+          serviceAddressSnapshot: a.string().required(),
+          customerNameSnapshot: a.string().required(),
           subtotal: a.float().required(),
           taxTotal: a.float().required(),
           grandTotal: a.float().required(),
-          invoiceNumber: a.string(),
-          invoiceDate: a.datetime(),
-          convertedAt: a.datetime(),
-          paidAt: a.datetime(),
-          paymentMethod: a.string(),
-          paymentNotes: a.string(),
+          currencyCode: a.string().required(),
+          currentRevisionId: a.string().required(),
           sentAt: a.datetime(),
+          viewedAt: a.datetime(),
           acceptedAt: a.datetime(),
+          declinedAt: a.datetime(),
           expiresAt: a.datetime(),
+          voidedAt: a.datetime(),
+          legacyVendorId: a.string(),
+          legacyClientId: a.string(),
+          legacyPayload: a.string(),
           createdAt: a.datetime().required().defaultToNow(),
           updatedAt: a.datetime().required().updatedAt()
         })
-        .authorization(companyAuth)
+        .authorization(internalAuth)
         .secondaryIndexes((index) => [
-          index('byVendor', {
-            sortKey: 'createdAt',
-            queryField: 'quotesByVendor'
+          index("byOrganization", {
+            sortKey: "createdAt",
+            queryField: "quotesByOrganization"
           }),
-          index('byQuoteNumber', {
-            sortKey: 'createdAt',
-            queryField: 'quoteByNumber'
+          index("byCustomer", {
+            sortKey: "createdAt",
+            queryField: "quotesByCustomer"
           }),
-          index('byClient', {
-            sortKey: 'createdAt',
-            queryField: 'quotesByClient'
+          index("byStatus", {
+            sortKey: "createdAt",
+            queryField: "quotesByStatus"
           }),
-          index('byOrganization', {
-            sortKey: 'createdAt',
-            queryField: 'quotesByOrganization'
-          }),
-          index('byStatus', {
-            sortKey: 'createdAt',
-            queryField: 'quotesByStatus'
-          })
-        ]),
-
-      QuoteLine: a
-        .model({
-          id: a.id().required(),
-          organizationId: a.string().required(),
-          quoteId: a.string().required(),
-          lineNumber: a.integer().required(),
-          description: a.string().required(),
-          qty: a.float().required(),
-          unitPrice: a.float().required(),
-          costBasis: a.float(),
-          lineTotal: a.float().required(),
-          createdAt: a.datetime().required().defaultToNow(),
-          updatedAt: a.datetime().required().updatedAt()
-        })
-        .authorization(companyAuth)
-        .secondaryIndexes((index) => [
-          index('byQuote', {
-            sortKey: 'lineNumber',
-            queryField: 'quoteLinesByQuote'
+          index("byQuoteNumber", {
+            sortKey: "createdAt",
+            queryField: "quoteByNumber"
           })
         ]),
 
@@ -463,21 +278,49 @@ export const data = defineData({
           organizationId: a.string().required(),
           quoteId: a.string().required(),
           revisionNumber: a.integer().required(),
-          payload: a.string().required(),
+          payload: a.json().required(),
           subtotal: a.float().required(),
           taxTotal: a.float().required(),
           grandTotal: a.float().required(),
-          revisedBy: a.string(),
           revisedAt: a.datetime().required(),
+          revisedBy: a.string().required(),
           notes: a.string(),
           createdAt: a.datetime().required().defaultToNow(),
           updatedAt: a.datetime().required().updatedAt()
         })
-        .authorization(companyAuth)
+        .authorization(internalAuth)
         .secondaryIndexes((index) => [
-          index('byQuote', {
-            sortKey: 'revisionNumber',
-            queryField: 'quoteRevisionsByQuote'
+          index("byQuote", {
+            sortKey: "revisionNumber",
+            queryField: "quoteRevisionsByQuote"
+          })
+        ]),
+
+      QuoteLine: a
+        .model({
+          id: a.id().required(),
+          organizationId: a.string().required(),
+          quoteId: a.string().required(),
+          revisionId: a.string().required(),
+          lineNumber: a.integer().required(),
+          description: a.string().required(),
+          category: a.string(),
+          qty: a.float().required(),
+          unitPrice: a.float().required(),
+          lineTotal: a.float().required(),
+          taxable: a.boolean().required(),
+          createdAt: a.datetime().required().defaultToNow(),
+          updatedAt: a.datetime().required().updatedAt()
+        })
+        .authorization(internalAuth)
+        .secondaryIndexes((index) => [
+          index("byQuote", {
+            sortKey: "lineNumber",
+            queryField: "quoteLinesByQuote"
+          }),
+          index("byRevision", {
+            sortKey: "lineNumber",
+            queryField: "quoteLinesByRevision"
           })
         ]),
 
@@ -486,24 +329,47 @@ export const data = defineData({
           id: a.id().required(),
           organizationId: a.string().required(),
           quoteId: a.string().required(),
+          revisionId: a.string(),
           storageKey: a.string().required(),
-          fileName: a.string(),
-          mimeType: a.string(),
-          size: a.integer(),
-          capturedAt: a.datetime(),
+          fileName: a.string().required(),
+          mimeType: a.string().required(),
+          size: a.integer().required(),
+          capturedAt: a.datetime().required(),
           capturedBy: a.string(),
           createdAt: a.datetime().required().defaultToNow(),
           updatedAt: a.datetime().required().updatedAt()
         })
-        .authorization(companyAuth)
+        .authorization(internalAuth)
         .secondaryIndexes((index) => [
-          index('byQuote', {
-            sortKey: 'createdAt',
-            queryField: 'quoteAttachmentsByQuote'
+          index("byQuote", {
+            sortKey: "createdAt",
+            queryField: "quoteAttachmentsByQuote"
           }),
-          index('byStorageKey', {
-            sortKey: 'createdAt',
-            queryField: 'quoteAttachmentByStorageKey'
+          index("byStorageKey", {
+            sortKey: "createdAt",
+            queryField: "quoteAttachmentByStorageKey"
+          })
+        ]),
+
+      QuoteAcceptance: a
+        .model({
+          id: a.id().required(),
+          organizationId: a.string().required(),
+          quoteId: a.string().required(),
+          acceptedByName: a.string().required(),
+          acceptedByEmail: a.email(),
+          acceptedAt: a.datetime().required(),
+          acceptedIp: a.ipAddress().required(),
+          acceptedUserAgent: a.string(),
+          notes: a.string(),
+          createdAt: a.datetime().required().defaultToNow(),
+          updatedAt: a.datetime().required().updatedAt()
+        })
+        .authorization(internalAuth)
+        .secondaryIndexes((index) => [
+          index("byQuote", {
+            sortKey: "acceptedAt",
+            queryField: "quoteAcceptancesByQuote"
           })
         ]),
 
@@ -511,36 +377,41 @@ export const data = defineData({
         .model({
           id: a.id().required(),
           organizationId: a.string().required(),
-          branchId: a.string(),
-          quoteId: a.string(),
-          customerId: a.string(),
+          customerId: a.string().required(),
           propertyId: a.string(),
+          quoteId: a.string(),
           invoiceNumber: a.string().required(),
-          status: a.ref('InvoiceStatus').required(),
+          status: a.ref("InvoiceStatus").required(),
           issueDate: a.datetime().required(),
           dueDate: a.datetime(),
           subtotal: a.float().required(),
           taxTotal: a.float().required(),
           grandTotal: a.float().required(),
-          paidTotal: a.float(),
-          outstandingTotal: a.float(),
-          notes: a.string(),
+          paidTotal: a.float().required(),
+          outstandingTotal: a.float().required(),
+          currencyCode: a.string().required(),
+          stripeInvoiceId: a.string(),
+          stripeHostedInvoiceUrl: a.url(),
           createdAt: a.datetime().required().defaultToNow(),
           updatedAt: a.datetime().required().updatedAt()
         })
-        .authorization(companyAuth)
+        .authorization(internalAuth)
         .secondaryIndexes((index) => [
-          index('byOrganization', {
-            sortKey: 'issueDate',
-            queryField: 'invoicesByOrganization'
+          index("byOrganization", {
+            sortKey: "issueDate",
+            queryField: "invoicesByOrganization"
           }),
-          index('byStatus', {
-            sortKey: 'issueDate',
-            queryField: 'invoicesByStatus'
+          index("byCustomer", {
+            sortKey: "issueDate",
+            queryField: "invoicesByCustomer"
           }),
-          index('byQuote', {
-            sortKey: 'issueDate',
-            queryField: 'invoiceByQuote'
+          index("byStatus", {
+            sortKey: "issueDate",
+            queryField: "invoicesByStatus"
+          }),
+          index("byQuote", {
+            sortKey: "issueDate",
+            queryField: "invoiceByQuote"
           })
         ]),
 
@@ -554,14 +425,15 @@ export const data = defineData({
           qty: a.float().required(),
           unitPrice: a.float().required(),
           lineTotal: a.float().required(),
+          taxable: a.boolean().required(),
           createdAt: a.datetime().required().defaultToNow(),
           updatedAt: a.datetime().required().updatedAt()
         })
-        .authorization(companyAuth)
+        .authorization(internalAuth)
         .secondaryIndexes((index) => [
-          index('byInvoice', {
-            sortKey: 'lineNumber',
-            queryField: 'invoiceLinesByInvoice'
+          index("byInvoice", {
+            sortKey: "lineNumber",
+            queryField: "invoiceLinesByInvoice"
           })
         ]),
 
@@ -569,248 +441,130 @@ export const data = defineData({
         .model({
           id: a.id().required(),
           organizationId: a.string().required(),
-          invoiceId: a.string(),
-          amount: a.float().required(),
-          currencyCode: a.string(),
-          paymentDate: a.datetime().required(),
-          method: a.string(),
-          reference: a.string(),
-          notes: a.string(),
-          status: a.string(),
-          createdAt: a.datetime().required().defaultToNow(),
-          updatedAt: a.datetime().required().updatedAt()
-        })
-        .authorization(companyAuth)
-        .secondaryIndexes((index) => [
-          index('byInvoice', {
-            sortKey: 'paymentDate',
-            queryField: 'paymentsByInvoice'
-          }),
-          index('byOrganization', {
-            sortKey: 'paymentDate',
-            queryField: 'paymentsByOrganization'
-          })
-        ]),
-
-      PaymentAllocation: a
-        .model({
-          id: a.id().required(),
-          organizationId: a.string().required(),
-          paymentId: a.string().required(),
           invoiceId: a.string().required(),
           amount: a.float().required(),
+          currencyCode: a.string().required(),
+          paymentDate: a.datetime().required(),
+          method: a.string().required(),
+          status: a.ref("PaymentStatus").required(),
+          reference: a.string(),
+          provider: a.string().required(),
           createdAt: a.datetime().required().defaultToNow(),
           updatedAt: a.datetime().required().updatedAt()
         })
-        .authorization(companyAuth)
+        .authorization(internalAuth)
         .secondaryIndexes((index) => [
-          index('byPayment', {
-            sortKey: 'createdAt',
-            queryField: 'paymentAllocationsByPayment'
+          index("byInvoice", {
+            sortKey: "paymentDate",
+            queryField: "paymentsByInvoice"
           }),
-          index('byInvoice', {
-            sortKey: 'createdAt',
-            queryField: 'paymentAllocationsByInvoice'
+          index("byOrganization", {
+            sortKey: "paymentDate",
+            queryField: "paymentsByOrganization"
           })
         ]),
 
-      PurchaseOrder: a
+      EmailMessage: a
         .model({
           id: a.id().required(),
           organizationId: a.string().required(),
-          branchId: a.string(),
-          supplierId: a.string().required(),
-          poNumber: a.string().required(),
-          status: a.string().required(),
-          orderDate: a.datetime().required(),
-          expectedDate: a.datetime(),
-          subtotal: a.float(),
-          taxTotal: a.float(),
-          grandTotal: a.float(),
-          notes: a.string(),
+          entityType: a.ref("PortalEntityType"),
+          entityId: a.string().required(),
+          to: a.string().array().required(),
+          cc: a.string().array().required(),
+          subject: a.string().required(),
+          template: a.ref("EmailTemplate").required(),
+          provider: a.string().required(),
+          providerMessageId: a.string(),
+          status: a.ref("EmailStatus").required(),
+          sentAt: a.datetime(),
+          payload: a.json(),
           createdAt: a.datetime().required().defaultToNow(),
           updatedAt: a.datetime().required().updatedAt()
         })
-        .authorization(companyAuth)
+        .authorization(internalAuth)
         .secondaryIndexes((index) => [
-          index('byOrganization', {
-            sortKey: 'orderDate',
-            queryField: 'purchaseOrdersByOrganization'
+          index("byOrganization", {
+            sortKey: "createdAt",
+            queryField: "emailMessagesByOrganization"
           }),
-          index('bySupplier', {
-            sortKey: 'orderDate',
-            queryField: 'purchaseOrdersBySupplier'
+          index("byEntity", {
+            sortKey: "createdAt",
+            queryField: "emailMessagesByEntity"
           }),
-          index('byStatus', {
-            sortKey: 'orderDate',
-            queryField: 'purchaseOrdersByStatus'
+          index("byProviderMessageId", {
+            sortKey: "createdAt",
+            queryField: "emailMessageByProviderMessageId"
           })
         ]),
 
-      PurchaseOrderLine: a
+      EmailEvent: a
         .model({
           id: a.id().required(),
           organizationId: a.string().required(),
-          purchaseOrderId: a.string().required(),
-          supplierItemId: a.string(),
-          description: a.string(),
-          qty: a.float().required(),
-          unitCost: a.float().required(),
-          lineTotal: a.float().required(),
-          receivedQty: a.float(),
-          createdAt: a.datetime().required().defaultToNow(),
-          updatedAt: a.datetime().required().updatedAt()
-        })
-        .authorization(companyAuth)
-        .secondaryIndexes((index) => [
-          index('byPurchaseOrder', {
-            sortKey: 'createdAt',
-            queryField: 'purchaseOrderLinesByPurchaseOrder'
-          })
-        ]),
-
-      InventoryItem: a
-        .model({
-          id: a.id().required(),
-          organizationId: a.string().required(),
-          branchId: a.string(),
-          supplierItemId: a.string(),
-          sku: a.string(),
-          name: a.string().required(),
-          unitOfMeasure: a.string(),
-          onHandQty: a.float(),
-          reorderPoint: a.float(),
-          averageUnitCost: a.float(),
-          lastCountedAt: a.datetime(),
-          createdAt: a.datetime().required().defaultToNow(),
-          updatedAt: a.datetime().required().updatedAt()
-        })
-        .authorization(companyAuth)
-        .secondaryIndexes((index) => [
-          index('byOrganization', {
-            sortKey: 'createdAt',
-            queryField: 'inventoryItemsByOrganization'
-          }),
-          index('byBranch', {
-            sortKey: 'createdAt',
-            queryField: 'inventoryItemsByBranch'
-          }),
-          index('bySku', {
-            sortKey: 'createdAt',
-            queryField: 'inventoryItemBySku'
-          })
-        ]),
-
-      InventoryTxn: a
-        .model({
-          id: a.id().required(),
-          organizationId: a.string().required(),
-          inventoryItemId: a.string().required(),
-          workOrderId: a.string(),
-          purchaseOrderId: a.string(),
-          type: a.ref('InventoryTxnType').required(),
-          quantity: a.float().required(),
-          unitCost: a.float(),
+          emailMessageId: a.string().required(),
+          eventType: a.ref("EmailEventType").required(),
           occurredAt: a.datetime().required(),
-          notes: a.string(),
+          rawPayload: a.string().required(),
           createdAt: a.datetime().required().defaultToNow(),
           updatedAt: a.datetime().required().updatedAt()
         })
-        .authorization(companyAuth)
+        .authorization(internalAuth)
         .secondaryIndexes((index) => [
-          index('byInventoryItem', {
-            sortKey: 'occurredAt',
-            queryField: 'inventoryTxnsByItem'
-          }),
-          index('byWorkOrder', {
-            sortKey: 'occurredAt',
-            queryField: 'inventoryTxnsByWorkOrder'
+          index("byMessage", {
+            sortKey: "occurredAt",
+            queryField: "emailEventsByMessage"
           })
         ]),
 
-      WorkOrder: a
+      PortalAccessToken: a
         .model({
           id: a.id().required(),
           organizationId: a.string().required(),
-          branchId: a.string(),
-          customerId: a.string(),
-          propertyId: a.string(),
-          quoteId: a.string(),
-          invoiceId: a.string(),
-          workOrderNumber: a.string(),
-          status: a.ref('WorkOrderStatus').required(),
-          scheduledStart: a.datetime(),
-          scheduledEnd: a.datetime(),
-          completedAt: a.datetime(),
-          technicianUserId: a.string(),
-          notes: a.string(),
+          entityType: a.ref("PortalEntityType").required(),
+          entityId: a.string().required(),
+          tokenHash: a.string().required(),
+          expiresAt: a.datetime().required(),
+          usedAt: a.datetime(),
+          revokedAt: a.datetime(),
+          lastViewedAt: a.datetime(),
+          lastViewedIp: a.ipAddress(),
+          lastViewedUserAgent: a.string(),
           createdAt: a.datetime().required().defaultToNow(),
           updatedAt: a.datetime().required().updatedAt()
         })
-        .authorization(companyAuth)
+        .authorization(internalAuth)
         .secondaryIndexes((index) => [
-          index('byOrganization', {
-            sortKey: 'scheduledStart',
-            queryField: 'workOrdersByOrganization'
+          index("byEntity", {
+            sortKey: "createdAt",
+            queryField: "portalTokensByEntity"
           }),
-          index('byStatus', {
-            sortKey: 'scheduledStart',
-            queryField: 'workOrdersByStatus'
-          }),
-          index('byTechnician', {
-            sortKey: 'scheduledStart',
-            queryField: 'workOrdersByTechnician'
+          index("byTokenHash", {
+            sortKey: "createdAt",
+            queryField: "portalTokenByHash"
           })
         ]),
 
-      Route: a
+      Subscription: a
         .model({
           id: a.id().required(),
           organizationId: a.string().required(),
-          branchId: a.string(),
-          routeDate: a.datetime().required(),
-          routeCode: a.string(),
-          technicianUserId: a.string(),
-          notes: a.string(),
+          provider: a.string().required(),
+          plan: a.string().required(),
+          status: a.ref("SubscriptionStatus").required(),
+          stripeCustomerId: a.string(),
+          stripeSubscriptionId: a.string(),
+          currentPeriodStart: a.datetime(),
+          currentPeriodEnd: a.datetime(),
+          cancelAtPeriodEnd: a.boolean().required(),
           createdAt: a.datetime().required().defaultToNow(),
           updatedAt: a.datetime().required().updatedAt()
         })
-        .authorization(companyAuth)
+        .authorization(internalAuth)
         .secondaryIndexes((index) => [
-          index('byOrganization', {
-            sortKey: 'routeDate',
-            queryField: 'routesByOrganization'
-          }),
-          index('byTechnician', {
-            sortKey: 'routeDate',
-            queryField: 'routesByTechnician'
-          })
-        ]),
-
-      RouteStop: a
-        .model({
-          id: a.id().required(),
-          organizationId: a.string().required(),
-          routeId: a.string().required(),
-          workOrderId: a.string().required(),
-          stopOrder: a.integer().required(),
-          eta: a.datetime(),
-          arrivedAt: a.datetime(),
-          completedAt: a.datetime(),
-          status: a.string(),
-          notes: a.string(),
-          createdAt: a.datetime().required().defaultToNow(),
-          updatedAt: a.datetime().required().updatedAt()
-        })
-        .authorization(companyAuth)
-        .secondaryIndexes((index) => [
-          index('byRoute', {
-            sortKey: 'stopOrder',
-            queryField: 'routeStopsByRoute'
-          }),
-          index('byWorkOrder', {
-            sortKey: 'createdAt',
-            queryField: 'routeStopsByWorkOrder'
+          index("byOrganization", {
+            sortKey: "createdAt",
+            queryField: "subscriptionsByOrganization"
           })
         ]),
 
@@ -822,39 +576,22 @@ export const data = defineData({
           action: a.string().required(),
           entityType: a.string().required(),
           entityId: a.string().required(),
-          payload: a.string(),
+          payload: a.json(),
           occurredAt: a.datetime().required(),
           createdAt: a.datetime().required().defaultToNow(),
           updatedAt: a.datetime().required().updatedAt()
         })
-        .authorization(companyAuth)
+        .authorization(internalAuth)
         .secondaryIndexes((index) => [
-          index('byOrganization', {
-            sortKey: 'occurredAt',
-            queryField: 'auditEventsByOrganization'
+          index("byOrganization", {
+            sortKey: "occurredAt",
+            queryField: "auditEventsByOrganization"
           }),
-          index('byEntity', {
-            sortKey: 'occurredAt',
-            queryField: 'auditEventsByEntity'
-          })
-        ]),
-
-      DailyCounter: a
-        .model({
-          counterKey: a.string().required(),
-          organizationId: a.string(),
-          branchId: a.string(),
-          lastSequence: a.integer().required(),
-          updatedAt: a.datetime().required().updatedAt()
-        })
-        .identifier(['counterKey'])
-        .authorization(companyAuth)
-        .secondaryIndexes((index) => [
-          index('byOrganization', {
-            sortKey: 'updatedAt',
-            queryField: 'dailyCountersByOrganization'
+          index("byEntity", {
+            sortKey: "occurredAt",
+            queryField: "auditEventsByEntity"
           })
         ])
     })
-    .authorization((allow) => [allow.owner(), allow.groups(TEAM_GROUPS)])
+    .authorization((allow) => [allow.groups(TEAM_GROUPS)])
 });

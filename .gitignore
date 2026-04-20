@@ -4,3 +4,5 @@ out
 dist
 .env
 .pnpm-store
+.local
+coverage
