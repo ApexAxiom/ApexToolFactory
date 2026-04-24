@@ -3,15 +3,13 @@ frontend:
   phases:
     preBuild:
       commands:
-        - corepack enable
-        - pnpm install
+        - echo "Static site - no preBuild needed"
     build:
       commands:
-        - pnpm build
+        - echo "Static site - no build needed"
   artifacts:
-    baseDirectory: .next
+    baseDirectory: public
     files:
       - "**/*"
   cache:
-    paths:
-      - node_modules/**/*
+    paths: []
