@@ -1,8 +1,14 @@
+import { Plus } from "lucide-react";
 import { Panel } from "@/components/ui/panel";
+import { Button } from "@/components/ui/button";
+import { PageHeader } from "@/components/ui/page-header";
+import { StatusPill } from "@/components/ui/status-pill";
 import { requireSession } from "@/server/auth/session";
 import { getActiveOrganizationContext } from "@/server/auth/context";
 import { inviteTeamMemberAction } from "@/server/actions/app";
 import { listTeamMembers } from "@/server/services/team";
+
+const inputClass = "h-10 rounded-md border border-line bg-white px-3 text-sm outline-none focus:border-emerald focus:ring-2 focus:ring-emerald/10";
 
 export default async function TeamPage() {
   const session = await requireSession();
@@ -12,52 +18,60 @@ export default async function TeamPage() {
   const team = await listTeamMembers(context.organization.id);
 
   return (
-    <div className="grid gap-6 xl:grid-cols-[1fr_420px]">
-      <Panel>
-        <p className="font-mono text-xs uppercase tracking-[0.28em] text-ink/45">Team</p>
-        <h1 className="mt-2 text-3xl font-semibold">Roles and invitations</h1>
-        <div className="mt-5 space-y-3">
-          {team.map((member) => (
-            <div key={member.id} className="rounded-2xl border border-ink/10 px-4 py-4">
-              <div className="flex items-center justify-between gap-4">
-                <div>
-                  <div className="font-medium">{member.displayName || member.email}</div>
-                  <div className="text-sm text-ink/65">{member.email}</div>
-                </div>
-                <div className="text-right text-sm text-ink/65">
-                  <div>{member.role}</div>
-                  <div>{member.status}</div>
+    <div className="space-y-6">
+      <PageHeader
+        eyebrow="Team"
+        title="Roles and invitations"
+        description="Manage owner, office, estimator, technician, and accounting access for the workspace."
+      />
+      <div className="grid gap-6 xl:grid-cols-[1fr_420px]">
+        <Panel>
+          <div className="space-y-3">
+            {team.map((member) => (
+              <div key={member.id} className="rounded-lg border border-line p-4">
+                <div className="flex items-center justify-between gap-4">
+                  <div>
+                    <div className="font-semibold">{member.displayName || member.email}</div>
+                    <div className="text-sm text-muted">{member.email}</div>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-sm font-semibold">{member.role.replace(/_/g, " ").toLowerCase()}</div>
+                    <StatusPill status={member.status} className="mt-2" />
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
-        </div>
-      </Panel>
+            ))}
+          </div>
+        </Panel>
 
-      <Panel>
-        <h2 className="text-xl font-semibold">Invite teammate</h2>
-        <form action={inviteTeamMemberAction} className="mt-5 grid gap-4">
-          <label className="space-y-2 text-sm font-medium">
-            Display name
-            <input className="w-full rounded-2xl border border-ink/10 bg-canvas px-4 py-3" name="displayName" />
-          </label>
-          <label className="space-y-2 text-sm font-medium">
-            Email
-            <input className="w-full rounded-2xl border border-ink/10 bg-canvas px-4 py-3" name="email" type="email" required />
-          </label>
-          <label className="space-y-2 text-sm font-medium">
-            Role
-            <select className="w-full rounded-2xl border border-ink/10 bg-canvas px-4 py-3" name="role">
-              <option value="OWNER">Owner</option>
-              <option value="OFFICE_MANAGER">Office Manager</option>
-              <option value="ESTIMATOR">Estimator</option>
-              <option value="TECHNICIAN">Technician</option>
-              <option value="ACCOUNTING">Accounting</option>
-            </select>
-          </label>
-          <button className="rounded-full bg-pine px-5 py-3 text-sm font-semibold text-white">Send invite</button>
-        </form>
-      </Panel>
+        <Panel>
+          <h2 className="text-lg font-semibold">Invite teammate</h2>
+          <form action={inviteTeamMemberAction} className="mt-5 grid gap-4">
+            <label className="space-y-2 text-sm font-semibold">
+              Display name
+              <input className={`${inputClass} w-full`} name="displayName" />
+            </label>
+            <label className="space-y-2 text-sm font-semibold">
+              Email
+              <input className={`${inputClass} w-full`} name="email" type="email" required />
+            </label>
+            <label className="space-y-2 text-sm font-semibold">
+              Role
+              <select className={`${inputClass} w-full`} name="role">
+                <option value="OWNER">Owner</option>
+                <option value="OFFICE_MANAGER">Office Manager</option>
+                <option value="ESTIMATOR">Estimator</option>
+                <option value="TECHNICIAN">Technician</option>
+                <option value="ACCOUNTING">Accounting</option>
+              </select>
+            </label>
+            <Button>
+              <Plus className="h-4 w-4" />
+              Send invite
+            </Button>
+          </form>
+        </Panel>
+      </div>
     </div>
   );
 }

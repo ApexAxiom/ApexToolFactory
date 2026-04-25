@@ -1,3 +1,4 @@
+import { existsSync, readFileSync } from "fs";
 import { mkdir, readFile, writeFile } from "fs/promises";
 import { dirname, resolve } from "path";
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
@@ -36,33 +37,51 @@ export function getStore(): PersistenceStore {
 
 class FileStore implements PersistenceStore {
   private filePath = resolve(process.cwd(), env.DEV_DATA_FILE);
+  private queue = Promise.resolve();
 
   async get<T extends StoredEntity>(collection: CollectionName, id: string) {
-    const db = await this.read();
-    return (db[collection]?.[id] as T | undefined) ?? null;
+    return this.runExclusive(async () => {
+      const db = await this.read();
+      return (db[collection]?.[id] as T | undefined) ?? null;
+    });
   }
 
   async put<T extends StoredEntity>(collection: CollectionName, item: T) {
-    const db = await this.read();
-    if (!db[collection]) db[collection] = {};
-    db[collection][item.id] = item;
-    await this.write(db);
-    return item;
+    return this.runExclusive(async () => {
+      const db = await this.read();
+      if (!db[collection]) db[collection] = {};
+      db[collection][item.id] = item;
+      await this.write(db);
+      return item;
+    });
   }
 
   async delete(collection: CollectionName, id: string) {
-    const db = await this.read();
-    delete db[collection]?.[id];
-    await this.write(db);
+    await this.runExclusive(async () => {
+      const db = await this.read();
+      delete db[collection]?.[id];
+      await this.write(db);
+    });
   }
 
   async list<T extends StoredEntity>(collection: CollectionName, filters: FilterMap = {}) {
-    const db = await this.read();
-    const values = Object.values(db[collection] ?? {}) as T[];
-    return values.filter((item) => {
-      const record = item as Record<string, unknown>;
-      return Object.entries(filters).every(([key, value]) => value === undefined || record[key] === value);
+    return this.runExclusive(async () => {
+      const db = await this.read();
+      const values = Object.values(db[collection] ?? {}) as T[];
+      return values.filter((item) => {
+        const record = item as Record<string, unknown>;
+        return Object.entries(filters).every(([key, value]) => value === undefined || record[key] === value);
+      });
     });
+  }
+
+  private runExclusive<T>(operation: () => Promise<T>) {
+    const next = this.queue.then(operation, operation);
+    this.queue = next.then(
+      () => undefined,
+      () => undefined
+    );
+    return next;
   }
 
   private async read(): Promise<StoreShape> {
@@ -86,28 +105,28 @@ class FileStore implements PersistenceStore {
 class DynamoStore implements PersistenceStore {
   private client = DynamoDBDocumentClient.from(new DynamoDBClient({ region: env.AWS_REGION }));
   private tables: Record<CollectionName, string | undefined> = {
-    organizations: env.TABLE_ORGANIZATIONS,
-    branches: env.TABLE_BRANCHES,
-    organizationMemberships: env.TABLE_ORGANIZATION_MEMBERSHIPS,
-    customers: env.TABLE_CUSTOMERS,
-    customerContacts: env.TABLE_CUSTOMER_CONTACTS,
-    properties: env.TABLE_PROPERTIES,
-    serviceTemplates: env.TABLE_SERVICE_TEMPLATES,
-    rateCards: env.TABLE_RATE_CARDS,
-    rateRules: env.TABLE_RATE_RULES,
-    quotes: env.TABLE_QUOTES,
-    quoteRevisions: env.TABLE_QUOTE_REVISIONS,
-    quoteLines: env.TABLE_QUOTE_LINES,
-    quoteAttachments: env.TABLE_QUOTE_ATTACHMENTS,
-    quoteAcceptances: env.TABLE_QUOTE_ACCEPTANCES,
-    invoices: env.TABLE_INVOICES,
-    invoiceLines: env.TABLE_INVOICE_LINES,
-    payments: env.TABLE_PAYMENTS,
-    emailMessages: env.TABLE_EMAIL_MESSAGES,
-    emailEvents: env.TABLE_EMAIL_EVENTS,
-    portalAccessTokens: env.TABLE_PORTAL_ACCESS_TOKENS,
-    subscriptions: env.TABLE_SUBSCRIPTIONS,
-    auditEvents: env.TABLE_AUDIT_EVENTS
+    organizations: resolveTableName("organizations", env.TABLE_ORGANIZATIONS),
+    branches: resolveTableName("branches", env.TABLE_BRANCHES),
+    organizationMemberships: resolveTableName("organizationMemberships", env.TABLE_ORGANIZATION_MEMBERSHIPS),
+    customers: resolveTableName("customers", env.TABLE_CUSTOMERS),
+    customerContacts: resolveTableName("customerContacts", env.TABLE_CUSTOMER_CONTACTS),
+    properties: resolveTableName("properties", env.TABLE_PROPERTIES),
+    serviceTemplates: resolveTableName("serviceTemplates", env.TABLE_SERVICE_TEMPLATES),
+    rateCards: resolveTableName("rateCards", env.TABLE_RATE_CARDS),
+    rateRules: resolveTableName("rateRules", env.TABLE_RATE_RULES),
+    quotes: resolveTableName("quotes", env.TABLE_QUOTES),
+    quoteRevisions: resolveTableName("quoteRevisions", env.TABLE_QUOTE_REVISIONS),
+    quoteLines: resolveTableName("quoteLines", env.TABLE_QUOTE_LINES),
+    quoteAttachments: resolveTableName("quoteAttachments", env.TABLE_QUOTE_ATTACHMENTS),
+    quoteAcceptances: resolveTableName("quoteAcceptances", env.TABLE_QUOTE_ACCEPTANCES),
+    invoices: resolveTableName("invoices", env.TABLE_INVOICES),
+    invoiceLines: resolveTableName("invoiceLines", env.TABLE_INVOICE_LINES),
+    payments: resolveTableName("payments", env.TABLE_PAYMENTS),
+    emailMessages: resolveTableName("emailMessages", env.TABLE_EMAIL_MESSAGES),
+    emailEvents: resolveTableName("emailEvents", env.TABLE_EMAIL_EVENTS),
+    portalAccessTokens: resolveTableName("portalAccessTokens", env.TABLE_PORTAL_ACCESS_TOKENS),
+    subscriptions: resolveTableName("subscriptions", env.TABLE_SUBSCRIPTIONS),
+    auditEvents: resolveTableName("auditEvents", env.TABLE_AUDIT_EVENTS)
   };
 
   async get<T extends StoredEntity>(collection: CollectionName, id: string) {
@@ -173,4 +192,33 @@ class DynamoStore implements PersistenceStore {
     }
     return tableName;
   }
+}
+
+let amplifyTablesCache: Partial<Record<CollectionName, string>> | null = null;
+
+function resolveTableName(collection: CollectionName, configured?: string) {
+  return configured || readAmplifyTableOutputs()[collection];
+}
+
+function readAmplifyTableOutputs() {
+  if (amplifyTablesCache) return amplifyTablesCache;
+
+  const outputPath = resolve(process.cwd(), "amplify_outputs.json");
+  if (!existsSync(outputPath)) {
+    amplifyTablesCache = {};
+    return amplifyTablesCache;
+  }
+
+  try {
+    const parsed = JSON.parse(readFileSync(outputPath, "utf8")) as {
+      custom?: {
+        dynamodbTables?: Partial<Record<CollectionName, string>>;
+      };
+    };
+    amplifyTablesCache = parsed.custom?.dynamodbTables ?? {};
+  } catch {
+    amplifyTablesCache = {};
+  }
+
+  return amplifyTablesCache;
 }

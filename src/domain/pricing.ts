@@ -21,6 +21,26 @@ export interface PricingResult {
 }
 
 export function calculatePricing(payload: QuoteDraftPayload): PricingResult {
+  if (payload.lineItems?.length) {
+    const lineItems = payload.lineItems.map((line) => ({
+      category: line.category || "SERVICE",
+      description: line.description,
+      qty: line.qty,
+      unitPrice: roundMoney(line.unitPrice),
+      lineTotal: roundMoney(line.lineTotal),
+      taxable: line.taxable ?? true
+    }));
+    const subtotal = roundMoney(lineItems.reduce((sum, line) => sum + line.lineTotal, 0));
+    const taxableSubtotal = roundMoney(lineItems.filter((line) => line.taxable).reduce((sum, line) => sum + line.lineTotal, 0));
+    const taxTotal = roundMoney(taxableSubtotal * (payload.pricing.taxPercent / 100));
+    return {
+      subtotal,
+      taxTotal,
+      grandTotal: roundMoney(subtotal + taxTotal),
+      lineItems
+    };
+  }
+
   const sqft = Number(payload.propertySquareFootage ?? 0);
   const pricing = payload.pricing;
   const visitMultiplier = visitMultipliers[payload.visitType];

@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { Panel } from "@/components/ui/panel";
+import { PageHeader } from "@/components/ui/page-header";
+import { StatusPill } from "@/components/ui/status-pill";
 import { currency, dateOnly } from "@/lib/utils";
 import { requireSession } from "@/server/auth/session";
 import { getActiveOrganizationContext } from "@/server/auth/context";
@@ -13,23 +15,48 @@ export default async function InvoicesPage() {
   const invoices = await listInvoices(context.organization.id);
 
   return (
-    <Panel>
-      <div className="mb-6">
-        <p className="font-mono text-xs uppercase tracking-[0.28em] text-ink/45">Invoices</p>
-        <h1 className="mt-2 text-3xl font-semibold">Receivables</h1>
-      </div>
-      <div className="space-y-3">
-        {invoices.map((invoice) => (
-          <Link key={invoice.id} href={`/app/invoices/${invoice.id}`} className="block rounded-2xl border border-ink/10 px-4 py-4">
-            <div className="grid gap-3 md:grid-cols-[1fr_0.8fr_0.7fr_0.5fr]">
-              <div className="font-medium">{invoice.invoiceNumber}</div>
-              <div className="text-sm text-ink/65">{dateOnly(invoice.issueDate)}</div>
-              <div className="text-sm">{currency(invoice.grandTotal)}</div>
-              <div className="text-right text-sm text-ink/65">{invoice.status}</div>
-            </div>
-          </Link>
-        ))}
-      </div>
-    </Panel>
+    <div className="space-y-6">
+      <PageHeader
+        eyebrow="Invoices"
+        title="Receivables"
+        description="Track issued invoices, hosted payment links, partial payments, and overdue balances."
+      />
+
+      <Panel>
+        <div className="overflow-x-auto rounded-lg border border-line">
+          <table className="w-full min-w-[720px] text-left text-sm">
+            <thead className="bg-canvas text-xs font-semibold uppercase text-muted">
+              <tr>
+                <th className="px-4 py-3">Invoice</th>
+                <th className="px-4 py-3">Issued</th>
+                <th className="px-4 py-3">Due</th>
+                <th className="px-4 py-3 text-right">Total</th>
+                <th className="px-4 py-3 text-right">Outstanding</th>
+                <th className="px-4 py-3 text-right">Status</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-line">
+              {invoices.map((invoice) => (
+                <tr key={invoice.id} className="hover:bg-canvas/70">
+                  <td className="px-4 py-3 font-semibold">
+                    <Link href={`/app/invoices/${invoice.id}`}>{invoice.invoiceNumber}</Link>
+                  </td>
+                  <td className="px-4 py-3 text-muted">{dateOnly(invoice.issueDate)}</td>
+                  <td className="px-4 py-3 text-muted">{dateOnly(invoice.dueDate)}</td>
+                  <td className="px-4 py-3 text-right font-semibold">{currency(invoice.grandTotal)}</td>
+                  <td className="px-4 py-3 text-right font-semibold">{currency(invoice.outstandingTotal)}</td>
+                  <td className="px-4 py-3 text-right"><StatusPill status={invoice.status} /></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        {invoices.length === 0 ? (
+          <div className="mt-4 rounded-lg border border-dashed border-line p-8 text-center text-sm text-muted">
+            No invoices yet. Convert an accepted quote to create the first invoice.
+          </div>
+        ) : null}
+      </Panel>
+    </div>
   );
 }

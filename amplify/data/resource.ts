@@ -30,8 +30,8 @@ export const data = defineData({
           supportPhone: a.phone(),
           website: a.url(),
           stripeCustomerId: a.string(),
-          createdAt: a.datetime().required().defaultToNow(),
-          updatedAt: a.datetime().required().updatedAt()
+          createdAt: a.datetime().required(),
+          updatedAt: a.datetime().required()
         })
         .authorization(internalAuth),
 
@@ -47,16 +47,10 @@ export const data = defineData({
           state: a.string(),
           postalCode: a.string(),
           isActive: a.boolean().required(),
-          createdAt: a.datetime().required().defaultToNow(),
-          updatedAt: a.datetime().required().updatedAt()
+          createdAt: a.datetime().required(),
+          updatedAt: a.datetime().required()
         })
-        .authorization(internalAuth)
-        .secondaryIndexes((index) => [
-          index("byOrganization", {
-            sortKey: "createdAt",
-            queryField: "branchesByOrganization"
-          })
-        ]),
+        .authorization(internalAuth),
 
       OrganizationMembership: a
         .model({
@@ -70,20 +64,10 @@ export const data = defineData({
           branchIds: a.string().array().required(),
           invitedAt: a.datetime(),
           acceptedAt: a.datetime(),
-          createdAt: a.datetime().required().defaultToNow(),
-          updatedAt: a.datetime().required().updatedAt()
+          createdAt: a.datetime().required(),
+          updatedAt: a.datetime().required()
         })
-        .authorization(internalAuth)
-        .secondaryIndexes((index) => [
-          index("byOrganization", {
-            sortKey: "createdAt",
-            queryField: "organizationMembershipsByOrganization"
-          }),
-          index("byUser", {
-            sortKey: "createdAt",
-            queryField: "organizationMembershipsByUser"
-          })
-        ]),
+        .authorization(internalAuth),
 
       Customer: a
         .model({
@@ -100,20 +84,10 @@ export const data = defineData({
           notes: a.string(),
           legacyClientId: a.string(),
           stripeCustomerId: a.string(),
-          createdAt: a.datetime().required().defaultToNow(),
-          updatedAt: a.datetime().required().updatedAt()
+          createdAt: a.datetime().required(),
+          updatedAt: a.datetime().required()
         })
-        .authorization(internalAuth)
-        .secondaryIndexes((index) => [
-          index("byOrganization", {
-            sortKey: "createdAt",
-            queryField: "customersByOrganization"
-          }),
-          index("byLegacyClientId", {
-            sortKey: "createdAt",
-            queryField: "customerByLegacyClientId"
-          })
-        ]),
+        .authorization(internalAuth),
 
       CustomerContact: a
         .model({
@@ -125,16 +99,10 @@ export const data = defineData({
           phone: a.phone(),
           role: a.string(),
           isPrimary: a.boolean().required(),
-          createdAt: a.datetime().required().defaultToNow(),
-          updatedAt: a.datetime().required().updatedAt()
+          createdAt: a.datetime().required(),
+          updatedAt: a.datetime().required()
         })
-        .authorization(internalAuth)
-        .secondaryIndexes((index) => [
-          index("byCustomer", {
-            sortKey: "createdAt",
-            queryField: "customerContactsByCustomer"
-          })
-        ]),
+        .authorization(internalAuth),
 
       Property: a
         .model({
@@ -150,20 +118,10 @@ export const data = defineData({
           structureType: a.string(),
           infestationNotes: a.string(),
           legacyClientId: a.string(),
-          createdAt: a.datetime().required().defaultToNow(),
-          updatedAt: a.datetime().required().updatedAt()
+          createdAt: a.datetime().required(),
+          updatedAt: a.datetime().required()
         })
-        .authorization(internalAuth)
-        .secondaryIndexes((index) => [
-          index("byCustomer", {
-            sortKey: "createdAt",
-            queryField: "propertiesByCustomer"
-          }),
-          index("byOrganization", {
-            sortKey: "createdAt",
-            queryField: "propertiesByOrganization"
-          })
-        ]),
+        .authorization(internalAuth),
 
       ServiceTemplate: a
         .model({
@@ -173,16 +131,10 @@ export const data = defineData({
           name: a.string().required(),
           description: a.string(),
           isActive: a.boolean().required(),
-          createdAt: a.datetime().required().defaultToNow(),
-          updatedAt: a.datetime().required().updatedAt()
+          createdAt: a.datetime().required(),
+          updatedAt: a.datetime().required()
         })
-        .authorization(internalAuth)
-        .secondaryIndexes((index) => [
-          index("byOrganization", {
-            sortKey: "createdAt",
-            queryField: "serviceTemplatesByOrganization"
-          })
-        ]),
+        .authorization(internalAuth),
 
       RateCard: a
         .model({
@@ -192,16 +144,10 @@ export const data = defineData({
           isDefault: a.boolean().required(),
           effectiveFrom: a.datetime().required(),
           effectiveTo: a.datetime(),
-          createdAt: a.datetime().required().defaultToNow(),
-          updatedAt: a.datetime().required().updatedAt()
+          createdAt: a.datetime().required(),
+          updatedAt: a.datetime().required()
         })
-        .authorization(internalAuth)
-        .secondaryIndexes((index) => [
-          index("byOrganization", {
-            sortKey: "effectiveFrom",
-            queryField: "rateCardsByOrganization"
-          })
-        ]),
+        .authorization(internalAuth),
 
       RateRule: a
         .model({
@@ -213,16 +159,10 @@ export const data = defineData({
           value: a.float().required(),
           minimumCharge: a.float(),
           maximumCharge: a.float(),
-          createdAt: a.datetime().required().defaultToNow(),
-          updatedAt: a.datetime().required().updatedAt()
+          createdAt: a.datetime().required(),
+          updatedAt: a.datetime().required()
         })
-        .authorization(internalAuth)
-        .secondaryIndexes((index) => [
-          index("byRateCard", {
-            sortKey: "createdAt",
-            queryField: "rateRulesByRateCard"
-          })
-        ]),
+        .authorization(internalAuth),
 
       Quote: a
         .model({
@@ -249,28 +189,10 @@ export const data = defineData({
           legacyVendorId: a.string(),
           legacyClientId: a.string(),
           legacyPayload: a.string(),
-          createdAt: a.datetime().required().defaultToNow(),
-          updatedAt: a.datetime().required().updatedAt()
+          createdAt: a.datetime().required(),
+          updatedAt: a.datetime().required()
         })
-        .authorization(internalAuth)
-        .secondaryIndexes((index) => [
-          index("byOrganization", {
-            sortKey: "createdAt",
-            queryField: "quotesByOrganization"
-          }),
-          index("byCustomer", {
-            sortKey: "createdAt",
-            queryField: "quotesByCustomer"
-          }),
-          index("byStatus", {
-            sortKey: "createdAt",
-            queryField: "quotesByStatus"
-          }),
-          index("byQuoteNumber", {
-            sortKey: "createdAt",
-            queryField: "quoteByNumber"
-          })
-        ]),
+        .authorization(internalAuth),
 
       QuoteRevision: a
         .model({
@@ -285,16 +207,10 @@ export const data = defineData({
           revisedAt: a.datetime().required(),
           revisedBy: a.string().required(),
           notes: a.string(),
-          createdAt: a.datetime().required().defaultToNow(),
-          updatedAt: a.datetime().required().updatedAt()
+          createdAt: a.datetime().required(),
+          updatedAt: a.datetime().required()
         })
-        .authorization(internalAuth)
-        .secondaryIndexes((index) => [
-          index("byQuote", {
-            sortKey: "revisionNumber",
-            queryField: "quoteRevisionsByQuote"
-          })
-        ]),
+        .authorization(internalAuth),
 
       QuoteLine: a
         .model({
@@ -309,20 +225,10 @@ export const data = defineData({
           unitPrice: a.float().required(),
           lineTotal: a.float().required(),
           taxable: a.boolean().required(),
-          createdAt: a.datetime().required().defaultToNow(),
-          updatedAt: a.datetime().required().updatedAt()
+          createdAt: a.datetime().required(),
+          updatedAt: a.datetime().required()
         })
-        .authorization(internalAuth)
-        .secondaryIndexes((index) => [
-          index("byQuote", {
-            sortKey: "lineNumber",
-            queryField: "quoteLinesByQuote"
-          }),
-          index("byRevision", {
-            sortKey: "lineNumber",
-            queryField: "quoteLinesByRevision"
-          })
-        ]),
+        .authorization(internalAuth),
 
       QuoteAttachment: a
         .model({
@@ -336,20 +242,10 @@ export const data = defineData({
           size: a.integer().required(),
           capturedAt: a.datetime().required(),
           capturedBy: a.string(),
-          createdAt: a.datetime().required().defaultToNow(),
-          updatedAt: a.datetime().required().updatedAt()
+          createdAt: a.datetime().required(),
+          updatedAt: a.datetime().required()
         })
-        .authorization(internalAuth)
-        .secondaryIndexes((index) => [
-          index("byQuote", {
-            sortKey: "createdAt",
-            queryField: "quoteAttachmentsByQuote"
-          }),
-          index("byStorageKey", {
-            sortKey: "createdAt",
-            queryField: "quoteAttachmentByStorageKey"
-          })
-        ]),
+        .authorization(internalAuth),
 
       QuoteAcceptance: a
         .model({
@@ -362,16 +258,10 @@ export const data = defineData({
           acceptedIp: a.ipAddress().required(),
           acceptedUserAgent: a.string(),
           notes: a.string(),
-          createdAt: a.datetime().required().defaultToNow(),
-          updatedAt: a.datetime().required().updatedAt()
+          createdAt: a.datetime().required(),
+          updatedAt: a.datetime().required()
         })
-        .authorization(internalAuth)
-        .secondaryIndexes((index) => [
-          index("byQuote", {
-            sortKey: "acceptedAt",
-            queryField: "quoteAcceptancesByQuote"
-          })
-        ]),
+        .authorization(internalAuth),
 
       Invoice: a
         .model({
@@ -392,28 +282,10 @@ export const data = defineData({
           currencyCode: a.string().required(),
           stripeInvoiceId: a.string(),
           stripeHostedInvoiceUrl: a.url(),
-          createdAt: a.datetime().required().defaultToNow(),
-          updatedAt: a.datetime().required().updatedAt()
+          createdAt: a.datetime().required(),
+          updatedAt: a.datetime().required()
         })
-        .authorization(internalAuth)
-        .secondaryIndexes((index) => [
-          index("byOrganization", {
-            sortKey: "issueDate",
-            queryField: "invoicesByOrganization"
-          }),
-          index("byCustomer", {
-            sortKey: "issueDate",
-            queryField: "invoicesByCustomer"
-          }),
-          index("byStatus", {
-            sortKey: "issueDate",
-            queryField: "invoicesByStatus"
-          }),
-          index("byQuote", {
-            sortKey: "issueDate",
-            queryField: "invoiceByQuote"
-          })
-        ]),
+        .authorization(internalAuth),
 
       InvoiceLine: a
         .model({
@@ -426,16 +298,10 @@ export const data = defineData({
           unitPrice: a.float().required(),
           lineTotal: a.float().required(),
           taxable: a.boolean().required(),
-          createdAt: a.datetime().required().defaultToNow(),
-          updatedAt: a.datetime().required().updatedAt()
+          createdAt: a.datetime().required(),
+          updatedAt: a.datetime().required()
         })
-        .authorization(internalAuth)
-        .secondaryIndexes((index) => [
-          index("byInvoice", {
-            sortKey: "lineNumber",
-            queryField: "invoiceLinesByInvoice"
-          })
-        ]),
+        .authorization(internalAuth),
 
       Payment: a
         .model({
@@ -449,20 +315,10 @@ export const data = defineData({
           status: a.ref("PaymentStatus").required(),
           reference: a.string(),
           provider: a.string().required(),
-          createdAt: a.datetime().required().defaultToNow(),
-          updatedAt: a.datetime().required().updatedAt()
+          createdAt: a.datetime().required(),
+          updatedAt: a.datetime().required()
         })
-        .authorization(internalAuth)
-        .secondaryIndexes((index) => [
-          index("byInvoice", {
-            sortKey: "paymentDate",
-            queryField: "paymentsByInvoice"
-          }),
-          index("byOrganization", {
-            sortKey: "paymentDate",
-            queryField: "paymentsByOrganization"
-          })
-        ]),
+        .authorization(internalAuth),
 
       EmailMessage: a
         .model({
@@ -479,24 +335,10 @@ export const data = defineData({
           status: a.ref("EmailStatus").required(),
           sentAt: a.datetime(),
           payload: a.json(),
-          createdAt: a.datetime().required().defaultToNow(),
-          updatedAt: a.datetime().required().updatedAt()
+          createdAt: a.datetime().required(),
+          updatedAt: a.datetime().required()
         })
-        .authorization(internalAuth)
-        .secondaryIndexes((index) => [
-          index("byOrganization", {
-            sortKey: "createdAt",
-            queryField: "emailMessagesByOrganization"
-          }),
-          index("byEntity", {
-            sortKey: "createdAt",
-            queryField: "emailMessagesByEntity"
-          }),
-          index("byProviderMessageId", {
-            sortKey: "createdAt",
-            queryField: "emailMessageByProviderMessageId"
-          })
-        ]),
+        .authorization(internalAuth),
 
       EmailEvent: a
         .model({
@@ -506,16 +348,10 @@ export const data = defineData({
           eventType: a.ref("EmailEventType").required(),
           occurredAt: a.datetime().required(),
           rawPayload: a.string().required(),
-          createdAt: a.datetime().required().defaultToNow(),
-          updatedAt: a.datetime().required().updatedAt()
+          createdAt: a.datetime().required(),
+          updatedAt: a.datetime().required()
         })
-        .authorization(internalAuth)
-        .secondaryIndexes((index) => [
-          index("byMessage", {
-            sortKey: "occurredAt",
-            queryField: "emailEventsByMessage"
-          })
-        ]),
+        .authorization(internalAuth),
 
       PortalAccessToken: a
         .model({
@@ -530,20 +366,10 @@ export const data = defineData({
           lastViewedAt: a.datetime(),
           lastViewedIp: a.ipAddress(),
           lastViewedUserAgent: a.string(),
-          createdAt: a.datetime().required().defaultToNow(),
-          updatedAt: a.datetime().required().updatedAt()
+          createdAt: a.datetime().required(),
+          updatedAt: a.datetime().required()
         })
-        .authorization(internalAuth)
-        .secondaryIndexes((index) => [
-          index("byEntity", {
-            sortKey: "createdAt",
-            queryField: "portalTokensByEntity"
-          }),
-          index("byTokenHash", {
-            sortKey: "createdAt",
-            queryField: "portalTokenByHash"
-          })
-        ]),
+        .authorization(internalAuth),
 
       Subscription: a
         .model({
@@ -557,16 +383,10 @@ export const data = defineData({
           currentPeriodStart: a.datetime(),
           currentPeriodEnd: a.datetime(),
           cancelAtPeriodEnd: a.boolean().required(),
-          createdAt: a.datetime().required().defaultToNow(),
-          updatedAt: a.datetime().required().updatedAt()
+          createdAt: a.datetime().required(),
+          updatedAt: a.datetime().required()
         })
-        .authorization(internalAuth)
-        .secondaryIndexes((index) => [
-          index("byOrganization", {
-            sortKey: "createdAt",
-            queryField: "subscriptionsByOrganization"
-          })
-        ]),
+        .authorization(internalAuth),
 
       AuditEvent: a
         .model({
@@ -578,20 +398,10 @@ export const data = defineData({
           entityId: a.string().required(),
           payload: a.json(),
           occurredAt: a.datetime().required(),
-          createdAt: a.datetime().required().defaultToNow(),
-          updatedAt: a.datetime().required().updatedAt()
+          createdAt: a.datetime().required(),
+          updatedAt: a.datetime().required()
         })
         .authorization(internalAuth)
-        .secondaryIndexes((index) => [
-          index("byOrganization", {
-            sortKey: "occurredAt",
-            queryField: "auditEventsByOrganization"
-          }),
-          index("byEntity", {
-            sortKey: "occurredAt",
-            queryField: "auditEventsByEntity"
-          })
-        ])
     })
     .authorization((allow) => [allow.groups(TEAM_GROUPS)])
 });

@@ -1,4 +1,6 @@
 import { randomUUID } from "crypto";
+import { existsSync, readFileSync } from "fs";
+import { resolve } from "path";
 import { PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { env } from "@/config/env";
@@ -9,6 +11,7 @@ import { writeAuditEvent } from "@/server/services/audit";
 import { getQuote } from "@/server/services/quotes";
 
 const s3 = new S3Client({ region: env.AWS_REGION });
+let bucketCache: string | null | undefined;
 
 export async function createUploadUrl(input: {
   organizationId: string;
@@ -16,13 +19,14 @@ export async function createUploadUrl(input: {
   fileName: string;
   contentType: string;
 }) {
-  if (!env.S3_ATTACHMENTS_BUCKET) {
+  const bucket = resolveAttachmentBucket();
+  if (!bucket) {
     throw new Error("S3_ATTACHMENTS_BUCKET is not configured");
   }
 
   const key = `organizations/${input.organizationId}/quotes/${input.quoteId}/${randomUUID()}-${input.fileName}`;
   const command = new PutObjectCommand({
-    Bucket: env.S3_ATTACHMENTS_BUCKET,
+    Bucket: bucket,
     Key: key,
     ContentType: input.contentType
   });
@@ -74,4 +78,30 @@ export async function finalizeQuoteAttachment(input: {
   });
 
   return attachment;
+}
+
+function resolveAttachmentBucket() {
+  if (env.S3_ATTACHMENTS_BUCKET) return env.S3_ATTACHMENTS_BUCKET;
+  if (bucketCache !== undefined) return bucketCache;
+
+  const outputPath = resolve(process.cwd(), "amplify_outputs.json");
+  if (!existsSync(outputPath)) {
+    bucketCache = null;
+    return bucketCache;
+  }
+
+  try {
+    const parsed = JSON.parse(readFileSync(outputPath, "utf8")) as {
+      custom?: {
+        storage?: {
+          attachmentsBucket?: string;
+        };
+      };
+    };
+    bucketCache = parsed.custom?.storage?.attachmentsBucket || null;
+  } catch {
+    bucketCache = null;
+  }
+
+  return bucketCache;
 }

@@ -19,24 +19,24 @@ export default async function PropertyDetailPage({ params }: { params: Promise<{
   return (
     <div className="space-y-6">
       <Panel>
-        <p className="font-mono text-xs uppercase tracking-[0.28em] text-ink/45">Property</p>
+        <p className="text-xs font-bold uppercase tracking-[0.18em] text-emerald">Property</p>
         <h1 className="mt-2 text-3xl font-semibold">{property.name}</h1>
-        <p className="mt-2 text-sm text-ink/65">{[property.address1, property.city, property.state, property.postalCode].filter(Boolean).join(", ")}</p>
+        <p className="mt-2 text-sm text-muted">{[property.address1, property.city, property.state, property.postalCode].filter(Boolean).join(", ")}</p>
       </Panel>
       <Panel>
-        <h2 className="text-xl font-semibold">Service profile</h2>
+        <h2 className="text-lg font-semibold">Service profile</h2>
         <div className="mt-4 grid gap-4 sm:grid-cols-2">
-          <div className="rounded-2xl bg-canvas p-4">
-            <div className="text-xs uppercase tracking-[0.18em] text-ink/45">Customer</div>
+          <div className="rounded-lg border border-line bg-canvas p-4">
+            <div className="text-xs font-semibold uppercase text-muted">Customer</div>
             <div className="mt-2 text-xl font-semibold">{customer?.name || "Unknown customer"}</div>
           </div>
-          <div className="rounded-2xl bg-canvas p-4">
-            <div className="text-xs uppercase tracking-[0.18em] text-ink/45">Square footage</div>
+          <div className="rounded-lg border border-line bg-canvas p-4">
+            <div className="text-xs font-semibold uppercase text-muted">Square footage</div>
             <div className="mt-2 text-xl font-semibold">{property.sqft || 0}</div>
           </div>
         </div>
         {property.infestationNotes ? (
-          <div className="mt-5 rounded-2xl border border-ink/10 px-4 py-4 text-sm text-ink/75">{property.infestationNotes}</div>
+          <div className="mt-5 rounded-lg border border-line px-4 py-4 text-sm text-muted">{property.infestationNotes}</div>
         ) : null}
       </Panel>
     </div>

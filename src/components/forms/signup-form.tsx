@@ -2,14 +2,14 @@
 
 import { FormEvent, useState, useTransition } from "react";
 
-export function LoginForm() {
+export function SignupForm() {
   const [isPending, startTransition] = useTransition();
+  const [companyName, setCompanyName] = useState("");
+  const [displayName, setDisplayName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [mfaCode, setMfaCode] = useState("");
-  const [challengeName, setChallengeName] = useState<string | null>(null);
-  const [challengeSession, setChallengeSession] = useState<string | null>(null);
-  const [totpSecret, setTotpSecret] = useState<string | null>(null);
+  const [confirmationCode, setConfirmationCode] = useState("");
+  const [needsConfirmation, setNeedsConfirmation] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -17,57 +17,68 @@ export function LoginForm() {
     setError(null);
 
     startTransition(async () => {
-      const response = await fetch("/api/auth/login", {
+      const response = await fetch("/api/auth/signup", {
         method: "POST",
         headers: {
           "content-type": "application/json"
         },
         body: JSON.stringify({
+          companyName,
+          displayName,
           email,
           password,
-          mfaCode: mfaCode || undefined,
-          challengeName: challengeName || undefined,
-          challengeSession: challengeSession || undefined
+          confirmationCode: confirmationCode || undefined
         })
       });
 
       const payload = (await response.json()) as {
         ok: boolean;
         error?: string;
-        requiresMfa?: boolean;
-        requiresMfaSetup?: boolean;
-        challengeName?: string;
-        challengeSession?: string;
-        secretCode?: string;
+        requiresConfirmation?: boolean;
         redirectTo?: string;
       };
 
       if (!response.ok || !payload.ok) {
-        setError(payload.error || "Sign-in failed");
+        setError(payload.error || "Signup failed");
         return;
       }
 
-      if (payload.requiresMfaSetup) {
-        setChallengeName(payload.challengeName || "MFA_SETUP");
-        setChallengeSession(payload.challengeSession || null);
-        setTotpSecret(payload.secretCode || null);
-        setMfaCode("");
+      if (payload.requiresConfirmation) {
+        setNeedsConfirmation(true);
         return;
       }
 
-      if (payload.requiresMfa) {
-        setChallengeName(payload.challengeName || "SOFTWARE_TOKEN_MFA");
-        setChallengeSession(payload.challengeSession || null);
-        setTotpSecret(null);
-        return;
-      }
-
-      window.location.href = payload.redirectTo || "/app/dashboard";
+      window.location.href = payload.redirectTo || "/login";
     });
   }
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
+      <div>
+        <label className="mb-1 block text-xs font-semibold uppercase tracking-[0.22em] text-white/60">
+          Company
+        </label>
+        <input
+          className="w-full rounded-md border border-white/10 bg-white/5 px-4 py-3 text-white outline-none transition focus:border-emerald"
+          value={companyName}
+          onChange={(event) => setCompanyName(event.target.value)}
+          placeholder="Downtown Pest Control"
+          required
+          disabled={needsConfirmation}
+        />
+      </div>
+      <div>
+        <label className="mb-1 block text-xs font-semibold uppercase tracking-[0.22em] text-white/60">
+          Your name
+        </label>
+        <input
+          className="w-full rounded-md border border-white/10 bg-white/5 px-4 py-3 text-white outline-none transition focus:border-emerald"
+          value={displayName}
+          onChange={(event) => setDisplayName(event.target.value)}
+          placeholder="John Davis"
+          disabled={needsConfirmation}
+        />
+      </div>
       <div>
         <label className="mb-1 block text-xs font-semibold uppercase tracking-[0.22em] text-white/60">
           Work email
@@ -80,9 +91,9 @@ export function LoginForm() {
           type="email"
           autoComplete="email"
           required
+          disabled={needsConfirmation}
         />
       </div>
-
       <div>
         <label className="mb-1 block text-xs font-semibold uppercase tracking-[0.22em] text-white/60">
           Password
@@ -91,36 +102,27 @@ export function LoginForm() {
           className="w-full rounded-md border border-white/10 bg-white/5 px-4 py-3 text-white outline-none transition focus:border-emerald"
           value={password}
           onChange={(event) => setPassword(event.target.value)}
-          placeholder="Your password"
+          placeholder="Create a strong password"
           type="password"
-          autoComplete="current-password"
+          autoComplete="new-password"
           required
+          disabled={needsConfirmation}
         />
       </div>
-
-      {challengeName ? (
+      {needsConfirmation ? (
         <div>
           <label className="mb-1 block text-xs font-semibold uppercase tracking-[0.22em] text-white/60">
-            Authenticator code
+            Email confirmation code
           </label>
           <input
             className="w-full rounded-md border border-white/10 bg-white/5 px-4 py-3 text-white outline-none transition focus:border-emerald"
-            value={mfaCode}
-            onChange={(event) => setMfaCode(event.target.value)}
+            value={confirmationCode}
+            onChange={(event) => setConfirmationCode(event.target.value)}
             placeholder="123456"
             inputMode="numeric"
             autoComplete="one-time-code"
             required
           />
-          {totpSecret ? (
-            <div className="mt-3 rounded-md border border-white/10 bg-white/5 p-3 text-sm text-white/70">
-              Add a TOTP account in your authenticator app with this setup key:
-              <div className="mt-2 break-all font-mono text-white">{totpSecret}</div>
-            </div>
-          ) : null}
-          <p className="mt-2 text-sm text-white/60">
-            Enter the {challengeName === "MFA_SETUP" || challengeName === "SOFTWARE_TOKEN_MFA" ? "TOTP" : "verification"} code to finish sign-in.
-          </p>
         </div>
       ) : null}
 
@@ -131,7 +133,7 @@ export function LoginForm() {
         className="w-full rounded-md bg-emerald px-5 py-3 font-semibold text-white transition hover:bg-[#0b7d63] disabled:cursor-not-allowed disabled:opacity-70"
         type="submit"
       >
-        {isPending ? "Signing in..." : challengeName ? "Verify and continue" : "Sign in"}
+        {isPending ? "Working..." : needsConfirmation ? "Confirm account" : "Start free trial"}
       </button>
     </form>
   );

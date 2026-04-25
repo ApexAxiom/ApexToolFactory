@@ -5,19 +5,24 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        canvas: "#f6f7f1",
-        ink: "#17201d",
-        moss: "#35524a",
-        pine: "#173127",
+        canvas: "#f7f9fb",
+        ink: "#0f1b2d",
+        moss: "#2f6f64",
+        pine: "#0f1b2d",
+        emerald: "#0f8f72",
         clay: "#c86b4a",
         gold: "#cf9b48",
-        mist: "#dce6e1"
+        mist: "#e7f3ef",
+        line: "#dce5ee",
+        muted: "#66758a"
       },
       boxShadow: {
-        panel: "0 18px 42px -24px rgba(23, 32, 29, 0.38)"
+        panel: "0 14px 36px -24px rgba(15, 27, 45, 0.35)",
+        subtle: "0 1px 2px rgba(15, 27, 45, 0.05)"
       },
       borderRadius: {
-        "2xl": "1.25rem"
+        xl: "0.5rem",
+        "2xl": "0.5rem"
       }
     }
   },

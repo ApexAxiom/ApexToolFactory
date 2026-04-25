@@ -66,6 +66,55 @@ describe("calculatePricing", () => {
     expect(result.grandTotal).toBe(239.25);
     expect(result.lineItems.map((line) => line.category)).toEqual(["BASE", "LABOR", "MARKUP"]);
   });
+
+  it("can price explicit workbench line items without formula fallback", () => {
+    const result = calculatePricing(
+      makePayload({
+        lineItems: [
+          {
+            description: "Quarterly General Pest Control",
+            category: "SERVICE",
+            interval: "QUARTERLY",
+            qty: 12600,
+            unitPrice: 0.04,
+            lineTotal: 504,
+            taxable: true
+          },
+          {
+            description: "Rodent Monitoring",
+            category: "SERVICE",
+            interval: "QUARTERLY",
+            qty: 10,
+            unitPrice: 1.5,
+            lineTotal: 15,
+            taxable: true
+          },
+          {
+            description: "Mosquito Treatment",
+            category: "SERVICE",
+            interval: "MONTHLY",
+            qty: 1,
+            unitPrice: 35,
+            lineTotal: 35,
+            taxable: true
+          }
+        ],
+        pricing: {
+          ...makePayload().pricing,
+          taxPercent: 8.25
+        }
+      })
+    );
+
+    expect(result.subtotal).toBe(554);
+    expect(result.taxTotal).toBe(45.71);
+    expect(result.grandTotal).toBe(599.71);
+    expect(result.lineItems.map((line) => line.description)).toEqual([
+      "Quarterly General Pest Control",
+      "Rodent Monitoring",
+      "Mosquito Treatment"
+    ]);
+  });
 });
 
 describe("roundMoney", () => {

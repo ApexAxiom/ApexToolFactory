@@ -1,15 +1,31 @@
 version: 1
+backend:
+  phases:
+    build:
+      commands:
+        - corepack enable
+        - corepack prepare pnpm@10.28.2 --activate
+        - pnpm install --frozen-lockfile
+        - pnpm exec ampx pipeline-deploy --branch $AWS_BRANCH --app-id $AWS_APP_ID
 frontend:
   phases:
     preBuild:
       commands:
-        - echo "Static site - no preBuild needed"
+        - corepack enable
+        - corepack prepare pnpm@10.28.2 --activate
+        - pnpm install --frozen-lockfile
     build:
       commands:
-        - echo "Static site - no build needed"
+        - echo "PERSISTENCE_DRIVER=dynamo" >> .env.production
+        - env | grep -e '^APP_URL=' -e '^SESSION_SECRET=' -e '^SESSION_PASSWORD=' -e '^AWS_REGION=' -e '^COGNITO_CLIENT_ID=' -e '^COGNITO_USER_POOL_ID=' -e '^SES_FROM_EMAIL=' -e '^SES_FROM_NAME=' -e '^S3_ATTACHMENTS_BUCKET=' -e '^STRIPE_SECRET_KEY=' -e '^STRIPE_WEBHOOK_SECRET=' -e '^PESTIMATOR_STRIPE_PRICE_ID=' -e '^Pestimator_STRIPE_PRICE_ID=' >> .env.production || true
+        - env | grep -e '^TABLE_ORGANIZATIONS=' -e '^TABLE_BRANCHES=' -e '^TABLE_ORGANIZATION_MEMBERSHIPS=' -e '^TABLE_CUSTOMERS=' -e '^TABLE_CUSTOMER_CONTACTS=' -e '^TABLE_PROPERTIES=' -e '^TABLE_SERVICE_TEMPLATES=' -e '^TABLE_RATE_CARDS=' -e '^TABLE_RATE_RULES=' -e '^TABLE_QUOTES=' -e '^TABLE_QUOTE_REVISIONS=' -e '^TABLE_QUOTE_LINES=' -e '^TABLE_QUOTE_ATTACHMENTS=' -e '^TABLE_QUOTE_ACCEPTANCES=' -e '^TABLE_INVOICES=' -e '^TABLE_INVOICE_LINES=' -e '^TABLE_PAYMENTS=' -e '^TABLE_EMAIL_MESSAGES=' -e '^TABLE_EMAIL_EVENTS=' -e '^TABLE_PORTAL_ACCESS_TOKENS=' -e '^TABLE_SUBSCRIPTIONS=' -e '^TABLE_AUDIT_EVENTS=' >> .env.production || true
+        - pnpm build
   artifacts:
-    baseDirectory: public
+    baseDirectory: .next
     files:
       - "**/*"
   cache:
-    paths: []
+    paths:
+      - node_modules/**/*
+      - .next/cache/**/*
+      - ~/.pnpm-store/**/*

@@ -87,6 +87,9 @@ export async function createQuoteDraftAction(formData: FormData) {
     propertySquareFootage: Number(formData.get("propertySquareFootage") || 0) || undefined,
     visitType: (String(formData.get("visitType") || "ONE_TIME") as QuoteDraftPayload["visitType"]),
     pestFindings: JSON.parse(String(formData.get("pestFindings") || "[]")),
+    lineItems: formData.get("lineItems")
+      ? JSON.parse(String(formData.get("lineItems") || "[]"))
+      : undefined,
     serviceScope: String(formData.get("serviceScope") || "").trim(),
     notes: String(formData.get("notes") || "").trim() || undefined,
     pricing: {

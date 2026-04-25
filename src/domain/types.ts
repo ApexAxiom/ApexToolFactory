@@ -148,13 +148,24 @@ export interface QuoteDraftPayload {
   propertyAddress: string;
   propertySquareFootage?: number;
   visitType: "ONE_TIME" | "MONTHLY" | "QUARTERLY";
+  servicePlanName?: string;
+  billingCadence?: "ONE_TIME" | "MONTHLY" | "QUARTERLY";
+  firstServiceDate?: string;
   pestFindings: Array<{
     code: string;
     label: string;
     amount: number;
   }>;
+  lineItems?: QuoteDraftLineInput[];
   serviceScope: string;
   notes?: string;
+  proposalNotes?: string;
+  attachments?: Array<{
+    storageKey: string;
+    fileName: string;
+    mimeType: string;
+    size: number;
+  }>;
   pricing: {
     baseRatePerSqft: number;
     laborHours: number;
@@ -164,6 +175,16 @@ export interface QuoteDraftPayload {
     markupPercent: number;
     taxPercent: number;
   };
+}
+
+export interface QuoteDraftLineInput {
+  description: string;
+  category?: string;
+  interval?: "ONE_TIME" | "MONTHLY" | "QUARTERLY";
+  qty: number;
+  unitPrice: number;
+  lineTotal: number;
+  taxable?: boolean;
 }
 
 export interface QuoteRevision extends EntityBase {

@@ -7,7 +7,7 @@ interface PanelProps extends PropsWithChildren {
 
 export function Panel({ children, className }: PanelProps) {
   return (
-    <section className={cn("rounded-2xl border border-ink/10 bg-white p-6 shadow-panel", className)}>
+    <section className={cn("rounded-lg border border-line bg-white p-5 shadow-subtle", className)}>
       {children}
     </section>
   );

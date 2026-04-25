@@ -1,6 +1,9 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { Plus } from "lucide-react";
 import { Panel } from "@/components/ui/panel";
+import { Button } from "@/components/ui/button";
+import { StatusPill } from "@/components/ui/status-pill";
 import { currency } from "@/lib/utils";
 import { createPropertyAction } from "@/server/actions/app";
 import { requireSession } from "@/server/auth/session";
@@ -11,6 +14,8 @@ import {
   getCustomerFinancialSummary,
   getCustomerProperties
 } from "@/server/services/customers";
+
+const inputClass = "h-10 rounded-md border border-line bg-white px-3 text-sm outline-none focus:border-emerald focus:ring-2 focus:ring-emerald/10";
 
 export default async function CustomerDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const session = await requireSession();
@@ -32,80 +37,93 @@ export default async function CustomerDetailPage({ params }: { params: Promise<{
       <Panel>
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
-            <p className="font-mono text-xs uppercase tracking-[0.28em] text-ink/45">Customer record</p>
+            <p className="text-xs font-bold uppercase tracking-[0.18em] text-emerald">Client record</p>
             <h1 className="mt-2 text-3xl font-semibold">{customer.name}</h1>
-            <p className="mt-2 text-sm text-ink/65">
-              {[customer.email, customer.phone, customer.billingAddress1].filter(Boolean).join(" • ") || "No billing profile yet"}
+            <p className="mt-2 text-sm text-muted">
+              {[customer.email, customer.phone, customer.billingAddress1].filter(Boolean).join(" / ") || "No billing profile yet"}
             </p>
           </div>
-          <Link href="/app/quotes/new" className="rounded-full bg-pine px-5 py-3 text-sm font-semibold text-white">
-            New quote
+          <Link href="/app/quotes/new">
+            <Button>
+              <Plus className="h-4 w-4" />
+              New quote
+            </Button>
           </Link>
         </div>
       </Panel>
 
-      <div className="grid gap-5 xl:grid-cols-[1.05fr_0.95fr]">
+      <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_420px]">
         <Panel>
-          <h2 className="text-xl font-semibold">Account history</h2>
+          <h2 className="text-lg font-semibold">Account history</h2>
           <div className="mt-4 grid gap-4 sm:grid-cols-3">
-            <div className="rounded-2xl bg-canvas p-4">
-              <div className="text-xs uppercase tracking-[0.18em] text-ink/45">Quoted</div>
-              <div className="mt-2 text-2xl font-semibold">{currency(summary.quotedTotal)}</div>
-            </div>
-            <div className="rounded-2xl bg-canvas p-4">
-              <div className="text-xs uppercase tracking-[0.18em] text-ink/45">Invoiced</div>
-              <div className="mt-2 text-2xl font-semibold">{currency(summary.invoicedTotal)}</div>
-            </div>
-            <div className="rounded-2xl bg-canvas p-4">
-              <div className="text-xs uppercase tracking-[0.18em] text-ink/45">Outstanding</div>
-              <div className="mt-2 text-2xl font-semibold">{currency(summary.outstandingTotal)}</div>
-            </div>
-          </div>
-          <div className="mt-6 space-y-3">
-            {summary.quotes.slice(0, 5).map((quote) => (
-              <Link key={quote.id} href={`/app/quotes/${quote.id}`} className="block rounded-2xl border border-ink/10 px-4 py-3">
-                <div className="flex justify-between gap-3">
-                  <span>{quote.quoteNumber}</span>
-                  <span className="text-ink/65">{quote.status}</span>
-                </div>
-              </Link>
+            {[
+              ["Quoted", currency(summary.quotedTotal)],
+              ["Invoiced", currency(summary.invoicedTotal)],
+              ["Outstanding", currency(summary.outstandingTotal)]
+            ].map(([label, value]) => (
+              <div key={label} className="rounded-lg border border-line bg-canvas p-4">
+                <div className="text-xs font-semibold uppercase text-muted">{label}</div>
+                <div className="mt-2 text-2xl font-semibold">{value}</div>
+              </div>
             ))}
+          </div>
+          <div className="mt-6 overflow-hidden rounded-lg border border-line">
+            <table className="w-full text-left text-sm">
+              <thead className="bg-canvas text-xs font-semibold uppercase text-muted">
+                <tr>
+                  <th className="px-4 py-3">Quote</th>
+                  <th className="px-4 py-3 text-right">Amount</th>
+                  <th className="px-4 py-3 text-right">Status</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-line">
+                {summary.quotes.slice(0, 6).map((quote) => (
+                  <tr key={quote.id}>
+                    <td className="px-4 py-3 font-semibold">
+                      <Link href={`/app/quotes/${quote.id}`}>{quote.quoteNumber}</Link>
+                    </td>
+                    <td className="px-4 py-3 text-right font-semibold">{currency(quote.grandTotal)}</td>
+                    <td className="px-4 py-3 text-right"><StatusPill status={quote.status} /></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         </Panel>
 
         <Panel>
-          <h2 className="text-xl font-semibold">Properties and contacts</h2>
+          <h2 className="text-lg font-semibold">Properties and contacts</h2>
           <div className="mt-4 space-y-3">
             {contacts.map((contact) => (
-              <div key={contact.id} className="rounded-2xl border border-ink/10 px-4 py-3">
-                <div className="font-medium">{contact.name}</div>
-                <div className="text-sm text-ink/65">{[contact.email, contact.phone].filter(Boolean).join(" • ")}</div>
+              <div key={contact.id} className="rounded-lg border border-line p-4">
+                <div className="font-semibold">{contact.name}</div>
+                <div className="mt-1 text-sm text-muted">{[contact.email, contact.phone].filter(Boolean).join(" / ")}</div>
               </div>
             ))}
             {properties.map((property) => (
-              <Link key={property.id} href={`/app/properties/${property.id}`} className="block rounded-2xl border border-ink/10 px-4 py-3">
-                <div className="font-medium">{property.name}</div>
-                <div className="text-sm text-ink/65">{[property.address1, property.city, property.state].filter(Boolean).join(", ")}</div>
+              <Link key={property.id} href={`/app/properties/${property.id}`} className="block rounded-lg border border-line p-4 hover:bg-canvas">
+                <div className="font-semibold">{property.name}</div>
+                <div className="mt-1 text-sm text-muted">{[property.address1, property.city, property.state].filter(Boolean).join(", ")}</div>
               </Link>
             ))}
           </div>
-          <form action={createPropertyAction} className="mt-6 grid gap-3 border-t border-ink/10 pt-6">
+          <form action={createPropertyAction} className="mt-6 grid gap-3 border-t border-line pt-6">
             <input type="hidden" name="customerId" value={customer.id} />
-            <label className="space-y-2 text-sm font-medium">
+            <label className="space-y-2 text-sm font-semibold">
               Property name
-              <input className="w-full rounded-2xl border border-ink/10 bg-canvas px-4 py-3" name="name" required />
+              <input className={`${inputClass} w-full`} name="name" required />
             </label>
-            <label className="space-y-2 text-sm font-medium">
+            <label className="space-y-2 text-sm font-semibold">
               Service address
-              <input className="w-full rounded-2xl border border-ink/10 bg-canvas px-4 py-3" name="address1" required />
+              <input className={`${inputClass} w-full`} name="address1" required />
             </label>
             <div className="grid gap-3 sm:grid-cols-4">
-              <input className="rounded-2xl border border-ink/10 bg-canvas px-4 py-3" name="city" placeholder="City" />
-              <input className="rounded-2xl border border-ink/10 bg-canvas px-4 py-3" name="state" placeholder="State" />
-              <input className="rounded-2xl border border-ink/10 bg-canvas px-4 py-3" name="postalCode" placeholder="Postal code" />
-              <input className="rounded-2xl border border-ink/10 bg-canvas px-4 py-3" name="sqft" placeholder="Sqft" type="number" />
+              <input className={inputClass} name="city" placeholder="City" />
+              <input className={inputClass} name="state" placeholder="State" />
+              <input className={inputClass} name="postalCode" placeholder="Postal code" />
+              <input className={inputClass} name="sqft" placeholder="Sqft" type="number" />
             </div>
-            <button className="rounded-full bg-pine px-5 py-3 text-sm font-semibold text-white">Add property</button>
+            <Button>Add property</Button>
           </form>
         </Panel>
       </div>

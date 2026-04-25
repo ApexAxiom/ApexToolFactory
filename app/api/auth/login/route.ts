@@ -1,8 +1,10 @@
 import { NextResponse } from "next/server";
 import { OrganizationMembership } from "@/domain/types";
+import { env } from "@/config/env";
 import { createSessionCookie } from "@/server/auth/session";
-import { respondToMfaChallenge, signInWithPassword } from "@/server/auth/cognito";
+import { respondToMfaChallenge, signInWithPassword, startTotpSetup } from "@/server/auth/cognito";
 import { getStore } from "@/server/persistence/store";
+import { createOrganization } from "@/server/services/organizations";
 
 interface LoginBody {
   email?: string;
@@ -29,7 +31,27 @@ export async function POST(request: Request) {
             challengeName: body.challengeName,
             session: body.challengeSession
           })
-        : await signInWithPassword(email, String(body.password || ""));
+        : isLocalDevLogin(email, String(body.password || ""))
+          ? {
+              profile: {
+                userId: `local-dev:${email}`,
+                email,
+                displayName: "Local Dev User",
+                emailVerified: true
+              }
+            }
+          : await signInWithPassword(email, String(body.password || ""));
+
+    if (authResult.challengeName === "MFA_SETUP" && authResult.session) {
+      const setup = await startTotpSetup(authResult.session);
+      return NextResponse.json({
+        ok: true,
+        requiresMfaSetup: true,
+        challengeName: authResult.challengeName,
+        challengeSession: setup.session,
+        secretCode: setup.secretCode
+      });
+    }
 
     if (authResult.challengeName && authResult.session) {
       return NextResponse.json({
@@ -45,7 +67,7 @@ export async function POST(request: Request) {
     }
 
     const memberships = await getStore().list<OrganizationMembership>("organizationMemberships");
-    const activeMemberships = memberships
+    let activeMemberships = memberships
       .filter(
         (membership) =>
           membership.status === "ACTIVE" &&
@@ -55,6 +77,21 @@ export async function POST(request: Request) {
         organizationId: membership.organizationId,
         role: membership.role
       }));
+
+    if (activeMemberships.length === 0 && isLocalDevLogin(email, String(body.password || ""))) {
+      const created = await createOrganization({
+        name: "Pestimator Local Workspace",
+        timezone: "America/Chicago",
+        owner: {
+          userId: authResult.profile.userId,
+          email,
+          displayName: authResult.profile.displayName,
+          emailVerified: true,
+          memberships: []
+        }
+      });
+      activeMemberships = [{ organizationId: created.organization.id, role: "OWNER" }];
+    }
 
     await createSessionCookie({
       userId: authResult.profile.userId,
@@ -72,4 +109,14 @@ export async function POST(request: Request) {
     const message = error instanceof Error ? error.message : "Sign-in failed";
     return NextResponse.json({ ok: false, error: message }, { status: 400 });
   }
+}
+
+function isLocalDevLogin(email: string, password: string) {
+  return (
+    (env.NODE_ENV !== "production" || env.LOCAL_DEV_LOGIN_ENABLED === "true") &&
+    Boolean(env.LOCAL_DEV_LOGIN_EMAIL) &&
+    Boolean(env.LOCAL_DEV_LOGIN_PASSWORD) &&
+    email === env.LOCAL_DEV_LOGIN_EMAIL?.toLowerCase() &&
+    password === env.LOCAL_DEV_LOGIN_PASSWORD
+  );
 }

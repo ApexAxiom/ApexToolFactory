@@ -1,4 +1,7 @@
+import { CreditCard, ShieldCheck } from "lucide-react";
 import { Panel } from "@/components/ui/panel";
+import { PageHeader } from "@/components/ui/page-header";
+import { StatusPill } from "@/components/ui/status-pill";
 import { dateOnly } from "@/lib/utils";
 import { requireSession } from "@/server/auth/session";
 import { getActiveOrganizationContext } from "@/server/auth/context";
@@ -12,27 +15,50 @@ export default async function BillingPage() {
   const subscription = await getSubscription(context.organization.id);
 
   return (
-    <Panel>
-      <p className="font-mono text-xs uppercase tracking-[0.28em] text-ink/45">Billing</p>
-      <h1 className="mt-2 text-3xl font-semibold">Subscription status</h1>
+    <div className="space-y-6">
+      <PageHeader
+        eyebrow="Billing"
+        title="Subscription status"
+        description="Monitor your trial, plan, Stripe subscription state, and payment readiness."
+      />
       {subscription ? (
-        <div className="mt-6 grid gap-4 sm:grid-cols-3">
-          <div className="rounded-2xl bg-canvas p-4">
-            <div className="text-xs uppercase tracking-[0.18em] text-ink/45">Plan</div>
-            <div className="mt-2 text-xl font-semibold capitalize">{subscription.plan}</div>
-          </div>
-          <div className="rounded-2xl bg-canvas p-4">
-            <div className="text-xs uppercase tracking-[0.18em] text-ink/45">Status</div>
-            <div className="mt-2 text-xl font-semibold">{subscription.status}</div>
-          </div>
-          <div className="rounded-2xl bg-canvas p-4">
-            <div className="text-xs uppercase tracking-[0.18em] text-ink/45">Current period end</div>
-            <div className="mt-2 text-xl font-semibold">{dateOnly(subscription.currentPeriodEnd)}</div>
-          </div>
+        <div className="grid gap-4 sm:grid-cols-3">
+          {[
+            ["Plan", subscription.plan],
+            ["Status", <StatusPill key="status" status={subscription.status} />],
+            ["Current period end", dateOnly(subscription.currentPeriodEnd)]
+          ].map(([label, value]) => (
+            <Panel key={label as string}>
+              <div className="text-sm font-semibold text-muted">{label}</div>
+              <div className="mt-3 text-2xl font-semibold capitalize">{value}</div>
+            </Panel>
+          ))}
         </div>
       ) : (
-        <p className="mt-4 text-sm text-ink/65">No subscription record exists yet for this organization.</p>
+        <Panel>
+          <p className="text-sm text-muted">No subscription record exists yet for this organization.</p>
+        </Panel>
       )}
-    </Panel>
+      <div className="grid gap-5 xl:grid-cols-2">
+        <Panel>
+          <div className="mb-4 flex items-center gap-3">
+            <CreditCard className="h-6 w-6 text-emerald" />
+            <h2 className="text-lg font-semibold">Stripe readiness</h2>
+          </div>
+          <p className="text-sm leading-6 text-muted">
+            Invoice payment links are created through Stripe when `STRIPE_SECRET_KEY` and `STRIPE_WEBHOOK_SECRET` are configured in production.
+          </p>
+        </Panel>
+        <Panel>
+          <div className="mb-4 flex items-center gap-3">
+            <ShieldCheck className="h-6 w-6 text-emerald" />
+            <h2 className="text-lg font-semibold">Trial terms</h2>
+          </div>
+          <p className="text-sm leading-6 text-muted">
+            New self-serve organizations start on the starter trial and can be upgraded once subscription checkout is enabled.
+          </p>
+        </Panel>
+      </div>
+    </div>
   );
 }
