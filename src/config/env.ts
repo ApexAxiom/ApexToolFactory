@@ -35,12 +35,15 @@ const baseEnvSchema = z.object({
   TABLE_QUOTE_ACCEPTANCES: z.string().optional(),
   TABLE_INVOICES: z.string().optional(),
   TABLE_INVOICE_LINES: z.string().optional(),
+  TABLE_JOBS: z.string().optional(),
+  TABLE_SERVICE_PLANS: z.string().optional(),
   TABLE_PAYMENTS: z.string().optional(),
   TABLE_EMAIL_MESSAGES: z.string().optional(),
   TABLE_EMAIL_EVENTS: z.string().optional(),
   TABLE_PORTAL_ACCESS_TOKENS: z.string().optional(),
   TABLE_SUBSCRIPTIONS: z.string().optional(),
-  TABLE_AUDIT_EVENTS: z.string().optional()
+  TABLE_AUDIT_EVENTS: z.string().optional(),
+  TABLE_WEBHOOK_EVENTS: z.string().optional()
 });
 
 const parsed = baseEnvSchema.safeParse({
@@ -80,12 +83,15 @@ const parsed = baseEnvSchema.safeParse({
   TABLE_QUOTE_ACCEPTANCES: process.env.TABLE_QUOTE_ACCEPTANCES,
   TABLE_INVOICES: process.env.TABLE_INVOICES,
   TABLE_INVOICE_LINES: process.env.TABLE_INVOICE_LINES,
+  TABLE_JOBS: process.env.TABLE_JOBS,
+  TABLE_SERVICE_PLANS: process.env.TABLE_SERVICE_PLANS,
   TABLE_PAYMENTS: process.env.TABLE_PAYMENTS,
   TABLE_EMAIL_MESSAGES: process.env.TABLE_EMAIL_MESSAGES,
   TABLE_EMAIL_EVENTS: process.env.TABLE_EMAIL_EVENTS,
   TABLE_PORTAL_ACCESS_TOKENS: process.env.TABLE_PORTAL_ACCESS_TOKENS,
   TABLE_SUBSCRIPTIONS: process.env.TABLE_SUBSCRIPTIONS,
-  TABLE_AUDIT_EVENTS: process.env.TABLE_AUDIT_EVENTS
+  TABLE_AUDIT_EVENTS: process.env.TABLE_AUDIT_EVENTS,
+  TABLE_WEBHOOK_EVENTS: process.env.TABLE_WEBHOOK_EVENTS
 });
 
 if (!parsed.success) {
@@ -93,12 +99,23 @@ if (!parsed.success) {
   throw new Error("Environment configuration is invalid");
 }
 
-const sessionSecret =
-  parsed.data.SESSION_SECRET ||
-  parsed.data.SESSION_PASSWORD ||
-  "development-session-secret-at-least-32chars";
+const configuredSecret = parsed.data.SESSION_SECRET || parsed.data.SESSION_PASSWORD || "";
+
+// `next build` runs with NODE_ENV=production before runtime secrets exist, so
+// only enforce hard requirements once the server is actually serving traffic.
+const isProductionRuntime =
+  parsed.data.NODE_ENV === "production" && process.env.NEXT_PHASE !== "phase-production-build";
+
+if (isProductionRuntime) {
+  if (configuredSecret.length < 32) {
+    throw new Error("SESSION_SECRET must be set to at least 32 characters in production");
+  }
+  if (parsed.data.LOCAL_DEV_LOGIN_ENABLED === "true") {
+    throw new Error("LOCAL_DEV_LOGIN_ENABLED must not be enabled in production");
+  }
+}
 
 export const env = {
   ...parsed.data,
-  SESSION_SECRET: sessionSecret
+  SESSION_SECRET: configuredSecret || "development-session-secret-at-least-32chars"
 };

@@ -61,9 +61,9 @@ export async function issueInvoiceFromQuote(input: {
     taxable: line.taxable
   }));
 
-  await Promise.all([
-    getStore().put("invoices", invoice),
-    ...lines.map((line) => getStore().put("invoiceLines", line))
+  await getStore().putMany([
+    { collection: "invoices", item: invoice },
+    ...lines.map((line) => ({ collection: "invoiceLines" as const, item: line }))
   ]);
 
   await writeAuditEvent({
@@ -164,15 +164,17 @@ export async function recordPayment(input: {
   const nextStatus =
     outstandingTotal <= 0 ? "PAID" : nextPaidTotal > 0 ? "PARTIAL" : invoice.status;
 
-  await Promise.all([
-    getStore().put("payments", payment),
-    getStore().put("invoices", {
-      ...invoice,
-      updatedAt: timestamp,
-      status: nextStatus,
-      paidTotal: nextPaidTotal,
-      outstandingTotal
-    })
+  const updatedInvoice: Invoice = {
+    ...invoice,
+    updatedAt: timestamp,
+    status: nextStatus,
+    paidTotal: nextPaidTotal,
+    outstandingTotal
+  };
+
+  await getStore().putMany([
+    { collection: "payments", item: payment },
+    { collection: "invoices", item: updatedInvoice }
   ]);
 
   return payment;

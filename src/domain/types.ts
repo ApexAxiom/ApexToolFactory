@@ -1,5 +1,9 @@
 export type RoleName = "OWNER" | "OFFICE_MANAGER" | "ESTIMATOR" | "TECHNICIAN" | "ACCOUNTING";
 
+export type JobStatus = "UNSCHEDULED" | "SCHEDULED" | "IN_PROGRESS" | "COMPLETED" | "CANCELED";
+export type ServiceCadence = "ONE_TIME" | "MONTHLY" | "QUARTERLY";
+export type ServicePlanStatus = "ACTIVE" | "PAUSED" | "ENDED";
+
 export type MembershipStatus = "INVITED" | "ACTIVE" | "DISABLED";
 export type QuoteStatus = "DRAFT" | "SENT" | "VIEWED" | "ACCEPTED" | "DECLINED" | "EXPIRED" | "VOID";
 export type InvoiceStatus = "DRAFT" | "ISSUED" | "PARTIAL" | "PAID" | "OVERDUE" | "VOID";
@@ -326,6 +330,48 @@ export interface Subscription extends EntityBase {
   cancelAtPeriodEnd: boolean;
 }
 
+export interface Job extends EntityBase {
+  organizationId: string;
+  customerId: string;
+  propertyId?: string;
+  quoteId?: string;
+  servicePlanId?: string;
+  jobNumber: string;
+  title: string;
+  status: JobStatus;
+  serviceAddress: string;
+  customerNameSnapshot: string;
+  scheduledDate?: string;
+  scheduledStartTime?: string;
+  scheduledEndTime?: string;
+  assignedMembershipId?: string;
+  assignedToName?: string;
+  notes?: string;
+  completionNotes?: string;
+  materialsUsed?: string;
+  startedAt?: string;
+  completedAt?: string;
+  canceledAt?: string;
+}
+
+export interface ServicePlan extends EntityBase {
+  organizationId: string;
+  customerId: string;
+  propertyId?: string;
+  quoteId: string;
+  name: string;
+  cadence: ServiceCadence;
+  status: ServicePlanStatus;
+  startDate: string;
+  lastGeneratedDate?: string;
+}
+
+export interface WebhookEvent extends EntityBase {
+  provider: "STRIPE" | "SNS";
+  eventType: string;
+  receivedAt: string;
+}
+
 export interface AuditEvent extends EntityBase {
   organizationId: string;
   actorUserId?: string;
@@ -380,12 +426,15 @@ export type PestimatorRecord =
   | EmailMessage
   | Invoice
   | InvoiceLine
+  | Job
   | Organization
   | OrganizationMembership
   | Payment
   | PortalAccessToken
   | Property
   | Quote
+  | ServicePlan
+  | WebhookEvent
   | QuoteAcceptance
   | QuoteAttachment
   | QuoteLine

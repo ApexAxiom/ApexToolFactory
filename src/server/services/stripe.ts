@@ -1,9 +1,10 @@
 import Stripe from "stripe";
 import { env } from "@/config/env";
-import { Customer, Invoice, InvoiceLine, Subscription } from "@/domain/types";
+import { Customer, Invoice, InvoiceLine, Subscription, WebhookEvent } from "@/domain/types";
 import { nowIso } from "@/lib/utils";
 import { getStore } from "@/server/persistence/store";
 import { getStripe } from "@/server/services/billing";
+import { recordPayment } from "@/server/services/invoices";
 
 export async function ensureStripeInvoice(input: {
   invoice: Invoice;
@@ -66,25 +67,32 @@ export async function ensureStripeInvoice(input: {
   return updated;
 }
 
-export async function handleStripeWebhook(requestBody: string, signature: string | null) {
+export async function handleStripeWebhook(requestBody: string, signature: string) {
   const stripe = getStripe();
   if (!stripe || !env.STRIPE_WEBHOOK_SECRET) {
     throw new Error("Stripe webhooks are not configured");
   }
 
-  const event = stripe.webhooks.constructEvent(requestBody, signature ?? "", env.STRIPE_WEBHOOK_SECRET);
+  const event = stripe.webhooks.constructEvent(requestBody, signature, env.STRIPE_WEBHOOK_SECRET);
+
+  // Stripe retries deliveries, so replaying the same event must be a no-op.
+  const alreadyProcessed = await getStore().get<WebhookEvent>("webhookEvents", event.id);
+  if (alreadyProcessed) {
+    return { eventType: event.type, duplicate: true };
+  }
 
   if (event.type === "invoice.paid") {
     const invoice = event.data.object as Stripe.Invoice;
     const matched = await getStore().list<Invoice>("invoices", { stripeInvoiceId: invoice.id });
     const localInvoice = matched[0];
-    if (localInvoice) {
-      await getStore().put("invoices", {
-        ...localInvoice,
-        updatedAt: nowIso(),
-        status: "PAID",
-        paidTotal: localInvoice.grandTotal,
-        outstandingTotal: 0
+    if (localInvoice && localInvoice.outstandingTotal > 0) {
+      await recordPayment({
+        organizationId: localInvoice.organizationId,
+        invoiceId: localInvoice.id,
+        amount: invoice.amount_paid ? invoice.amount_paid / 100 : localInvoice.outstandingTotal,
+        method: "stripe_hosted_invoice",
+        provider: "STRIPE",
+        reference: event.id
       });
     }
   }
@@ -105,7 +113,17 @@ export async function handleStripeWebhook(requestBody: string, signature: string
     }
   }
 
-  return event.type;
+  const timestamp = nowIso();
+  await getStore().put<WebhookEvent>("webhookEvents", {
+    id: event.id,
+    createdAt: timestamp,
+    updatedAt: timestamp,
+    provider: "STRIPE",
+    eventType: event.type,
+    receivedAt: timestamp
+  });
+
+  return { eventType: event.type, duplicate: false };
 }
 
 function mapStripeSubscriptionStatus(status: Stripe.Subscription.Status): Subscription["status"] {

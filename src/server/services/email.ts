@@ -210,13 +210,15 @@ export async function ingestSesEvent(rawPayload: string) {
         ? "COMPLAINED"
         : "DELIVERED";
 
-  await Promise.all([
-    getStore().put("emailEvents", emailEvent),
-    getStore().put("emailMessages", {
-      ...emailMessage,
-      updatedAt: timestamp,
-      status: nextStatus
-    })
+  const updatedMessage: EmailMessage = {
+    ...emailMessage,
+    updatedAt: timestamp,
+    status: nextStatus
+  };
+
+  await getStore().putMany([
+    { collection: "emailEvents", item: emailEvent },
+    { collection: "emailMessages", item: updatedMessage }
   ]);
 
   return emailEvent;

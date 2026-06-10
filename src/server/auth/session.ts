@@ -4,10 +4,9 @@ import { redirect } from "next/navigation";
 import { env } from "@/config/env";
 import { PestimatorSession } from "@/server/auth/types";
 
-const cookieName = "pestimator.session";
-const secret = new TextEncoder().encode(
-  env.SESSION_SECRET || "development-session-secret-at-least-32chars"
-);
+export const SESSION_COOKIE_NAME = "pestimator.session";
+const cookieName = SESSION_COOKIE_NAME;
+const secret = new TextEncoder().encode(env.SESSION_SECRET);
 
 export async function createSessionCookie(session: PestimatorSession) {
   const token = await new SignJWT(session as unknown as Record<string, unknown>)

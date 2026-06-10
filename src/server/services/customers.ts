@@ -68,7 +68,9 @@ export async function createCustomer(input: {
     notes: input.notes
   };
 
-  await getStore().put("customers", customer);
+  const writes: Parameters<ReturnType<typeof getStore>["putMany"]>[0] = [
+    { collection: "customers", item: customer }
+  ];
 
   if (input.primaryContactName) {
     const contact: CustomerContact = {
@@ -82,8 +84,10 @@ export async function createCustomer(input: {
       phone: input.phone,
       isPrimary: true
     };
-    await getStore().put("customerContacts", contact);
+    writes.push({ collection: "customerContacts", item: contact });
   }
+
+  await getStore().putMany(writes);
 
   await writeAuditEvent({
     organizationId: input.organizationId,
@@ -96,6 +100,55 @@ export async function createCustomer(input: {
   });
 
   return customer;
+}
+
+export async function updateCustomer(input: {
+  organizationId: string;
+  actorUserId: string;
+  customerId: string;
+  name: string;
+  email?: string;
+  phone?: string;
+  billingAddress1?: string;
+  billingCity?: string;
+  billingState?: string;
+  billingPostalCode?: string;
+  notes?: string;
+}) {
+  const customer = await getCustomer(input.customerId);
+  if (!customer || customer.organizationId !== input.organizationId) {
+    throw new Error("Customer was not found");
+  }
+
+  const timestamp = nowIso();
+  const updated: Customer = {
+    ...customer,
+    updatedAt: timestamp,
+    name: input.name,
+    email: input.email,
+    phone: input.phone,
+    billingAddress1: input.billingAddress1,
+    billingCity: input.billingCity,
+    billingState: input.billingState,
+    billingPostalCode: input.billingPostalCode,
+    notes: input.notes
+  };
+
+  await getStore().put("customers", updated);
+  await writeAuditEvent({
+    organizationId: input.organizationId,
+    actorUserId: input.actorUserId,
+    action: "customer.updated",
+    entityType: "Customer",
+    entityId: customer.id,
+    occurredAt: timestamp,
+    payload: JSON.stringify({
+      before: { name: customer.name, email: customer.email, phone: customer.phone },
+      after: { name: updated.name, email: updated.email, phone: updated.phone }
+    })
+  });
+
+  return updated;
 }
 
 export async function createProperty(input: {

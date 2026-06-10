@@ -113,7 +113,8 @@ export async function POST(request: Request) {
 
 function isLocalDevLogin(email: string, password: string) {
   return (
-    (env.NODE_ENV !== "production" || env.LOCAL_DEV_LOGIN_ENABLED === "true") &&
+    env.NODE_ENV !== "production" &&
+    env.LOCAL_DEV_LOGIN_ENABLED === "true" &&
     Boolean(env.LOCAL_DEV_LOGIN_EMAIL) &&
     Boolean(env.LOCAL_DEV_LOGIN_PASSWORD) &&
     email === env.LOCAL_DEV_LOGIN_EMAIL?.toLowerCase() &&

@@ -7,7 +7,8 @@ import {
   DynamoDBDocumentClient,
   GetCommand,
   PutCommand,
-  ScanCommand
+  ScanCommand,
+  TransactWriteCommand
 } from "@aws-sdk/lib-dynamodb";
 import { env } from "@/config/env";
 import { CollectionName, collections } from "@/server/persistence/collections";
@@ -20,9 +21,15 @@ interface StoreShape {
   [key: string]: Record<string, StoredEntity>;
 }
 
+export interface PutManyItem {
+  collection: CollectionName;
+  item: StoredEntity;
+}
+
 export interface PersistenceStore {
   get<T extends StoredEntity>(collection: CollectionName, id: string): Promise<T | null>;
   put<T extends StoredEntity>(collection: CollectionName, item: T): Promise<T>;
+  putMany(items: PutManyItem[]): Promise<void>;
   delete(collection: CollectionName, id: string): Promise<void>;
   list<T extends StoredEntity>(collection: CollectionName, filters?: FilterMap): Promise<T[]>;
 }
@@ -53,6 +60,17 @@ class FileStore implements PersistenceStore {
       db[collection][item.id] = item;
       await this.write(db);
       return item;
+    });
+  }
+
+  async putMany(items: PutManyItem[]) {
+    await this.runExclusive(async () => {
+      const db = await this.read();
+      for (const { collection, item } of items) {
+        if (!db[collection]) db[collection] = {};
+        db[collection][item.id] = item;
+      }
+      await this.write(db);
     });
   }
 
@@ -121,12 +139,15 @@ class DynamoStore implements PersistenceStore {
     quoteAcceptances: resolveTableName("quoteAcceptances", env.TABLE_QUOTE_ACCEPTANCES),
     invoices: resolveTableName("invoices", env.TABLE_INVOICES),
     invoiceLines: resolveTableName("invoiceLines", env.TABLE_INVOICE_LINES),
+    jobs: resolveTableName("jobs", env.TABLE_JOBS),
+    servicePlans: resolveTableName("servicePlans", env.TABLE_SERVICE_PLANS),
     payments: resolveTableName("payments", env.TABLE_PAYMENTS),
     emailMessages: resolveTableName("emailMessages", env.TABLE_EMAIL_MESSAGES),
     emailEvents: resolveTableName("emailEvents", env.TABLE_EMAIL_EVENTS),
     portalAccessTokens: resolveTableName("portalAccessTokens", env.TABLE_PORTAL_ACCESS_TOKENS),
     subscriptions: resolveTableName("subscriptions", env.TABLE_SUBSCRIPTIONS),
-    auditEvents: resolveTableName("auditEvents", env.TABLE_AUDIT_EVENTS)
+    auditEvents: resolveTableName("auditEvents", env.TABLE_AUDIT_EVENTS),
+    webhookEvents: resolveTableName("webhookEvents", env.TABLE_WEBHOOK_EVENTS)
   };
 
   async get<T extends StoredEntity>(collection: CollectionName, id: string) {
@@ -149,6 +170,26 @@ class DynamoStore implements PersistenceStore {
       })
     );
     return item;
+  }
+
+  async putMany(items: PutManyItem[]) {
+    const [first] = items;
+    if (!first) return;
+    if (items.length === 1) {
+      await this.put(first.collection, first.item);
+      return;
+    }
+
+    await this.client.send(
+      new TransactWriteCommand({
+        TransactItems: items.map(({ collection, item }) => ({
+          Put: {
+            TableName: this.table(collection),
+            Item: item
+          }
+        }))
+      })
+    );
   }
 
   async delete(collection: CollectionName, id: string) {

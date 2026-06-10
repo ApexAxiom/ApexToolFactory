@@ -28,12 +28,15 @@ backend.addOutput({
       quoteAcceptances: backend.data.resources.tables.QuoteAcceptance.tableName,
       invoices: backend.data.resources.tables.Invoice.tableName,
       invoiceLines: backend.data.resources.tables.InvoiceLine.tableName,
+      jobs: backend.data.resources.tables.Job.tableName,
+      servicePlans: backend.data.resources.tables.ServicePlan.tableName,
       payments: backend.data.resources.tables.Payment.tableName,
       emailMessages: backend.data.resources.tables.EmailMessage.tableName,
       emailEvents: backend.data.resources.tables.EmailEvent.tableName,
       portalAccessTokens: backend.data.resources.tables.PortalAccessToken.tableName,
       subscriptions: backend.data.resources.tables.Subscription.tableName,
-      auditEvents: backend.data.resources.tables.AuditEvent.tableName
+      auditEvents: backend.data.resources.tables.AuditEvent.tableName,
+      webhookEvents: backend.data.resources.tables.WebhookEvent.tableName
     },
     storage: {
       attachmentsBucket: backend.storage.resources.bucket.bucketName

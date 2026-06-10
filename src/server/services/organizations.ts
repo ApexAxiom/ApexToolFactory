@@ -39,6 +39,56 @@ export async function ensureOrganizationMembership(session: PestimatorSession, o
   return membership;
 }
 
+export async function updateOrganization(input: {
+  organizationId: string;
+  actorUserId: string;
+  name: string;
+  legalName?: string;
+  timezone: string;
+  currencyCode: string;
+  defaultTaxPercent: number;
+  defaultTerms: string;
+  supportEmail?: string;
+  supportPhone?: string;
+  website?: string;
+}) {
+  const organization = await getOrganization(input.organizationId);
+  if (!organization) {
+    throw new Error("Organization was not found");
+  }
+
+  const timestamp = nowIso();
+  const updated: Organization = {
+    ...organization,
+    updatedAt: timestamp,
+    name: input.name,
+    legalName: input.legalName,
+    timezone: input.timezone,
+    currencyCode: input.currencyCode,
+    defaultTaxPercent: input.defaultTaxPercent,
+    defaultTerms: input.defaultTerms,
+    supportEmail: input.supportEmail,
+    supportPhone: input.supportPhone,
+    website: input.website
+  };
+
+  await getStore().put("organizations", updated);
+  await writeAuditEvent({
+    organizationId: organization.id,
+    actorUserId: input.actorUserId,
+    action: "organization.updated",
+    entityType: "Organization",
+    entityId: organization.id,
+    occurredAt: timestamp,
+    payload: JSON.stringify({
+      before: { name: organization.name, defaultTaxPercent: organization.defaultTaxPercent },
+      after: { name: updated.name, defaultTaxPercent: updated.defaultTaxPercent }
+    })
+  });
+
+  return updated;
+}
+
 export async function createOrganization(input: {
   name: string;
   legalName?: string;
@@ -96,11 +146,11 @@ export async function createOrganization(input: {
     currentPeriodEnd: new Date(Date.now() + 1000 * 60 * 60 * 24 * 14).toISOString()
   };
 
-  await Promise.all([
-    getStore().put("organizations", organization),
-    getStore().put("branches", branch),
-    getStore().put("organizationMemberships", membership),
-    getStore().put("subscriptions", subscription)
+  await getStore().putMany([
+    { collection: "organizations", item: organization },
+    { collection: "branches", item: branch },
+    { collection: "organizationMemberships", item: membership },
+    { collection: "subscriptions", item: subscription }
   ]);
 
   await writeAuditEvent({

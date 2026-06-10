@@ -16,6 +16,9 @@ export const data = defineData({
       EmailTemplate: a.enum(["QUOTE_SENT", "INVOICE_SENT", "TEAM_INVITE", "REMINDER"]),
       EmailStatus: a.enum(["QUEUED", "SENT", "DELIVERED", "BOUNCED", "COMPLAINED", "FAILED"]),
       EmailEventType: a.enum(["DELIVERY", "BOUNCE", "COMPLAINT", "RENDERED", "FAILED"]),
+      JobStatus: a.enum(["UNSCHEDULED", "SCHEDULED", "IN_PROGRESS", "COMPLETED", "CANCELED"]),
+      ServiceCadence: a.enum(["ONE_TIME", "MONTHLY", "QUARTERLY"]),
+      ServicePlanStatus: a.enum(["ACTIVE", "PAUSED", "ENDED"]),
 
       Organization: a
         .model({
@@ -398,6 +401,63 @@ export const data = defineData({
           entityId: a.string().required(),
           payload: a.json(),
           occurredAt: a.datetime().required(),
+          createdAt: a.datetime().required(),
+          updatedAt: a.datetime().required()
+        })
+        .authorization(internalAuth),
+
+      Job: a
+        .model({
+          id: a.id().required(),
+          organizationId: a.string().required(),
+          customerId: a.string().required(),
+          propertyId: a.string(),
+          quoteId: a.string(),
+          servicePlanId: a.string(),
+          jobNumber: a.string().required(),
+          title: a.string().required(),
+          status: a.ref("JobStatus").required(),
+          serviceAddress: a.string().required(),
+          customerNameSnapshot: a.string().required(),
+          scheduledDate: a.string(),
+          scheduledStartTime: a.string(),
+          scheduledEndTime: a.string(),
+          assignedMembershipId: a.string(),
+          assignedToName: a.string(),
+          notes: a.string(),
+          completionNotes: a.string(),
+          materialsUsed: a.string(),
+          startedAt: a.datetime(),
+          completedAt: a.datetime(),
+          canceledAt: a.datetime(),
+          createdAt: a.datetime().required(),
+          updatedAt: a.datetime().required()
+        })
+        .authorization(internalAuth),
+
+      ServicePlan: a
+        .model({
+          id: a.id().required(),
+          organizationId: a.string().required(),
+          customerId: a.string().required(),
+          propertyId: a.string(),
+          quoteId: a.string().required(),
+          name: a.string().required(),
+          cadence: a.ref("ServiceCadence").required(),
+          status: a.ref("ServicePlanStatus").required(),
+          startDate: a.string().required(),
+          lastGeneratedDate: a.string(),
+          createdAt: a.datetime().required(),
+          updatedAt: a.datetime().required()
+        })
+        .authorization(internalAuth),
+
+      WebhookEvent: a
+        .model({
+          id: a.id().required(),
+          provider: a.string().required(),
+          eventType: a.string().required(),
+          receivedAt: a.datetime().required(),
           createdAt: a.datetime().required(),
           updatedAt: a.datetime().required()
         })

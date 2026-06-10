@@ -13,6 +13,7 @@ import {
 import { calculatePricing } from "@/domain/pricing";
 import { currency, nowIso } from "@/lib/utils";
 import { getStore } from "@/server/persistence/store";
+import { ensureJobsForAcceptedQuote } from "@/server/services/jobs";
 import { createPortalToken, touchPortalToken, validatePortalToken } from "@/server/services/portal";
 import { writeAuditEvent } from "@/server/services/audit";
 
@@ -105,10 +106,10 @@ export async function createQuoteDraft(input: {
     taxable: line.taxable
   }));
 
-  await Promise.all([
-    getStore().put("quotes", quote),
-    getStore().put("quoteRevisions", revision),
-    ...lines.map((line) => getStore().put("quoteLines", line))
+  await getStore().putMany([
+    { collection: "quotes", item: quote },
+    { collection: "quoteRevisions", item: revision },
+    ...lines.map((line) => ({ collection: "quoteLines" as const, item: line }))
   ]);
 
   await writeAuditEvent({
@@ -175,9 +176,9 @@ export async function sendQuote(input: {
     expiresAt
   };
 
-  await Promise.all([
-    getStore().put("quotes", updatedQuote),
-    getStore().put("emailMessages", message)
+  await getStore().putMany([
+    { collection: "quotes", item: updatedQuote },
+    { collection: "emailMessages", item: message }
   ]);
 
   await writeAuditEvent({
@@ -220,23 +221,26 @@ export async function acceptQuote(input: {
     acceptedUserAgent: input.userAgent
   };
 
-  await Promise.all([
-    getStore().put("quoteAcceptances", acceptance),
-    getStore().put("quotes", {
-      ...quote,
-      updatedAt: timestamp,
-      status: "ACCEPTED",
-      acceptedAt: timestamp,
-      viewedAt: quote.viewedAt ?? timestamp
-    }),
-    getStore().put("portalAccessTokens", {
-      ...portalToken,
-      updatedAt: timestamp,
-      usedAt: timestamp,
-      lastViewedAt: timestamp,
-      lastViewedIp: input.ip,
-      lastViewedUserAgent: input.userAgent
-    })
+  const acceptedQuote: Quote = {
+    ...quote,
+    updatedAt: timestamp,
+    status: "ACCEPTED",
+    acceptedAt: timestamp,
+    viewedAt: quote.viewedAt ?? timestamp
+  };
+  const usedToken: typeof portalToken = {
+    ...portalToken,
+    updatedAt: timestamp,
+    usedAt: timestamp,
+    lastViewedAt: timestamp,
+    lastViewedIp: input.ip,
+    lastViewedUserAgent: input.userAgent
+  };
+
+  await getStore().putMany([
+    { collection: "quoteAcceptances", item: acceptance },
+    { collection: "quotes", item: acceptedQuote },
+    { collection: "portalAccessTokens", item: usedToken }
   ]);
 
   await writeAuditEvent({
@@ -247,6 +251,10 @@ export async function acceptQuote(input: {
     occurredAt: timestamp,
     payload: JSON.stringify({ acceptanceId: acceptance.id })
   });
+
+  // Accepted work immediately lands on the schedule (or the unscheduled
+  // tray) so nothing falls through the cracks between sales and service.
+  await ensureJobsForAcceptedQuote({ ...quote, status: "ACCEPTED" });
 
   return acceptance;
 }
@@ -259,22 +267,25 @@ export async function declineQuote(input: { token: string; ip: string; userAgent
   }
 
   const timestamp = nowIso();
-  await Promise.all([
-    getStore().put("quotes", {
-      ...quote,
-      updatedAt: timestamp,
-      status: "DECLINED",
-      declinedAt: timestamp,
-      viewedAt: quote.viewedAt ?? timestamp
-    }),
-    getStore().put("portalAccessTokens", {
-      ...portalToken,
-      updatedAt: timestamp,
-      usedAt: timestamp,
-      lastViewedAt: timestamp,
-      lastViewedIp: input.ip,
-      lastViewedUserAgent: input.userAgent
-    })
+  const declinedQuote: Quote = {
+    ...quote,
+    updatedAt: timestamp,
+    status: "DECLINED",
+    declinedAt: timestamp,
+    viewedAt: quote.viewedAt ?? timestamp
+  };
+  const usedToken: typeof portalToken = {
+    ...portalToken,
+    updatedAt: timestamp,
+    usedAt: timestamp,
+    lastViewedAt: timestamp,
+    lastViewedIp: input.ip,
+    lastViewedUserAgent: input.userAgent
+  };
+
+  await getStore().putMany([
+    { collection: "quotes", item: declinedQuote },
+    { collection: "portalAccessTokens", item: usedToken }
   ]);
 
   await writeAuditEvent({

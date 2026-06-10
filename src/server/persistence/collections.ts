@@ -15,12 +15,15 @@ export const collections = [
   "quoteAcceptances",
   "invoices",
   "invoiceLines",
+  "jobs",
+  "servicePlans",
   "payments",
   "emailMessages",
   "emailEvents",
   "portalAccessTokens",
   "subscriptions",
-  "auditEvents"
+  "auditEvents",
+  "webhookEvents"
 ] as const;
 
 export type CollectionName = (typeof collections)[number];
