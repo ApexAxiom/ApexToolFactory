@@ -1,11 +1,12 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Plus } from "lucide-react";
+import { CalendarDays, Pencil, Plus } from "lucide-react";
 import { Panel } from "@/components/ui/panel";
 import { Button } from "@/components/ui/button";
 import { StatusPill } from "@/components/ui/status-pill";
-import { currency } from "@/lib/utils";
-import { createPropertyAction } from "@/server/actions/app";
+import { SubmitButton } from "@/components/ui/submit-button";
+import { currency, dateOnly } from "@/lib/utils";
+import { createPropertyAction, updateCustomerAction } from "@/server/actions/app";
 import { requireSession } from "@/server/auth/session";
 import { getActiveOrganizationContext } from "@/server/auth/context";
 import {
@@ -14,6 +15,7 @@ import {
   getCustomerFinancialSummary,
   getCustomerProperties
 } from "@/server/services/customers";
+import { listJobsForCustomer } from "@/server/services/jobs";
 
 const inputClass = "h-10 rounded-md border border-line bg-white px-3 text-sm outline-none focus:border-emerald focus:ring-2 focus:ring-emerald/10";
 
@@ -26,11 +28,14 @@ export default async function CustomerDetailPage({ params }: { params: Promise<{
   const customer = await getCustomer(id);
   if (!customer || customer.organizationId !== context.organization.id) notFound();
 
-  const [contacts, properties, summary] = await Promise.all([
+  const [contacts, properties, summary, jobs] = await Promise.all([
     getCustomerContacts(customer.id, context.organization.id),
     getCustomerProperties(customer.id, context.organization.id),
-    getCustomerFinancialSummary(customer.id, context.organization.id)
+    getCustomerFinancialSummary(customer.id, context.organization.id),
+    listJobsForCustomer(context.organization.id, customer.id)
   ]);
+  const openJobs = jobs.filter((job) => job.status !== "CANCELED" && job.status !== "COMPLETED");
+  const completedJobs = jobs.filter((job) => job.status === "COMPLETED").slice(-3).reverse();
 
   return (
     <div className="space-y-6">
@@ -89,6 +94,50 @@ export default async function CustomerDetailPage({ params }: { params: Promise<{
               </tbody>
             </table>
           </div>
+
+          <div className="mt-6">
+            <div className="mb-3 flex items-center gap-2">
+              <CalendarDays className="h-5 w-5 text-emerald" />
+              <h2 className="text-lg font-semibold">Service visits</h2>
+            </div>
+            <div className="space-y-2">
+              {openJobs.map((job) => (
+                <Link
+                  key={job.id}
+                  href={`/app/jobs/${job.id}`}
+                  className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-line p-3 hover:bg-canvas"
+                >
+                  <div>
+                    <div className="font-semibold">{job.title}</div>
+                    <div className="mt-1 text-sm text-muted">
+                      {job.scheduledDate
+                        ? `${dateOnly(job.scheduledDate)}${job.scheduledStartTime ? ` at ${job.scheduledStartTime}` : ""}`
+                        : "Awaiting scheduling"}
+                    </div>
+                  </div>
+                  <StatusPill status={job.status} />
+                </Link>
+              ))}
+              {completedJobs.map((job) => (
+                <Link
+                  key={job.id}
+                  href={`/app/jobs/${job.id}`}
+                  className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-line p-3 hover:bg-canvas"
+                >
+                  <div>
+                    <div className="font-semibold">{job.title}</div>
+                    <div className="mt-1 text-sm text-muted">Completed {dateOnly(job.completedAt)}</div>
+                  </div>
+                  <StatusPill status={job.status} />
+                </Link>
+              ))}
+              {jobs.length === 0 ? (
+                <div className="rounded-lg border border-dashed border-line p-6 text-center text-sm text-muted">
+                  No visits yet. Accepted quotes appear here automatically, or book one from the schedule.
+                </div>
+              ) : null}
+            </div>
+          </div>
         </Panel>
 
         <Panel>
@@ -118,13 +167,57 @@ export default async function CustomerDetailPage({ params }: { params: Promise<{
               <input className={`${inputClass} w-full`} name="address1" required />
             </label>
             <div className="grid gap-3 sm:grid-cols-4">
-              <input className={inputClass} name="city" placeholder="City" />
-              <input className={inputClass} name="state" placeholder="State" />
-              <input className={inputClass} name="postalCode" placeholder="Postal code" />
-              <input className={inputClass} name="sqft" placeholder="Sqft" type="number" />
+              <input className={inputClass} name="city" placeholder="City" aria-label="City" />
+              <input className={inputClass} name="state" placeholder="State" aria-label="State" />
+              <input className={inputClass} name="postalCode" placeholder="Postal code" aria-label="Postal code" />
+              <input className={inputClass} name="sqft" placeholder="Sqft" type="number" aria-label="Square footage" />
             </div>
-            <Button>Add property</Button>
+            <SubmitButton pendingText="Adding...">Add property</SubmitButton>
           </form>
+
+          <details className="mt-6 rounded-lg border border-line">
+            <summary className="flex cursor-pointer items-center gap-2 rounded-lg px-4 py-3 text-sm font-semibold hover:bg-canvas">
+              <Pencil className="h-4 w-4 text-emerald" />
+              Edit client details
+            </summary>
+            <form action={updateCustomerAction} className="grid gap-3 border-t border-line p-4">
+              <input type="hidden" name="customerId" value={customer.id} />
+              <label className="space-y-2 text-sm font-semibold">
+                Company or customer name
+                <input className={`${inputClass} w-full`} name="name" defaultValue={customer.name} required />
+              </label>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <label className="space-y-2 text-sm font-semibold">
+                  Email
+                  <input className={`${inputClass} w-full`} name="email" type="email" defaultValue={customer.email ?? ""} />
+                </label>
+                <label className="space-y-2 text-sm font-semibold">
+                  Phone
+                  <input className={`${inputClass} w-full`} name="phone" defaultValue={customer.phone ?? ""} />
+                </label>
+              </div>
+              <label className="space-y-2 text-sm font-semibold">
+                Billing address
+                <input className={`${inputClass} w-full`} name="billingAddress1" defaultValue={customer.billingAddress1 ?? ""} />
+              </label>
+              <div className="grid gap-3 sm:grid-cols-3">
+                <input className={inputClass} name="billingCity" placeholder="City" defaultValue={customer.billingCity ?? ""} aria-label="Billing city" />
+                <input className={inputClass} name="billingState" placeholder="State" defaultValue={customer.billingState ?? ""} aria-label="Billing state" />
+                <input className={inputClass} name="billingPostalCode" placeholder="Postal code" defaultValue={customer.billingPostalCode ?? ""} aria-label="Billing postal code" />
+              </div>
+              <label className="space-y-2 text-sm font-semibold">
+                Notes
+                <textarea
+                  className="min-h-16 w-full rounded-md border border-line bg-white px-3 py-2 text-sm leading-6 outline-none focus:border-emerald focus:ring-2 focus:ring-emerald/10"
+                  name="notes"
+                  defaultValue={customer.notes ?? ""}
+                />
+              </label>
+              <SubmitButton className="w-fit" pendingText="Saving...">
+                Save changes
+              </SubmitButton>
+            </form>
+          </details>
         </Panel>
       </div>
     </div>

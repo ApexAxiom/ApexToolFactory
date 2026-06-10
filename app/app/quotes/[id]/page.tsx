@@ -1,13 +1,14 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, FileText, Send } from "lucide-react";
+import { ArrowLeft, CalendarDays, Download, FileText, Send } from "lucide-react";
 import { Panel } from "@/components/ui/panel";
-import { Button } from "@/components/ui/button";
 import { StatusPill } from "@/components/ui/status-pill";
+import { SubmitButton } from "@/components/ui/submit-button";
 import { currency, dateOnly } from "@/lib/utils";
 import { requireSession } from "@/server/auth/session";
 import { getActiveOrganizationContext } from "@/server/auth/context";
 import { getQuote, getQuoteLines, getQuoteRevision } from "@/server/services/quotes";
+import { listJobs } from "@/server/services/jobs";
 import { issueInvoiceAction, sendQuoteAction } from "@/server/actions/app";
 
 const inputClass = "h-10 rounded-md border border-line bg-white px-3 text-sm outline-none focus:border-emerald focus:ring-2 focus:ring-emerald/10";
@@ -21,12 +22,14 @@ export default async function QuoteDetailPage({ params }: { params: Promise<{ id
   const quote = await getQuote(id);
   if (!quote || quote.organizationId !== context.organization.id) notFound();
 
-  const [revision, lines] = await Promise.all([
+  const [revision, lines, allJobs] = await Promise.all([
     getQuoteRevision(quote.currentRevisionId),
-    getQuoteLines(quote.id, context.organization.id)
+    getQuoteLines(quote.id, context.organization.id),
+    listJobs(context.organization.id)
   ]);
 
   if (!revision) notFound();
+  const linkedJobs = allJobs.filter((job) => job.quoteId === quote.id && job.status !== "CANCELED");
 
   return (
     <div className="space-y-6">
@@ -36,6 +39,15 @@ export default async function QuoteDetailPage({ params }: { params: Promise<{ id
           Back to quotes
         </Link>
         <div className="flex items-center gap-3">
+          <a
+            href={`/app/quotes/${quote.id}/pdf`}
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex h-9 items-center gap-2 rounded-md border border-line bg-white px-3 text-sm font-semibold text-ink hover:bg-canvas"
+          >
+            <Download className="h-4 w-4" />
+            PDF
+          </a>
           <span className="font-semibold">{quote.quoteNumber}</span>
           <StatusPill status={quote.status} />
         </div>
@@ -104,16 +116,47 @@ export default async function QuoteDetailPage({ params }: { params: Promise<{ id
               Recipient email
               <input className={`${inputClass} w-full`} name="recipientEmail" defaultValue="" type="email" required />
             </label>
-            <Button className="w-full">
+            <SubmitButton className="w-full" pendingText="Sending...">
               <Send className="h-4 w-4" />
               Send quote email
-            </Button>
+            </SubmitButton>
           </form>
 
-          <form action={issueInvoiceAction} className="mt-3">
-            <input type="hidden" name="quoteId" value={quote.id} />
-            <Button className="w-full" variant="secondary">Convert to invoice</Button>
-          </form>
+          {quote.status === "ACCEPTED" ? (
+            <form action={issueInvoiceAction} className="mt-3">
+              <input type="hidden" name="quoteId" value={quote.id} />
+              <SubmitButton className="w-full" variant="secondary" pendingText="Converting...">
+                Convert to invoice
+              </SubmitButton>
+            </form>
+          ) : (
+            <p className="mt-3 rounded-lg border border-dashed border-line p-3 text-center text-xs leading-5 text-muted">
+              Invoicing unlocks once the customer accepts this quote.
+            </p>
+          )}
+
+          {linkedJobs.length > 0 ? (
+            <div className="mt-5 rounded-lg border border-line p-4">
+              <div className="flex items-center gap-2 text-sm font-semibold">
+                <CalendarDays className="h-4 w-4 text-emerald" />
+                Scheduled work
+              </div>
+              <div className="mt-3 space-y-2">
+                {linkedJobs.map((job) => (
+                  <Link
+                    key={job.id}
+                    href={`/app/jobs/${job.id}`}
+                    className="flex items-center justify-between gap-2 rounded-md border border-line px-3 py-2 text-sm hover:bg-canvas"
+                  >
+                    <span className="font-semibold">
+                      {job.scheduledDate ? dateOnly(job.scheduledDate) : "Needs scheduling"}
+                    </span>
+                    <StatusPill status={job.status} />
+                  </Link>
+                ))}
+              </div>
+            </div>
+          ) : null}
 
           <div className="mt-5 rounded-lg bg-mist p-4 text-sm text-muted">
             <div className="font-semibold text-ink">Portal-ready</div>

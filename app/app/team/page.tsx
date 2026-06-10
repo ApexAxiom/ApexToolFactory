@@ -1,6 +1,6 @@
 import { Plus } from "lucide-react";
 import { Panel } from "@/components/ui/panel";
-import { Button } from "@/components/ui/button";
+import { SubmitButton } from "@/components/ui/submit-button";
 import { PageHeader } from "@/components/ui/page-header";
 import { StatusPill } from "@/components/ui/status-pill";
 import { requireSession } from "@/server/auth/session";
@@ -65,10 +65,10 @@ export default async function TeamPage() {
                 <option value="ACCOUNTING">Accounting</option>
               </select>
             </label>
-            <Button>
+            <SubmitButton pendingText="Saving...">
               <Plus className="h-4 w-4" />
               Send invite
-            </Button>
+            </SubmitButton>
           </form>
         </Panel>
       </div>

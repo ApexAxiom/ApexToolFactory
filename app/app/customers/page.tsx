@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { Building2, Mail, Phone, Plus } from "lucide-react";
 import { Panel } from "@/components/ui/panel";
-import { Button } from "@/components/ui/button";
+import { SubmitButton } from "@/components/ui/submit-button";
 import { PageHeader } from "@/components/ui/page-header";
 import { requireSession } from "@/server/auth/session";
 import { getActiveOrganizationContext } from "@/server/auth/context";
@@ -95,10 +95,10 @@ export default async function CustomersPage() {
                 <input className={`${inputClass} w-full`} name="billingPostalCode" />
               </label>
             </div>
-            <Button>
+            <SubmitButton pendingText="Saving...">
               <Plus className="h-4 w-4" />
               Save client
-            </Button>
+            </SubmitButton>
           </form>
         </Panel>
       </div>

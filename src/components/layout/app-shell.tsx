@@ -5,25 +5,24 @@ import type { Route } from "next";
 import { ReactNode, useMemo } from "react";
 import { usePathname } from "next/navigation";
 import {
-  Bell,
-  CheckCircle2,
+  CalendarDays,
   CreditCard,
   FileText,
   LayoutDashboard,
   LogOut,
   ReceiptText,
-  Search,
   Settings,
   ShieldCheck,
   Users,
   Wrench
 } from "lucide-react";
-import { Organization } from "@/domain/types";
-import { cn } from "@/lib/utils";
+import { Organization, Subscription } from "@/domain/types";
+import { cn, dateOnly } from "@/lib/utils";
 import { BrandMark } from "@/components/ui/brand";
 
 const nav: Array<{ href: Route; label: string; icon: typeof LayoutDashboard }> = [
   { href: "/app/dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/app/schedule", label: "Schedule", icon: CalendarDays },
   { href: "/app/customers", label: "Clients", icon: Users },
   { href: "/app/quotes", label: "Quotes", icon: FileText },
   { href: "/app/invoices", label: "Invoices", icon: ReceiptText },
@@ -35,6 +34,8 @@ const nav: Array<{ href: Route; label: string; icon: typeof LayoutDashboard }> =
 const pageMeta: Array<{ match: string; title: string; description: string }> = [
   { match: "/app/quotes/new", title: "Quote Builder", description: "Create and send professional proposals in minutes." },
   { match: "/app/quotes", title: "Quotes", description: "Manage drafts, sent proposals, and accepted work." },
+  { match: "/app/schedule", title: "Schedule", description: "Book visits, assign technicians, and manage the service calendar." },
+  { match: "/app/jobs", title: "Job", description: "Track the visit from booking through the completed service report." },
   { match: "/app/customers", title: "Clients", description: "Track commercial accounts, contacts, and properties." },
   { match: "/app/invoices", title: "Invoices", description: "Convert accepted work into invoices and collect payments." },
   { match: "/app/team", title: "Team", description: "Invite operators and manage workspace access." },
@@ -45,10 +46,12 @@ const pageMeta: Array<{ match: string; title: string; description: string }> = [
 
 export function AppShell({
   organization,
+  subscription,
   userEmail,
   children
 }: {
   organization: Organization | null;
+  subscription: Subscription | null;
   userEmail: string;
   children: ReactNode;
 }) {
@@ -100,19 +103,25 @@ export function AppShell({
             })}
           </nav>
 
-          <div className="hidden rounded-lg border border-white/12 bg-white/[0.03] p-4 xl:mt-10 xl:block">
-            <div className="mb-3 flex items-center gap-2">
-              <ShieldCheck className="h-5 w-5 text-emerald" />
-              <span className="text-sm font-semibold">Pro plan</span>
+          {subscription ? (
+            <div className="hidden rounded-lg border border-white/12 bg-white/[0.03] p-4 xl:mt-10 xl:block">
+              <div className="mb-3 flex items-center gap-2">
+                <ShieldCheck className="h-5 w-5 text-emerald" />
+                <span className="text-sm font-semibold capitalize">{subscription.plan} plan</span>
+              </div>
+              <p className="text-sm text-white/70">
+                {subscription.status === "TRIALING" && subscription.currentPeriodEnd
+                  ? `Trial ends ${dateOnly(subscription.currentPeriodEnd)}`
+                  : subscription.status.replace(/_/g, " ").toLowerCase()}
+              </p>
+              <Link
+                href="/app/billing"
+                className="mt-4 inline-block text-sm font-semibold text-white underline underline-offset-4"
+              >
+                View plan
+              </Link>
             </div>
-            <p className="text-sm text-white/70">12 days left in trial</p>
-            <Link
-              href="/app/billing"
-              className="mt-4 inline-block text-sm font-semibold text-white underline underline-offset-4"
-            >
-              View plan
-            </Link>
-          </div>
+          ) : null}
 
           <form action="/api/auth/logout" method="post" className="hidden xl:mt-6 xl:block">
             <button className="flex h-10 w-full items-center gap-3 rounded-md px-3 text-sm font-semibold text-white/72 hover:bg-white/[0.07] hover:text-white">
@@ -131,26 +140,6 @@ export function AppShell({
               <p className="mt-1 text-sm text-muted">{meta?.description}</p>
             </div>
             <div className="flex w-full min-w-0 items-center justify-end gap-3 lg:w-auto">
-              <div className="hidden items-center gap-2 text-sm font-semibold text-emerald 2xl:flex">
-                <CheckCircle2 className="h-4 w-4" />
-                All changes saved
-              </div>
-              <label className="relative hidden w-80 xl:block">
-                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
-                <input
-                  className="h-11 w-full rounded-md border border-line bg-white pl-10 pr-12 text-sm outline-none transition focus:border-emerald focus:ring-2 focus:ring-emerald/10"
-                  placeholder="Search clients, quotes..."
-                />
-                <span className="absolute right-3 top-1/2 -translate-y-1/2 rounded border border-line px-1.5 py-0.5 text-xs text-muted">
-                  Ctrl K
-                </span>
-              </label>
-              <button
-                className="hidden h-10 w-10 place-items-center rounded-md border border-line bg-white text-muted hover:text-ink sm:grid"
-                aria-label="Notifications"
-              >
-                <Bell className="h-5 w-5" />
-              </button>
               <div className="flex items-center gap-3 border-l border-line pl-4">
                 <div className="grid h-11 w-11 place-items-center rounded-full bg-emerald text-sm font-bold text-white">
                   {initials || "JD"}

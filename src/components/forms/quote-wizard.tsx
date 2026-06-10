@@ -7,14 +7,10 @@ import {
   Building2,
   CalendarDays,
   CheckCircle2,
-  ChevronDown,
   ClipboardList,
   FileText,
-  GripVertical,
-  MoreVertical,
-  Paperclip,
   Plus,
-  Send,
+  Save,
   SlidersHorizontal,
   UserRound
 } from "lucide-react";
@@ -22,7 +18,7 @@ import { calculatePricing } from "@/domain/pricing";
 import { Customer, Property } from "@/domain/types";
 import { currency } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { SubmitButton } from "@/components/ui/submit-button";
 
 const pestCatalog = [
   { code: "general", label: "General Pest Control", description: "Interior and exterior treatment for pests.", amount: 75 },
@@ -59,6 +55,7 @@ export function QuoteWizard({
   const [selectedCustomerId, setSelectedCustomerId] = useState(customers[0]?.id || "");
   const [selectedPropertyId, setSelectedPropertyId] = useState("");
   const [visitType, setVisitType] = useState<VisitType>("QUARTERLY");
+  const [firstServiceDate, setFirstServiceDate] = useState("");
   const [serviceScope, setServiceScope] = useState(
     "Quarterly general pest control with exterior perimeter treatment, interior inspection, rodent monitoring, and seasonal mosquito coverage."
   );
@@ -135,8 +132,6 @@ export function QuoteWizard({
 
   const pricing = calculatePricing(payload);
   const selectedServiceRows = pestCatalog.filter((item) => selectedPests.includes(item.code));
-  const recurringTotal = visitType === "ONE_TIME" ? 0 : pricing.subtotal;
-  const monthlyTotal = visitType === "MONTHLY" ? pricing.subtotal : selectedServiceRows.find((item) => item.code === "mosquito")?.amount || 0;
 
   function togglePest(code: string) {
     setSelectedPests((current) =>
@@ -152,6 +147,7 @@ export function QuoteWizard({
       <input type="hidden" name="propertyAddress" value={payload.propertyAddress} />
       <input type="hidden" name="propertySquareFootage" value={String(payload.propertySquareFootage || 0)} />
       <input type="hidden" name="visitType" value={visitType} />
+      <input type="hidden" name="firstServiceDate" value={firstServiceDate} />
       <input type="hidden" name="serviceScope" value={serviceScope} />
       <input type="hidden" name="notes" value={notes} />
       <input type="hidden" name="pestFindings" value={JSON.stringify(payload.pestFindings)} />
@@ -170,11 +166,8 @@ export function QuoteWizard({
           Back to quotes
         </Link>
         <div className="flex items-center gap-3">
-          <span className="text-sm font-semibold text-ink">Quote #Q-1024</span>
+          <span className="text-sm font-semibold text-ink">New quote</span>
           <Badge>Draft</Badge>
-          <Button type="button" variant="secondary" className="hidden sm:inline-flex">
-            More actions <ChevronDown className="h-4 w-4" />
-          </Button>
         </div>
       </div>
 
@@ -259,17 +252,15 @@ export function QuoteWizard({
               </div>
 
               <div className="overflow-x-auto rounded-lg border border-line">
-                <table className="w-full min-w-[820px] border-collapse text-left text-sm">
+                <table className="w-full min-w-[680px] border-collapse text-left text-sm">
                   <thead className="bg-canvas text-xs font-semibold uppercase text-muted">
                     <tr>
-                      <th className="w-10 px-3 py-3" />
                       <th className="px-3 py-3">Item</th>
                       <th className="px-3 py-3">Description</th>
                       <th className="px-3 py-3">Interval</th>
                       <th className="px-3 py-3">Qty / Size</th>
                       <th className="px-3 py-3">Unit price</th>
-                      <th className="px-3 py-3">Amount</th>
-                      <th className="w-10 px-3 py-3" />
+                      <th className="px-3 py-3 text-right">Amount</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-line">
@@ -278,30 +269,17 @@ export function QuoteWizard({
                         item.code === "general"
                           ? pricing.lineItems.find((line) => line.description === item.label)?.lineTotal || item.amount
                           : item.amount;
+                      const intervalLabel = visitOptions.find((option) => option.value === visitType)?.label;
                       return (
                         <tr key={item.code} className="bg-white">
-                          <td className="px-3 py-3 text-muted">
-                            <GripVertical className="h-4 w-4" />
-                          </td>
                           <td className="px-3 py-3 font-semibold">{item.label}</td>
                           <td className="px-3 py-3 text-muted">{item.description}</td>
-                          <td className="px-3 py-3">
-                            <select className={`${fieldClass} w-32`} defaultValue={visitType}>
-                              {visitOptions.map((option) => (
-                                <option key={option.value} value={option.value}>
-                                  {option.label}
-                                </option>
-                              ))}
-                            </select>
-                          </td>
-                          <td className="px-3 py-3">
-                            <input className={`${fieldClass} w-32`} readOnly value={index === 0 ? `${payload.propertySquareFootage.toLocaleString()} sq ft` : index === 1 ? "10 stations" : "1"} />
+                          <td className="px-3 py-3 text-muted">{intervalLabel}</td>
+                          <td className="px-3 py-3 text-muted">
+                            {index === 0 ? `${payload.propertySquareFootage.toLocaleString()} sq ft` : index === 1 ? "10 stations" : "1"}
                           </td>
                           <td className="px-3 py-3">{item.code === "general" ? currency(baseRatePerSqft) : currency(item.amount)}</td>
-                          <td className="px-3 py-3 font-semibold">{currency(amount)}</td>
-                          <td className="px-3 py-3 text-muted">
-                            <MoreVertical className="h-4 w-4" />
-                          </td>
+                          <td className="px-3 py-3 text-right font-semibold">{currency(amount)}</td>
                         </tr>
                       );
                     })}
@@ -356,14 +334,17 @@ export function QuoteWizard({
             <CompactSection
               icon={CalendarDays}
               title="Scheduling"
-              description="Start date and service schedule"
-              control={<button type="button" className={`${fieldClass} inline-flex items-center gap-2`}>First service: Jun 20, 2025 <ChevronDown className="h-4 w-4" /></button>}
-            />
-            <CompactSection
-              icon={FileText}
-              title="Notes"
-              description="Internal notes and client messaging"
-              control={<Badge>1 note</Badge>}
+              description="When accepted, the first visit is booked on this date"
+              control={
+                <input
+                  type="date"
+                  className={`${fieldClass} w-44`}
+                  value={firstServiceDate}
+                  onChange={(event) => setFirstServiceDate(event.target.value)}
+                  min={new Date().toISOString().slice(0, 10)}
+                  aria-label="First service date"
+                />
+              }
             />
             <div className="border-t border-line p-4 sm:p-5">
               <label className="block text-sm font-semibold text-ink">
@@ -383,12 +364,6 @@ export function QuoteWizard({
                 />
               </label>
             </div>
-            <CompactSection
-              icon={Paperclip}
-              title="Attachments"
-              description="Photos, maps and documents"
-              control={<Badge>2 files</Badge>}
-            />
           </div>
         </div>
 
@@ -396,10 +371,17 @@ export function QuoteWizard({
           subtotal={pricing.subtotal}
           taxTotal={pricing.taxTotal}
           total={pricing.grandTotal}
-          recurringTotal={recurringTotal}
-          monthlyTotal={monthlyTotal}
+          visitType={visitType}
+          firstServiceDate={firstServiceDate}
           customerName={selectedCustomer?.name || "Client"}
-          serviceRows={selectedServiceRows}
+          serviceRows={selectedServiceRows.map((item) => ({
+            code: item.code,
+            label: item.label,
+            amount:
+              item.code === "general"
+                ? pricing.lineItems.find((line) => line.description === item.label)?.lineTotal || item.amount
+                : item.amount
+          }))}
         />
       </div>
     </form>
@@ -408,19 +390,15 @@ export function QuoteWizard({
 
 function SummaryStrip({ client, property, value }: { client: string; property: string; value: number }) {
   return (
-    <div className="grid gap-4 rounded-lg border border-line bg-white p-4 shadow-subtle md:grid-cols-4">
+    <div className="grid gap-4 rounded-lg border border-line bg-white p-4 shadow-subtle md:grid-cols-3">
       {[
         ["Client", client],
         ["Property", property],
-        ["Last service", "June 13, 2025"],
         ["Opportunity value", currency(value)]
       ].map(([label, content], index) => (
         <div key={label} className={index === 0 ? "" : "md:border-l md:border-line md:pl-5"}>
           <div className="text-xs font-semibold text-muted">{label}</div>
-          <div className="mt-1 flex items-center justify-between gap-3 text-sm font-semibold text-ink">
-            <span>{content}</span>
-            {index < 3 ? <span className="text-xs text-emerald">View</span> : <span className="text-xs text-emerald">8% vs last quote</span>}
-          </div>
+          <div className="mt-1 truncate text-sm font-semibold text-ink">{content}</div>
         </div>
       ))}
     </div>
@@ -473,10 +451,7 @@ function CompactSection({
           <p className="text-sm text-muted">{description}</p>
         </div>
       </div>
-      <div className="flex items-center gap-3">
-        {control}
-        <ChevronDown className="h-4 w-4 text-muted" />
-      </div>
+      <div className="flex items-center gap-3">{control}</div>
     </section>
   );
 }
@@ -485,50 +460,32 @@ function ProposalPreview({
   subtotal,
   taxTotal,
   total,
-  recurringTotal,
-  monthlyTotal,
+  visitType,
+  firstServiceDate,
   customerName,
   serviceRows
 }: {
   subtotal: number;
   taxTotal: number;
   total: number;
-  recurringTotal: number;
-  monthlyTotal: number;
+  visitType: VisitType;
+  firstServiceDate: string;
   customerName: string;
-  serviceRows: typeof pestCatalog;
+  serviceRows: Array<{ code: string; label: string; amount: number }>;
 }) {
+  const cadenceLabel = visitOptions.find((option) => option.value === visitType)?.label || "One-time";
   return (
     <aside className="h-fit rounded-lg border border-line bg-white p-5 shadow-subtle xl:sticky xl:top-28">
-      <div className="mb-5 flex items-center justify-between">
-        <h2 className="text-lg font-semibold">Proposal preview</h2>
-        <Button type="button" variant="secondary">Preview PDF</Button>
-      </div>
+      <h2 className="mb-5 text-lg font-semibold">Proposal preview</h2>
       <div className="space-y-4 text-sm">
-        <div className="flex justify-between">
-          <span className="text-muted">One-time services</span>
-          <span className="font-semibold">$0.00</span>
-        </div>
-        <div className="border-t border-line pt-4">
+        <div>
           <div className="mb-2 flex justify-between font-semibold">
-            <span>Recurring services</span>
-            <span>{currency(recurringTotal || subtotal)}</span>
+            <span>{visitType === "ONE_TIME" ? "One-time services" : "Recurring services"}</span>
+            <span>{currency(subtotal)}</span>
           </div>
-          <div className="text-muted">Quarterly</div>
-          {serviceRows.slice(0, 2).map((item) => (
+          {visitType !== "ONE_TIME" ? <div className="text-muted">{cadenceLabel}</div> : null}
+          {serviceRows.map((item) => (
             <div key={item.code} className="mt-2 flex justify-between text-muted">
-              <span>{item.label}</span>
-              <span>{currency(item.amount)}</span>
-            </div>
-          ))}
-        </div>
-        <div className="border-t border-line pt-4">
-          <div className="mb-2 flex justify-between font-semibold">
-            <span>Monthly services</span>
-            <span>{currency(monthlyTotal)}</span>
-          </div>
-          {serviceRows.slice(2, 3).map((item) => (
-            <div key={item.code} className="flex justify-between text-muted">
               <span>{item.label}</span>
               <span>{currency(item.amount)}</span>
             </div>
@@ -545,30 +502,25 @@ function ProposalPreview({
           </div>
         </div>
         <div className="flex items-end justify-between border-t border-line pt-4">
-          <span className="text-lg font-semibold">Total</span>
+          <span className="text-lg font-semibold">{visitType === "ONE_TIME" ? "Total" : `Total per visit`}</span>
           <span className="text-3xl font-semibold text-emerald">{currency(total)}</span>
         </div>
-        <div className="rounded-lg bg-mist p-4">
-          <div className="flex justify-between font-semibold">
-            <span>Recurring total</span>
-            <span>{currency(recurringTotal || subtotal)}</span>
+        {visitType !== "ONE_TIME" || firstServiceDate ? (
+          <div className="rounded-lg bg-mist p-4 text-xs text-muted">
+            <div className="flex justify-between">
+              {visitType !== "ONE_TIME" ? <span>Billed {cadenceLabel.toLowerCase()}</span> : <span>Single visit</span>}
+              {firstServiceDate ? <span>First service: {firstServiceDate}</span> : <span>First service date not set</span>}
+            </div>
           </div>
-          <div className="mt-3 flex justify-between text-xs text-muted">
-            <span>Billed quarterly</span>
-            <span>Next invoice: Jun 20, 2025</span>
-          </div>
-        </div>
-        <Button className="w-full" type="submit">
-          <Send className="h-4 w-4" />
-          Send proposal
-        </Button>
-        <Button className="w-full" type="submit" variant="secondary">
-          Save draft
-        </Button>
-        <Button className="w-full" type="button" variant="secondary">
-          Convert to invoice
-        </Button>
-        <div className="flex items-center justify-center gap-2 pt-3 text-sm text-muted">
+        ) : null}
+        <SubmitButton className="w-full" pendingText="Saving draft...">
+          <Save className="h-4 w-4" />
+          Save quote draft
+        </SubmitButton>
+        <p className="text-center text-xs leading-5 text-muted">
+          Saving creates a draft — you review it and send the proposal email from the quote page.
+        </p>
+        <div className="flex items-center justify-center gap-2 pt-1 text-sm text-muted">
           <CheckCircle2 className="h-4 w-4" />
           Proposal valid for 30 days
         </div>
