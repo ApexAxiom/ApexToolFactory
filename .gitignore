@@ -6,3 +6,5 @@ dist
 .pnpm-store
 .local
 coverage
+
+tsconfig.tsbuildinfo
