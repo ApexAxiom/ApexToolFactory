@@ -26,7 +26,7 @@ import {
 } from "@/server/services/invoices";
 import { cancelJob, completeJob, createJob, getJob, scheduleJob, startJob } from "@/server/services/jobs";
 import { inviteTeamMember } from "@/server/services/team";
-import { deliverInvoiceEmail, deliverQuoteEmail } from "@/server/services/email";
+import { deliverInvoiceEmail, deliverJobConfirmationEmail, deliverQuoteEmail } from "@/server/services/email";
 import { ensureStripeInvoice } from "@/server/services/stripe";
 
 async function requireContext(permission?: Permission) {
@@ -487,6 +487,30 @@ export async function completeJobAction(formData: FormData) {
     jobId: data.jobId,
     completionNotes: data.completionNotes,
     materialsUsed: data.materialsUsed
+  });
+
+  redirect(`/app/jobs/${data.jobId}`);
+}
+
+export async function sendJobConfirmationAction(formData: FormData) {
+  const { context } = await requireContext("jobs:write");
+  const data = parseForm(
+    z.object({
+      jobId: requiredTrimmed("Job"),
+      recipientEmail: requiredEmail("Recipient email")
+    }),
+    formData
+  );
+
+  const job = await getJob(data.jobId);
+  if (!job || job.organizationId !== context.organization.id) {
+    throw new Error("Job was not found");
+  }
+
+  await deliverJobConfirmationEmail({
+    job,
+    organizationName: context.organization.name,
+    recipientEmail: data.recipientEmail
   });
 
   redirect(`/app/jobs/${data.jobId}`);

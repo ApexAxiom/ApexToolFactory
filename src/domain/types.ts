@@ -284,7 +284,7 @@ export interface Payment extends EntityBase {
 
 export interface EmailMessage extends EntityBase {
   organizationId: string;
-  entityType: PortalEntityType | "TEAM_INVITE";
+  entityType: PortalEntityType | "TEAM_INVITE" | "JOB";
   entityId: string;
   to: string[];
   cc: string[];

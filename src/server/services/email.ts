@@ -1,7 +1,7 @@
 import { randomUUID } from "crypto";
 import { SendEmailCommand, SESv2Client } from "@aws-sdk/client-sesv2";
 import { env } from "@/config/env";
-import { EmailEvent, EmailMessage, Invoice, InvoiceLine, Quote, QuoteLine, QuoteRevision } from "@/domain/types";
+import { EmailEvent, EmailMessage, Invoice, InvoiceLine, Job, Quote, QuoteLine, QuoteRevision } from "@/domain/types";
 import { getStore } from "@/server/persistence/store";
 import { renderQuotePdf } from "@/server/services/quotes";
 import { writeAuditEvent } from "@/server/services/audit";
@@ -71,6 +71,42 @@ export async function deliverInvoiceEmail(input: {
         content: csv
       }
     ]
+  });
+}
+
+export async function deliverJobConfirmationEmail(input: {
+  job: Job;
+  organizationName: string;
+  recipientEmail: string;
+}) {
+  const { job } = input;
+  if (!job.scheduledDate) {
+    throw new Error("The job must be scheduled before sending a confirmation");
+  }
+
+  const timestamp = nowIso();
+  const message: EmailMessage = {
+    id: randomUUID(),
+    createdAt: timestamp,
+    updatedAt: timestamp,
+    organizationId: job.organizationId,
+    entityType: "JOB",
+    entityId: job.id,
+    to: [input.recipientEmail],
+    cc: [],
+    subject: `Your ${input.organizationName} service visit is confirmed for ${dateOnly(job.scheduledDate)}`,
+    template: "REMINDER",
+    provider: "SES",
+    status: "QUEUED",
+    payload: { scheduledDate: job.scheduledDate }
+  };
+  await getStore().put("emailMessages", message);
+
+  const html = renderJobConfirmationHtml(job, input.organizationName);
+  return sendRawEmail({
+    message,
+    html,
+    text: stripHtml(html)
   });
 }
 
@@ -243,6 +279,26 @@ function renderInvoiceHtml(invoice: Invoice, portalUrl: string) {
       <p>Invoice <strong>${invoice.invoiceNumber}</strong> totals <strong>${currency(invoice.grandTotal)}</strong>.</p>
       <p>Due date: ${dateOnly(invoice.dueDate)}</p>
       <p><a href="${portalUrl}" style="display:inline-block;padding:12px 16px;background:#173127;color:#fff;text-decoration:none;border-radius:999px">View invoice and pay online</a></p>
+    </div>
+  `.trim();
+}
+
+function renderJobConfirmationHtml(job: Job, organizationName: string) {
+  const window =
+    job.scheduledStartTime && job.scheduledEndTime
+      ? `between ${job.scheduledStartTime} and ${job.scheduledEndTime}`
+      : job.scheduledStartTime
+        ? `starting around ${job.scheduledStartTime}`
+        : "during business hours";
+
+  return `
+    <div style="font-family:Arial,sans-serif;line-height:1.5;color:#17201d">
+      <h1 style="margin-bottom:8px">Your service visit is confirmed</h1>
+      <p><strong>${organizationName}</strong> will visit on <strong>${dateOnly(job.scheduledDate)}</strong> ${window}.</p>
+      <p>Service address: ${job.serviceAddress}</p>
+      ${job.assignedToName ? `<p>Your technician: ${job.assignedToName}</p>` : ""}
+      <p>Service: ${job.title}</p>
+      <p>If you need to reschedule, just reply to this email.</p>
     </div>
   `.trim();
 }

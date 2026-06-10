@@ -327,7 +327,7 @@ export const data = defineData({
         .model({
           id: a.id().required(),
           organizationId: a.string().required(),
-          entityType: a.ref("PortalEntityType"),
+          entityType: a.string(),
           entityId: a.string().required(),
           to: a.string().array().required(),
           cc: a.string().array().required(),

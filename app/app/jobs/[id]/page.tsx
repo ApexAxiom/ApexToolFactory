@@ -11,7 +11,13 @@ import { hasPermission } from "@/server/auth/permissions";
 import { getJob, todayDateOnly } from "@/server/services/jobs";
 import { getCustomer } from "@/server/services/customers";
 import { listTeamMembers } from "@/server/services/team";
-import { cancelJobAction, completeJobAction, scheduleJobAction, startJobAction } from "@/server/actions/app";
+import {
+  cancelJobAction,
+  completeJobAction,
+  scheduleJobAction,
+  sendJobConfirmationAction,
+  startJobAction
+} from "@/server/actions/app";
 
 const inputClass =
   "h-10 w-full rounded-md border border-line bg-white px-3 text-sm outline-none focus:border-emerald focus:ring-2 focus:ring-emerald/10";
@@ -176,6 +182,29 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
                 <SubmitButton pendingText="Saving...">
                   <CalendarDays className="h-4 w-4" />
                   {job.scheduledDate ? "Update schedule" : "Put on calendar"}
+                </SubmitButton>
+              </form>
+            </Panel>
+          ) : null}
+
+          {canManage && job.status === "SCHEDULED" ? (
+            <Panel>
+              <h2 className="text-lg font-semibold">Confirm with the customer</h2>
+              <p className="mt-1 text-sm text-muted">Email the visit date, arrival window, and technician.</p>
+              <form action={sendJobConfirmationAction} className="mt-4 space-y-3">
+                <input type="hidden" name="jobId" value={job.id} />
+                <label className="block space-y-1 text-sm font-semibold">
+                  Recipient email
+                  <input
+                    className={inputClass}
+                    name="recipientEmail"
+                    type="email"
+                    required
+                    defaultValue={customer?.email ?? ""}
+                  />
+                </label>
+                <SubmitButton className="w-full" variant="secondary" pendingText="Sending...">
+                  Send confirmation email
                 </SubmitButton>
               </form>
             </Panel>
