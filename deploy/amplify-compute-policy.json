@@ -1,0 +1,31 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "PestimatorDynamoAccess",
+      "Effect": "Allow",
+      "Action": [
+        "dynamodb:GetItem",
+        "dynamodb:PutItem",
+        "dynamodb:DeleteItem",
+        "dynamodb:Scan",
+        "dynamodb:Query",
+        "dynamodb:TransactWriteItems",
+        "dynamodb:DescribeTable"
+      ],
+      "Resource": "arn:aws:dynamodb:REGION:ACCOUNT_ID:table/*-NONE"
+    },
+    {
+      "Sid": "PestimatorSesSend",
+      "Effect": "Allow",
+      "Action": ["ses:SendEmail", "ses:SendRawEmail"],
+      "Resource": "*"
+    },
+    {
+      "Sid": "PestimatorAttachmentsBucket",
+      "Effect": "Allow",
+      "Action": ["s3:GetObject", "s3:PutObject"],
+      "Resource": "arn:aws:s3:::ATTACHMENTS_BUCKET_NAME/*"
+    }
+  ]
+}

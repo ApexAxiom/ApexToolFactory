@@ -17,16 +17,36 @@ elapsed time is waiting on AWS verifications.
 ## 1. Deploy the Amplify Gen 2 app
 
 1. In the AWS console open **Amplify** → **Create new app** → **GitHub**, and
-   pick this repository and the `main` branch.
+   pick this repository and the `main` branch. When prompted, let Amplify
+   create (or reuse) the **service role** it needs for backend deployments.
 2. Amplify detects `amplify.yml` automatically; the SSR build is already
    configured there.
 3. The first deploy also provisions the backend (`amplify/backend.ts`):
    Cognito user pool, all DynamoDB tables (including `Job`, `ServicePlan`,
-   and `WebhookEvent`), and the S3 attachments bucket. Table names and the
-   bucket land in `amplify_outputs.json`, which the server reads at runtime —
-   you do not need to set the `TABLE_*` env vars by hand.
+   and `WebhookEvent`), and the S3 attachments bucket. During the frontend
+   build, `scripts/write-runtime-env.mjs` copies the generated table names
+   and bucket into `.env.production` automatically — you do not need to set
+   the `TABLE_*` env vars by hand.
 4. Under **App settings → Domain management**, attach your domain
    (`app.yourcompany.com`). Note the final HTTPS URL — it is your `APP_URL`.
+
+### 1b. Grant the SSR compute role its permissions (required)
+
+The server talks to DynamoDB, SES, and S3 directly, so the Amplify Hosting
+compute role must allow it:
+
+1. In **IAM → Policies → Create policy → JSON**, paste
+   `deploy/amplify-compute-policy.json` from this repo, replacing `REGION`,
+   `ACCOUNT_ID`, and `ATTACHMENTS_BUCKET_NAME` (find the bucket name in the
+   Amplify build logs or `amplify_outputs.json` under
+   `custom.storage.attachmentsBucket`). Name it `pestimator-ssr-compute`.
+2. In **IAM → Roles → Create role**, choose **Custom trust policy** and allow
+   `amplify.amazonaws.com` to assume it, then attach the policy above.
+3. In **Amplify → App settings → IAM roles → Compute role**, select the new
+   role and redeploy.
+
+Skipping this is the most common cause of a deployed app that loads the
+login page but 500s on everything else.
 
 ## 2. Configure Cognito
 

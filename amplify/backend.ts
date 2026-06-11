@@ -9,6 +9,14 @@ export const backend = defineBackend({
   storage
 });
 
+// The app signs users in server-side with InitiateAuth USER_PASSWORD_AUTH;
+// Amplify's default app client only enables SRP, so opt in explicitly.
+backend.auth.resources.cfnResources.cfnUserPoolClient.explicitAuthFlows = [
+  "ALLOW_USER_PASSWORD_AUTH",
+  "ALLOW_USER_SRP_AUTH",
+  "ALLOW_REFRESH_TOKEN_AUTH"
+];
+
 backend.addOutput({
   custom: {
     dynamodbTables: {
