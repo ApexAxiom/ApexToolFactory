@@ -2,7 +2,6 @@ import Link from "next/link";
 import {
   ArrowRight,
   CheckCircle2,
-  ChevronDown,
   Clock3,
   DollarSign,
   FileText,
@@ -14,14 +13,14 @@ import {
   TableProperties
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { BrandMark } from "@/components/ui/brand";
+import { ApexAxiomMark, BrandMark } from "@/components/ui/brand";
 
 const metrics = [
-  { icon: ShieldCheck, value: "10,000+", label: "Pest control pros trust Pestimator" },
-  { icon: FileText, value: "1M+", label: "Quotes and invoices generated" },
-  { icon: Clock3, value: "6 min", label: "Median quote creation time" },
-  { icon: DollarSign, value: "28%", label: "Average lift in close rate" },
-  { icon: Star, value: "4.9/5", label: "Average rating from users" }
+  { icon: FileText, value: "Quote", label: "Polished proposals with e-signature acceptance" },
+  { icon: Clock3, value: "Schedule", label: "Accepted work lands on the service calendar" },
+  { icon: DollarSign, value: "Collect", label: "Stripe payments and overdue follow-up built in" },
+  { icon: ShieldCheck, value: "Secure", label: "MFA sign-in and role-based team access" },
+  { icon: Star, value: "Delight", label: "Self-service portal your customers will love" }
 ];
 
 const features = [
@@ -54,15 +53,9 @@ export default function MarketingPage() {
         <div className="mx-auto flex h-20 max-w-7xl items-center justify-between px-5 sm:px-8">
           <BrandMark />
           <nav className="hidden items-center gap-9 text-sm font-semibold text-ink/80 md:flex">
-            <a href="#product" className="inline-flex items-center gap-1 hover:text-emerald">
-              Product <ChevronDown className="h-4 w-4" />
-            </a>
+            <a href="#product" className="hover:text-emerald">Product</a>
             <a href="#workflow" className="hover:text-emerald">Workflow</a>
-            <a href="#pricing" className="hover:text-emerald">Pricing</a>
-            <a href="#templates" className="hover:text-emerald">Templates</a>
-            <a href="#resources" className="inline-flex items-center gap-1 hover:text-emerald">
-              Resources <ChevronDown className="h-4 w-4" />
-            </a>
+            <a href="#dashboard" className="hover:text-emerald">Dashboard</a>
           </nav>
           <div className="flex items-center gap-3">
             <Link href="/login" className="hidden text-sm font-semibold text-ink hover:text-emerald sm:inline">
@@ -90,8 +83,8 @@ export default function MarketingPage() {
             <Link href="/signup" className="rounded-md bg-emerald px-7 py-4 text-sm font-semibold text-white hover:bg-[#0b7d63]">
               Start free trial
             </Link>
-            <Link href="#product" className="rounded-md border border-emerald px-7 py-4 text-sm font-semibold text-emerald hover:bg-mist">
-              View sample proposal
+            <Link href="#workflow" className="rounded-md border border-emerald px-7 py-4 text-sm font-semibold text-emerald hover:bg-mist">
+              See how it works
             </Link>
           </div>
           <div className="mt-6 flex flex-wrap gap-x-6 gap-y-3 text-sm text-muted">
@@ -158,7 +151,7 @@ export default function MarketingPage() {
         </div>
       </section>
 
-      <section id="pricing" className="bg-canvas">
+      <section id="dashboard" className="bg-canvas">
         <div className="mx-auto grid max-w-7xl gap-10 px-5 py-12 sm:px-8 lg:grid-cols-[0.8fr_1.2fr] lg:items-start">
           <div>
             <p className="text-xs font-bold uppercase tracking-[0.2em] text-emerald">Run your business</p>
@@ -172,13 +165,15 @@ export default function MarketingPage() {
           <DashboardPreview />
         </div>
       </section>
+      <ApexAxiomMark />
     </main>
   );
 }
 
 function HeroMockup() {
+  // Decorative product illustration - nothing inside is interactive.
   return (
-    <div className="rounded-lg border border-line bg-white shadow-panel">
+    <div aria-hidden className="pointer-events-none select-none rounded-lg border border-line bg-white shadow-panel">
       <div className="flex items-center justify-between border-b border-line px-6 py-4">
         <div className="flex items-center gap-3">
           <span className="grid h-10 w-10 place-items-center rounded-md bg-canvas text-muted">
@@ -193,10 +188,10 @@ function HeroMockup() {
           </div>
         </div>
         <div className="flex gap-2">
-          <button className="rounded-md border border-line px-4 py-2 text-sm font-semibold">Edit</button>
-          <button className="inline-flex items-center gap-2 rounded-md bg-emerald px-4 py-2 text-sm font-semibold text-white">
+          <span className="rounded-md border border-line px-4 py-2 text-sm font-semibold">Edit</span>
+          <span className="inline-flex items-center gap-2 rounded-md bg-emerald px-4 py-2 text-sm font-semibold text-white">
             <Send className="h-4 w-4" /> Send quote
-          </button>
+          </span>
         </div>
       </div>
       <div className="grid gap-5 p-5 lg:grid-cols-[0.65fr_1fr]">
@@ -221,7 +216,7 @@ function HeroMockup() {
         <div className="rounded-lg border border-line p-4">
           <div className="mb-4 flex items-center justify-between">
             <h3 className="font-semibold">Proposal preview</h3>
-            <button className="rounded-md border border-line px-3 py-1.5 text-xs font-semibold text-muted">Download PDF</button>
+            <span className="rounded-md border border-line px-3 py-1.5 text-xs font-semibold text-muted">Download PDF</span>
           </div>
           <div className="rounded-md border border-line bg-white p-5">
             <BrandMark className="mb-6 text-sm" />
@@ -247,8 +242,9 @@ function HeroMockup() {
 }
 
 function DashboardPreview() {
+  // Decorative product illustration - nothing inside is interactive.
   return (
-    <div className="overflow-hidden rounded-lg border border-line bg-white shadow-panel">
+    <div aria-hidden className="pointer-events-none select-none overflow-hidden rounded-lg border border-line bg-white shadow-panel">
       <div className="grid min-h-80 lg:grid-cols-[190px_1fr]">
         <aside className="hidden bg-pine p-5 text-white lg:block">
           <BrandMark dark className="mb-6" />
@@ -261,7 +257,7 @@ function DashboardPreview() {
         <div className="p-6">
           <div className="mb-5 flex items-center justify-between">
             <h3 className="text-2xl font-semibold">Dashboard</h3>
-            <button className="rounded-md bg-emerald px-4 py-2 text-sm font-semibold text-white">New quote</button>
+            <span className="rounded-md bg-emerald px-4 py-2 text-sm font-semibold text-white">New quote</span>
           </div>
           <div className="grid gap-4 sm:grid-cols-4">
             {[

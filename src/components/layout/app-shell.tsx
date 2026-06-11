@@ -18,7 +18,7 @@ import {
 } from "lucide-react";
 import { Organization, Subscription } from "@/domain/types";
 import { cn, dateOnly } from "@/lib/utils";
-import { BrandMark } from "@/components/ui/brand";
+import { ApexAxiomMark, BrandMark } from "@/components/ui/brand";
 
 const nav: Array<{ href: Route; label: string; icon: typeof LayoutDashboard }> = [
   { href: "/app/dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -154,6 +154,7 @@ export function AppShell({
         </header>
 
         <main className="mx-auto w-full max-w-[1600px] px-5 py-6 sm:px-6 lg:px-8">{children}</main>
+        <ApexAxiomMark />
       </div>
     </div>
   );

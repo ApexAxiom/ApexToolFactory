@@ -2,6 +2,7 @@ import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 import { CalendarDays, CheckCircle2, CreditCard, MapPin, Send, UserRound } from "lucide-react";
 import { Panel } from "@/components/ui/panel";
+import { ApexAxiomMark } from "@/components/ui/brand";
 import { StatusPill } from "@/components/ui/status-pill";
 import { currency, dateOnly } from "@/lib/utils";
 import { getRequestIp, getUserAgent } from "@/server/http/request-meta";
@@ -191,6 +192,7 @@ export default async function CustomerPortalPage({
           {organization?.licenseNumber ? ` - License #${organization.licenseNumber}` : ""}
         </p>
       </div>
+      <ApexAxiomMark className="mx-auto max-w-4xl" />
     </main>
   );
 }

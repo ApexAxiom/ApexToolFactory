@@ -125,6 +125,13 @@ export async function scheduleJob(input: {
   return updated;
 }
 
+export async function markJobConfirmationRequested(input: { organizationId: string; jobId: string }) {
+  const job = await requireOrganizationJob(input.jobId, input.organizationId);
+  const updated: Job = { ...job, updatedAt: nowIso(), confirmationRequestedAt: nowIso() };
+  await getStore().put("jobs", updated);
+  return updated;
+}
+
 export async function startJob(input: { organizationId: string; actorUserId: string; jobId: string }) {
   const job = await requireOrganizationJob(input.jobId, input.organizationId);
   if (job.status !== "SCHEDULED") {

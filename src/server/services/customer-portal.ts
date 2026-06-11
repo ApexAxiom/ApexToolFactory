@@ -1,4 +1,5 @@
 import { Customer, Invoice, Job, Organization } from "@/domain/types";
+import { getJob } from "@/server/services/jobs";
 import { nowIso } from "@/lib/utils";
 import { getStore } from "@/server/persistence/store";
 import { writeAuditEvent } from "@/server/services/audit";
@@ -70,6 +71,97 @@ export async function getCustomerPortalView(input: { token: string; ip?: string;
     .sort((a, b) => (a.dueDate ?? "").localeCompare(b.dueDate ?? ""));
 
   return { customer, organization, upcomingJobs, pendingRequests, completedJobs, openInvoices };
+}
+
+export async function createJobConfirmationToken(job: Job) {
+  // Valid until a week past the visit so late confirmations still work.
+  const base = job.scheduledDate ? new Date(`${job.scheduledDate}T23:59:59Z`).getTime() : Date.now();
+  const { token } = await createPortalToken({
+    organizationId: job.organizationId,
+    entityType: "JOB",
+    entityId: job.id,
+    expiresAt: new Date(base + 1000 * 60 * 60 * 24 * 7).toISOString()
+  });
+  return token;
+}
+
+export async function getJobPortalView(input: { token: string; ip?: string; userAgent?: string }) {
+  const record = await validatePortalToken(input.token, "JOB");
+  const job = await getJob(record.entityId);
+  if (!job) {
+    throw new Error("Appointment was not found");
+  }
+
+  const organization = await getStore().get<Organization>("organizations", job.organizationId);
+  await touchPortalToken(record, { ip: input.ip, userAgent: input.userAgent });
+
+  return { job, organization };
+}
+
+export async function confirmJobFromPortal(input: { token: string; confirmedByName?: string }) {
+  const record = await validatePortalToken(input.token, "JOB");
+  const job = await getJob(record.entityId);
+  if (!job) {
+    throw new Error("Appointment was not found");
+  }
+  if (job.status !== "SCHEDULED") {
+    throw new Error("This appointment can no longer be confirmed");
+  }
+
+  const timestamp = nowIso();
+  const updated: Job = {
+    ...job,
+    updatedAt: timestamp,
+    confirmedAt: timestamp,
+    confirmedByName: input.confirmedByName,
+    rescheduleRequestedAt: undefined,
+    rescheduleRequestNotes: undefined
+  };
+  await getStore().put("jobs", updated);
+
+  await writeAuditEvent({
+    organizationId: job.organizationId,
+    action: "job.confirmed_by_customer",
+    entityType: "Job",
+    entityId: job.id,
+    occurredAt: timestamp,
+    payload: JSON.stringify({ confirmedByName: input.confirmedByName })
+  });
+
+  return updated;
+}
+
+export async function requestJobRescheduleFromPortal(input: { token: string; notes?: string }) {
+  const record = await validatePortalToken(input.token, "JOB");
+  const job = await getJob(record.entityId);
+  if (!job) {
+    throw new Error("Appointment was not found");
+  }
+  if (job.status !== "SCHEDULED") {
+    throw new Error("This appointment can no longer be changed online");
+  }
+
+  const timestamp = nowIso();
+  const updated: Job = {
+    ...job,
+    updatedAt: timestamp,
+    confirmedAt: undefined,
+    confirmedByName: undefined,
+    rescheduleRequestedAt: timestamp,
+    rescheduleRequestNotes: input.notes
+  };
+  await getStore().put("jobs", updated);
+
+  await writeAuditEvent({
+    organizationId: job.organizationId,
+    action: "job.reschedule_requested",
+    entityType: "Job",
+    entityId: job.id,
+    occurredAt: timestamp,
+    payload: JSON.stringify({ notes: input.notes })
+  });
+
+  return updated;
 }
 
 export async function requestVisitFromPortal(input: {

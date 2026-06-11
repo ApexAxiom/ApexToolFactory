@@ -9,7 +9,7 @@ export type QuoteStatus = "DRAFT" | "SENT" | "VIEWED" | "ACCEPTED" | "DECLINED" 
 export type InvoiceStatus = "DRAFT" | "ISSUED" | "PARTIAL" | "PAID" | "OVERDUE" | "VOID";
 export type PaymentStatus = "PENDING" | "SUCCEEDED" | "FAILED" | "REFUNDED";
 export type SubscriptionStatus = "TRIALING" | "ACTIVE" | "PAST_DUE" | "CANCELED" | "INCOMPLETE";
-export type PortalEntityType = "QUOTE" | "INVOICE" | "CUSTOMER";
+export type PortalEntityType = "QUOTE" | "INVOICE" | "CUSTOMER" | "JOB";
 export type EmailTemplate = "QUOTE_SENT" | "INVOICE_SENT" | "TEAM_INVITE" | "REMINDER";
 export type EmailStatus = "QUEUED" | "SENT" | "DELIVERED" | "BOUNCED" | "COMPLAINED" | "FAILED";
 export type EmailEventType = "DELIVERY" | "BOUNCE" | "COMPLAINT" | "RENDERED" | "FAILED";
@@ -348,6 +348,11 @@ export interface Job extends EntityBase {
   assignedMembershipId?: string;
   assignedToName?: string;
   notes?: string;
+  confirmationRequestedAt?: string;
+  confirmedAt?: string;
+  confirmedByName?: string;
+  rescheduleRequestedAt?: string;
+  rescheduleRequestNotes?: string;
   completionNotes?: string;
   materialsUsed?: string;
   startedAt?: string;

@@ -15,7 +15,7 @@ import {
   requiredTrimmed
 } from "@/server/actions/validation";
 import { createCustomer, createProperty, getCustomer, updateCustomer } from "@/server/services/customers";
-import { createCustomerPortalLink } from "@/server/services/customer-portal";
+import { createCustomerPortalLink, createJobConfirmationToken } from "@/server/services/customer-portal";
 import { createOrganization, updateOrganization } from "@/server/services/organizations";
 import { createQuoteDraft, getQuote, getQuoteLines, sendQuote } from "@/server/services/quotes";
 import {
@@ -25,7 +25,15 @@ import {
   recordPayment,
   sendInvoice
 } from "@/server/services/invoices";
-import { cancelJob, completeJob, createJob, getJob, scheduleJob, startJob } from "@/server/services/jobs";
+import {
+  cancelJob,
+  completeJob,
+  createJob,
+  getJob,
+  markJobConfirmationRequested,
+  scheduleJob,
+  startJob
+} from "@/server/services/jobs";
 import { inviteTeamMember, updateTeamMember } from "@/server/services/team";
 import {
   deliverInvoiceEmail,
@@ -602,11 +610,14 @@ export async function sendJobConfirmationAction(formData: FormData) {
     throw new Error("Job was not found");
   }
 
+  const confirmToken = await createJobConfirmationToken(job);
   await deliverJobConfirmationEmail({
     job,
     organizationName: context.organization.name,
-    recipientEmail: data.recipientEmail
+    recipientEmail: data.recipientEmail,
+    confirmUrl: `${process.env.APP_URL || "http://localhost:3000"}/portal/visits/${confirmToken}`
   });
+  await markJobConfirmationRequested({ organizationId: context.organization.id, jobId: job.id });
 
   redirect(`/app/jobs/${data.jobId}`);
 }

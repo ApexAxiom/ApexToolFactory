@@ -97,6 +97,7 @@ export async function deliverJobConfirmationEmail(input: {
   job: Job;
   organizationName: string;
   recipientEmail: string;
+  confirmUrl?: string;
 }) {
   const { job } = input;
   if (!job.scheduledDate) {
@@ -121,9 +122,10 @@ export async function deliverJobConfirmationEmail(input: {
   };
   await getStore().put("emailMessages", message);
 
-  const html = renderJobConfirmationHtml(job, input.organizationName);
+  const html = renderJobConfirmationHtml(job, input.organizationName, input.confirmUrl);
   return sendRawEmail({
     message,
+    fromName: input.organizationName,
     html,
     text: stripHtml(html)
   });
@@ -353,7 +355,7 @@ function renderInvoiceHtml(invoice: Invoice, portalUrl: string, organization?: O
   `.trim();
 }
 
-function renderJobConfirmationHtml(job: Job, organizationName: string) {
+function renderJobConfirmationHtml(job: Job, organizationName: string, confirmUrl?: string) {
   const window =
     job.scheduledStartTime && job.scheduledEndTime
       ? `between ${job.scheduledStartTime} and ${job.scheduledEndTime}`
@@ -363,12 +365,17 @@ function renderJobConfirmationHtml(job: Job, organizationName: string) {
 
   return `
     <div style="font-family:Arial,sans-serif;line-height:1.5;color:#17201d">
-      <h1 style="margin-bottom:8px">Your service visit is confirmed</h1>
+      <h1 style="margin-bottom:8px">Your service visit is scheduled</h1>
       <p><strong>${organizationName}</strong> will visit on <strong>${dateOnly(job.scheduledDate)}</strong> ${window}.</p>
       <p>Service address: ${job.serviceAddress}</p>
       ${job.assignedToName ? `<p>Your technician: ${job.assignedToName}</p>` : ""}
       <p>Service: ${job.title}</p>
-      <p>If you need to reschedule, just reply to this email.</p>
+      ${
+        confirmUrl
+          ? `<p style="margin-top:20px"><a href="${confirmUrl}" style="display:inline-block;padding:12px 16px;background:#173127;color:#fff;text-decoration:none;border-radius:999px">Confirm this appointment</a></p>
+             <p style="color:#6b7470;font-size:13px">Need a different time? The same link lets you request a change.</p>`
+          : `<p>If you need to reschedule, just reply to this email.</p>`
+      }
     </div>
   `.trim();
 }

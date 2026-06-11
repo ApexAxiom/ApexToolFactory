@@ -83,8 +83,27 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
               </DetailItem>
             </div>
             {job.notes ? (
-              <div className="mt-5 rounded-lg border border-line bg-canvas p-4 text-sm leading-6 text-ink/80">
+              <div className="mt-5 whitespace-pre-line rounded-lg border border-line bg-canvas p-4 text-sm leading-6 text-ink/80">
                 {job.notes}
+              </div>
+            ) : null}
+            {job.rescheduleRequestedAt ? (
+              <div className="mt-4 rounded-lg border border-gold/40 bg-gold/10 p-4 text-sm">
+                <div className="font-semibold text-[#8b5b14]">
+                  Customer asked to reschedule ({dateOnly(job.rescheduleRequestedAt)})
+                </div>
+                {job.rescheduleRequestNotes ? (
+                  <p className="mt-1 leading-6 text-ink/80">{job.rescheduleRequestNotes}</p>
+                ) : null}
+              </div>
+            ) : job.confirmedAt ? (
+              <div className="mt-4 flex items-center gap-2 rounded-lg border border-emerald/30 bg-emerald/5 p-4 text-sm font-semibold text-emerald">
+                <CheckCircle2 className="h-5 w-5" />
+                Customer confirmed{job.confirmedByName ? ` (${job.confirmedByName})` : ""} on {dateOnly(job.confirmedAt)}
+              </div>
+            ) : job.confirmationRequestedAt ? (
+              <div className="mt-4 rounded-lg border border-line bg-canvas p-4 text-sm text-muted">
+                Confirmation email sent {dateOnly(job.confirmationRequestedAt)} — awaiting the customer.
               </div>
             ) : null}
           </Panel>
