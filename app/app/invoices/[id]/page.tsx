@@ -7,8 +7,9 @@ import { currency, dateOnly } from "@/lib/utils";
 import { requireSession } from "@/server/auth/session";
 import { getActiveOrganizationContext } from "@/server/auth/context";
 import { hasPermission } from "@/server/auth/permissions";
-import { getInvoice, getInvoiceLines } from "@/server/services/invoices";
-import { recordManualPaymentAction, sendInvoiceAction } from "@/server/actions/app";
+import { effectiveInvoiceStatus, getInvoice, getInvoiceLines } from "@/server/services/invoices";
+import { getCustomer } from "@/server/services/customers";
+import { recordManualPaymentAction, sendInvoiceAction, sendInvoiceReminderAction } from "@/server/actions/app";
 
 const inputClass = "h-10 rounded-md border border-line bg-white px-3 text-sm outline-none focus:border-emerald focus:ring-2 focus:ring-emerald/10";
 
@@ -21,9 +22,13 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
   const invoice = await getInvoice(id);
   if (!invoice || invoice.organizationId !== context.organization.id) notFound();
 
-  const lines = await getInvoiceLines(invoice.id, context.organization.id);
+  const [lines, customer] = await Promise.all([
+    getInvoiceLines(invoice.id, context.organization.id),
+    getCustomer(invoice.customerId)
+  ]);
   const canRecordPayments = hasPermission(context.membership, "payments:record");
   const isPayable = invoice.outstandingTotal > 0 && invoice.status !== "VOID";
+  const displayStatus = effectiveInvoiceStatus(invoice);
 
   return (
     <div className="space-y-6">
@@ -31,7 +36,7 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
         <div className="grid gap-4 md:grid-cols-5">
           {[
             ["Invoice", invoice.invoiceNumber],
-            ["Status", <StatusPill key="status" status={invoice.status} />],
+            ["Status", <StatusPill key="status" status={displayStatus} />],
             ["Issued", dateOnly(invoice.issueDate)],
             ["Due", dateOnly(invoice.dueDate)],
             ["Outstanding", currency(invoice.outstandingTotal)]
@@ -85,6 +90,31 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
               Send invoice email
             </SubmitButton>
           </form>
+
+          {displayStatus === "OVERDUE" ? (
+            <div className="mt-6 rounded-lg border border-clay/30 bg-clay/5 p-4">
+              <h2 className="text-sm font-semibold text-clay">This invoice is overdue</h2>
+              <p className="mt-1 text-sm text-muted">
+                Send a friendly payment reminder with a fresh secure payment link.
+              </p>
+              <form action={sendInvoiceReminderAction} className="mt-3 space-y-3">
+                <input type="hidden" name="invoiceId" value={invoice.id} />
+                <label className="block space-y-2 text-sm font-semibold">
+                  Recipient email
+                  <input
+                    className={`${inputClass} w-full`}
+                    name="recipientEmail"
+                    type="email"
+                    required
+                    defaultValue={customer?.email ?? ""}
+                  />
+                </label>
+                <SubmitButton className="w-full" variant="secondary" pendingText="Sending reminder...">
+                  Send payment reminder
+                </SubmitButton>
+              </form>
+            </div>
+          ) : null}
 
           {canRecordPayments && isPayable ? (
             <div className="mt-6 border-t border-line pt-5">

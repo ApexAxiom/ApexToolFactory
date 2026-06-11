@@ -84,12 +84,16 @@ export async function sendInvoice(input: {
   actorUserId: string;
   invoiceId: string;
   recipientEmail: string;
+  organizationName?: string;
+  kind?: "INITIAL" | "REMINDER";
 }) {
   const invoice = await getInvoice(input.invoiceId);
   if (!invoice || invoice.organizationId !== input.organizationId) {
     throw new Error("Invoice was not found");
   }
 
+  const kind = input.kind ?? "INITIAL";
+  const companyName = input.organizationName ?? "Pestimator";
   const { token } = await createPortalToken({
     organizationId: input.organizationId,
     entityType: "INVOICE",
@@ -106,8 +110,11 @@ export async function sendInvoice(input: {
     entityId: invoice.id,
     to: [input.recipientEmail],
     cc: [],
-    subject: `Invoice ${invoice.invoiceNumber} from Pestimator`,
-    template: "INVOICE_SENT",
+    subject:
+      kind === "REMINDER"
+        ? `Payment reminder: invoice ${invoice.invoiceNumber} from ${companyName}`
+        : `Invoice ${invoice.invoiceNumber} from ${companyName}`,
+    template: kind === "REMINDER" ? "REMINDER" : "INVOICE_SENT",
     provider: "SES",
     status: "QUEUED",
     payload: {
@@ -120,7 +127,7 @@ export async function sendInvoice(input: {
   await writeAuditEvent({
     organizationId: input.organizationId,
     actorUserId: input.actorUserId,
-    action: "invoice.sent",
+    action: kind === "REMINDER" ? "invoice.reminder_sent" : "invoice.sent",
     entityType: "Invoice",
     entityId: invoice.id,
     occurredAt: nowIso(),
@@ -128,6 +135,22 @@ export async function sendInvoice(input: {
   });
 
   return { invoice, emailMessage: message, portalToken: token };
+}
+
+/**
+ * Issued/partial invoices past their due date render as OVERDUE without a
+ * background job mutating rows.
+ */
+export function effectiveInvoiceStatus(invoice: Invoice, now = new Date()): Invoice["status"] {
+  if (
+    (invoice.status === "ISSUED" || invoice.status === "PARTIAL") &&
+    invoice.outstandingTotal > 0 &&
+    invoice.dueDate &&
+    new Date(invoice.dueDate).getTime() < now.getTime()
+  ) {
+    return "OVERDUE";
+  }
+  return invoice.status;
 }
 
 export async function recordPayment(input: {

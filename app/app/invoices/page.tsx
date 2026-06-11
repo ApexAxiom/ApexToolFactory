@@ -5,7 +5,7 @@ import { StatusPill } from "@/components/ui/status-pill";
 import { currency, dateOnly } from "@/lib/utils";
 import { requireSession } from "@/server/auth/session";
 import { getActiveOrganizationContext } from "@/server/auth/context";
-import { listInvoices } from "@/server/services/invoices";
+import { effectiveInvoiceStatus, listInvoices } from "@/server/services/invoices";
 
 export default async function InvoicesPage() {
   const session = await requireSession();
@@ -45,7 +45,7 @@ export default async function InvoicesPage() {
                   <td className="px-4 py-3 text-muted">{dateOnly(invoice.dueDate)}</td>
                   <td className="px-4 py-3 text-right font-semibold">{currency(invoice.grandTotal)}</td>
                   <td className="px-4 py-3 text-right font-semibold">{currency(invoice.outstandingTotal)}</td>
-                  <td className="px-4 py-3 text-right"><StatusPill status={invoice.status} /></td>
+                  <td className="px-4 py-3 text-right"><StatusPill status={effectiveInvoiceStatus(invoice)} /></td>
                 </tr>
               ))}
             </tbody>

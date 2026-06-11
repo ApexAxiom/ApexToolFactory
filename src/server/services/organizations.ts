@@ -48,6 +48,7 @@ export async function updateOrganization(input: {
   currencyCode: string;
   defaultTaxPercent: number;
   defaultTerms: string;
+  licenseNumber?: string;
   supportEmail?: string;
   supportPhone?: string;
   website?: string;
@@ -67,6 +68,7 @@ export async function updateOrganization(input: {
     currencyCode: input.currencyCode,
     defaultTaxPercent: input.defaultTaxPercent,
     defaultTerms: input.defaultTerms,
+    licenseNumber: input.licenseNumber,
     supportEmail: input.supportEmail,
     supportPhone: input.supportPhone,
     website: input.website

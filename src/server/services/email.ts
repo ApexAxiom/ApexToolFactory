@@ -1,7 +1,17 @@
 import { randomUUID } from "crypto";
 import { SendEmailCommand, SESv2Client } from "@aws-sdk/client-sesv2";
 import { env } from "@/config/env";
-import { EmailEvent, EmailMessage, Invoice, InvoiceLine, Job, Quote, QuoteLine, QuoteRevision } from "@/domain/types";
+import {
+  EmailEvent,
+  EmailMessage,
+  Invoice,
+  InvoiceLine,
+  Job,
+  Organization,
+  Quote,
+  QuoteLine,
+  QuoteRevision
+} from "@/domain/types";
 import { getStore } from "@/server/persistence/store";
 import { renderQuotePdf } from "@/server/services/quotes";
 import { writeAuditEvent } from "@/server/services/audit";
@@ -23,15 +33,18 @@ export async function deliverQuoteEmail(input: {
   emailMessage: EmailMessage;
   portalUrl: string;
   recipientEmail: string;
+  organization?: Organization | null;
 }) {
-  const html = renderQuoteHtml(input.quote, input.revision, input.portalUrl);
-  const pdf = await renderQuotePdf(input.quote, input.revision, input.lines);
+  const companyName = input.organization?.name ?? "Pestimator";
+  const html = renderQuoteHtml(input.quote, input.revision, input.portalUrl, input.organization);
+  const pdf = await renderQuotePdf(input.quote, input.revision, input.lines, input.organization);
   return sendRawEmail({
     message: {
       ...input.emailMessage,
       to: [input.recipientEmail],
-      subject: `Quote ${input.quote.quoteNumber} from Pestimator`
+      subject: `Quote ${input.quote.quoteNumber} from ${companyName}`
     },
+    fromName: companyName,
     html,
     text: stripHtml(html),
     attachments: [
@@ -50,8 +63,11 @@ export async function deliverInvoiceEmail(input: {
   emailMessage: EmailMessage;
   portalUrl: string;
   recipientEmail: string;
+  organization?: Organization | null;
+  reminder?: boolean;
 }) {
-  const html = renderInvoiceHtml(input.invoice, input.portalUrl);
+  const companyName = input.organization?.name ?? "Pestimator";
+  const html = renderInvoiceHtml(input.invoice, input.portalUrl, input.organization, input.reminder ?? false);
   const csv = Buffer.from(
     ["Description,Amount", ...input.lines.map((line) => `"${line.description}",${line.lineTotal}`)].join("\n")
   );
@@ -60,8 +76,11 @@ export async function deliverInvoiceEmail(input: {
     message: {
       ...input.emailMessage,
       to: [input.recipientEmail],
-      subject: `Invoice ${input.invoice.invoiceNumber} from Pestimator`
+      subject: input.reminder
+        ? `Payment reminder: invoice ${input.invoice.invoiceNumber} from ${companyName}`
+        : `Invoice ${input.invoice.invoiceNumber} from ${companyName}`
     },
+    fromName: companyName,
     html,
     text: stripHtml(html),
     attachments: [
@@ -120,6 +139,7 @@ async function sendRawEmail(input: {
   message: EmailMessage;
   html: string;
   text: string;
+  fromName?: string;
   attachments?: RawAttachment[];
 }) {
   const { message } = input;
@@ -136,7 +156,7 @@ async function sendRawEmail(input: {
 
   const boundary = `PestimatorBoundary${randomUUID()}`;
   const parts = [
-    `From: ${env.SES_FROM_NAME} <${env.SES_FROM_EMAIL}>`,
+    `From: ${input.fromName ?? env.SES_FROM_NAME} <${env.SES_FROM_EMAIL}>`,
     `To: ${message.to.join(", ")}`,
     `Subject: ${message.subject}`,
     "MIME-Version: 1.0",
@@ -260,25 +280,51 @@ export async function ingestSesEvent(rawPayload: string) {
   return emailEvent;
 }
 
-function renderQuoteHtml(quote: Quote, revision: QuoteRevision, portalUrl: string) {
+function emailSignature(organization?: Organization | null) {
+  if (!organization) return "";
+  const contact = [organization.supportPhone, organization.supportEmail, organization.website]
+    .filter(Boolean)
+    .join(" | ");
+  return `
+      <hr style="margin:24px 0;border:none;border-top:1px solid #e2e6e4" />
+      <p style="color:#6b7470;font-size:13px;margin:0">
+        ${organization.legalName ?? organization.name}
+        ${organization.licenseNumber ? `<br/>License #${organization.licenseNumber}` : ""}
+        ${contact ? `<br/>${contact}` : ""}
+      </p>
+  `;
+}
+
+function renderQuoteHtml(quote: Quote, revision: QuoteRevision, portalUrl: string, organization?: Organization | null) {
+  const companyName = organization?.name ?? "Pestimator";
   return `
     <div style="font-family:Arial,sans-serif;line-height:1.5;color:#17201d">
-      <h1 style="margin-bottom:8px">Your pest control quote is ready</h1>
+      <h1 style="margin-bottom:8px">Your pest control quote from ${companyName} is ready</h1>
       <p>Quote <strong>${quote.quoteNumber}</strong> totals <strong>${currency(quote.grandTotal)}</strong>.</p>
       <p>${revision.payload.serviceScope}</p>
       <p><a href="${portalUrl}" style="display:inline-block;padding:12px 16px;background:#173127;color:#fff;text-decoration:none;border-radius:999px">Review and approve quote</a></p>
       <p>This quote expires on ${dateOnly(quote.expiresAt)}.</p>
+      ${emailSignature(organization)}
     </div>
   `.trim();
 }
 
-function renderInvoiceHtml(invoice: Invoice, portalUrl: string) {
+function renderInvoiceHtml(invoice: Invoice, portalUrl: string, organization?: Organization | null, reminder = false) {
+  const companyName = organization?.name ?? "Pestimator";
+  const heading = reminder
+    ? `A friendly payment reminder from ${companyName}`
+    : `Your invoice from ${companyName} is ready`;
+  const balanceLine = reminder
+    ? `<p>Invoice <strong>${invoice.invoiceNumber}</strong> has an outstanding balance of <strong>${currency(invoice.outstandingTotal)}</strong> and was due ${dateOnly(invoice.dueDate)}.</p>`
+    : `<p>Invoice <strong>${invoice.invoiceNumber}</strong> totals <strong>${currency(invoice.grandTotal)}</strong>.</p>
+      <p>Due date: ${dateOnly(invoice.dueDate)}</p>`;
   return `
     <div style="font-family:Arial,sans-serif;line-height:1.5;color:#17201d">
-      <h1 style="margin-bottom:8px">Your invoice is ready</h1>
-      <p>Invoice <strong>${invoice.invoiceNumber}</strong> totals <strong>${currency(invoice.grandTotal)}</strong>.</p>
-      <p>Due date: ${dateOnly(invoice.dueDate)}</p>
+      <h1 style="margin-bottom:8px">${heading}</h1>
+      ${balanceLine}
       <p><a href="${portalUrl}" style="display:inline-block;padding:12px 16px;background:#173127;color:#fff;text-decoration:none;border-radius:999px">View invoice and pay online</a></p>
+      ${reminder ? "<p>If you have already sent payment, please disregard this note - and thank you!</p>" : ""}
+      ${emailSignature(organization)}
     </div>
   `.trim();
 }

@@ -29,6 +29,7 @@ export const data = defineData({
           currencyCode: a.string().required(),
           defaultTaxPercent: a.float().required(),
           defaultTerms: a.string().required(),
+          licenseNumber: a.string(),
           supportEmail: a.email(),
           supportPhone: a.phone(),
           website: a.url(),

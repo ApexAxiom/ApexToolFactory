@@ -9,8 +9,10 @@ import { requireSession } from "@/server/auth/session";
 import { getActiveOrganizationContext } from "@/server/auth/context";
 import { listCustomers } from "@/server/services/customers";
 import { listQuotes } from "@/server/services/quotes";
-import { listInvoices } from "@/server/services/invoices";
+import { effectiveInvoiceStatus, listInvoices } from "@/server/services/invoices";
 import { addDays, listJobs, todayDateOnly } from "@/server/services/jobs";
+import { SubmitButton } from "@/components/ui/submit-button";
+import { sendInvoiceReminderAction } from "@/server/actions/app";
 
 export default async function DashboardPage() {
   const session = await requireSession();
@@ -50,6 +52,8 @@ export default async function DashboardPage() {
       (job.status === "SCHEDULED" || job.status === "IN_PROGRESS")
   );
   const unscheduledJobs = jobs.filter((job) => job.status === "UNSCHEDULED");
+  const overdueInvoices = invoices.filter((invoice) => effectiveInvoiceStatus(invoice) === "OVERDUE");
+  const customerEmailById = new Map(customers.map((customer) => [customer.id, customer.email]));
 
   const issuedInvoices = invoices.filter((invoice) => invoice.status === "ISSUED" || invoice.status === "PARTIAL");
   const acceptedQuotes = quotes.filter((quote) => quote.status === "ACCEPTED");
@@ -144,6 +148,54 @@ export default async function DashboardPage() {
         )}
       </Panel>
 
+      {overdueInvoices.length > 0 ? (
+        <Panel className="border-clay/30">
+          <div className="mb-4 flex items-center justify-between">
+            <div>
+              <h2 className="text-lg font-semibold text-clay">Overdue invoices</h2>
+              <p className="text-sm text-muted">
+                {currency(overdueInvoices.reduce((sum, invoice) => sum + invoice.outstandingTotal, 0))} past due across{" "}
+                {overdueInvoices.length} {overdueInvoices.length === 1 ? "invoice" : "invoices"}
+              </p>
+            </div>
+            <Link href="/app/invoices" className="text-sm font-semibold text-emerald">
+              View all
+            </Link>
+          </div>
+          <div className="space-y-3">
+            {overdueInvoices.slice(0, 5).map((invoice) => {
+              const email = customerEmailById.get(invoice.customerId);
+              return (
+                <div key={invoice.id} className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-line p-4">
+                  <div>
+                    <Link href={`/app/invoices/${invoice.id}`} className="font-semibold hover:text-emerald">
+                      {invoice.invoiceNumber}
+                    </Link>
+                    <div className="mt-1 text-sm text-muted">
+                      {currency(invoice.outstandingTotal)} outstanding - was due {dateOnly(invoice.dueDate)}
+                    </div>
+                  </div>
+                  {email ? (
+                    <form action={sendInvoiceReminderAction}>
+                      <input type="hidden" name="invoiceId" value={invoice.id} />
+                      <input type="hidden" name="recipientEmail" value={email} />
+                      <input type="hidden" name="redirectTo" value="dashboard" />
+                      <SubmitButton variant="secondary" pendingText="Sending...">
+                        Send reminder
+                      </SubmitButton>
+                    </form>
+                  ) : (
+                    <Link href={`/app/invoices/${invoice.id}`} className="text-sm font-semibold text-emerald">
+                      Add email to remind
+                    </Link>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </Panel>
+      ) : null}
+
       <div className="grid gap-5 xl:grid-cols-[1.15fr_0.85fr]">
         <Panel>
           <div className="mb-4 flex items-center justify-between">
@@ -199,7 +251,7 @@ export default async function DashboardPage() {
                   </div>
                   <div className="text-right">
                     <div className="font-semibold">{currency(invoice.outstandingTotal)}</div>
-                    <StatusPill status={invoice.status} className="mt-2" />
+                    <StatusPill status={effectiveInvoiceStatus(invoice)} className="mt-2" />
                   </div>
                 </div>
               </Link>

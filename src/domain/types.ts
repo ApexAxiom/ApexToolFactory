@@ -27,6 +27,7 @@ export interface Organization extends EntityBase {
   currencyCode: string;
   defaultTaxPercent: number;
   defaultTerms: string;
+  licenseNumber?: string;
   supportEmail?: string;
   supportPhone?: string;
   website?: string;

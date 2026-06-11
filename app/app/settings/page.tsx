@@ -112,10 +112,19 @@ export default async function SettingsPage() {
                   />
                 </label>
               </div>
-              <div className="grid gap-4 sm:grid-cols-2">
+              <div className="grid gap-4 sm:grid-cols-3">
                 <label className="space-y-2 text-sm font-semibold">
                   Payment terms
                   <input className={`${inputClass} w-full`} name="defaultTerms" defaultValue={organization.defaultTerms} required />
+                </label>
+                <label className="space-y-2 text-sm font-semibold">
+                  License #
+                  <input
+                    className={`${inputClass} w-full`}
+                    name="licenseNumber"
+                    defaultValue={organization.licenseNumber ?? ""}
+                    placeholder="Shown on quotes and emails"
+                  />
                 </label>
                 <label className="space-y-2 text-sm font-semibold">
                   Website

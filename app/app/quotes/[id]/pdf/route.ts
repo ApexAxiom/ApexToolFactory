@@ -25,7 +25,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
   }
 
   const lines = await getQuoteLines(quote.id, context.organization.id);
-  const pdf = await renderQuotePdf(quote, revision, lines);
+  const pdf = await renderQuotePdf(quote, revision, lines, context.organization);
 
   return new NextResponse(new Uint8Array(pdf), {
     headers: {

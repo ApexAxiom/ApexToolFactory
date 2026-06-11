@@ -67,6 +67,7 @@ export async function updateOrganizationAction(formData: FormData) {
       currencyCode: requiredTrimmed("Currency").transform((value) => value.toUpperCase()),
       defaultTaxPercent: z.coerce.number().min(0).max(100),
       defaultTerms: requiredTrimmed("Payment terms"),
+      licenseNumber: optionalTrimmed,
       supportEmail: optionalEmail,
       supportPhone: optionalTrimmed,
       website: optionalTrimmed
@@ -249,7 +250,8 @@ export async function sendQuoteAction(formData: FormData) {
     organizationId: context.organization.id,
     actorUserId: session.userId,
     quoteId: data.quoteId,
-    recipientEmail: data.recipientEmail
+    recipientEmail: data.recipientEmail,
+    organizationName: context.organization.name
   });
   await deliverQuoteEmail({
     quote: result.quote,
@@ -257,7 +259,8 @@ export async function sendQuoteAction(formData: FormData) {
     lines: await getQuoteLines(result.quote.id, context.organization.id),
     emailMessage: result.emailMessage,
     portalUrl: `${process.env.APP_URL || "http://localhost:3000"}${String(result.emailMessage.payload?.portalUrl || "")}`,
-    recipientEmail: data.recipientEmail
+    recipientEmail: data.recipientEmail,
+    organization: context.organization
   });
 
   redirect(`/app/quotes/${data.quoteId}`);
@@ -304,7 +307,8 @@ export async function sendInvoiceAction(formData: FormData) {
     organizationId: context.organization.id,
     actorUserId: session.userId,
     invoiceId: data.invoiceId,
-    recipientEmail: data.recipientEmail
+    recipientEmail: data.recipientEmail,
+    organizationName: context.organization.name
   });
 
   const [invoice, lines] = await Promise.all([
@@ -328,10 +332,52 @@ export async function sendInvoiceAction(formData: FormData) {
     lines,
     emailMessage: result.emailMessage,
     portalUrl: `${process.env.APP_URL || "http://localhost:3000"}${String(result.emailMessage.payload?.portalUrl || "")}`,
-    recipientEmail: data.recipientEmail
+    recipientEmail: data.recipientEmail,
+    organization: context.organization
   });
 
   redirect(`/app/invoices/${data.invoiceId}`);
+}
+
+export async function sendInvoiceReminderAction(formData: FormData) {
+  const { session, context } = await requireContext("invoices:write");
+  const data = parseForm(
+    z.object({
+      invoiceId: requiredTrimmed("Invoice"),
+      recipientEmail: requiredEmail("Recipient email"),
+      redirectTo: optionalTrimmed
+    }),
+    formData
+  );
+
+  const invoice = await getInvoice(data.invoiceId);
+  if (!invoice || invoice.organizationId !== context.organization.id) {
+    throw new Error("Invoice was not found");
+  }
+  if (invoice.outstandingTotal <= 0) {
+    throw new Error("This invoice has no outstanding balance");
+  }
+
+  const result = await sendInvoice({
+    organizationId: context.organization.id,
+    actorUserId: session.userId,
+    invoiceId: data.invoiceId,
+    recipientEmail: data.recipientEmail,
+    organizationName: context.organization.name,
+    kind: "REMINDER"
+  });
+
+  await deliverInvoiceEmail({
+    invoice,
+    lines: await getInvoiceLines(data.invoiceId, context.organization.id),
+    emailMessage: result.emailMessage,
+    portalUrl: `${process.env.APP_URL || "http://localhost:3000"}${String(result.emailMessage.payload?.portalUrl || "")}`,
+    recipientEmail: data.recipientEmail,
+    organization: context.organization,
+    reminder: true
+  });
+
+  redirect(data.redirectTo === "dashboard" ? "/app/dashboard" : `/app/invoices/${data.invoiceId}`);
 }
 
 export async function recordManualPaymentAction(formData: FormData) {
