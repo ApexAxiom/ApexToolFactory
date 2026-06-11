@@ -12,7 +12,7 @@ export const data = defineData({
       InvoiceStatus: a.enum(["DRAFT", "ISSUED", "PARTIAL", "PAID", "OVERDUE", "VOID"]),
       PaymentStatus: a.enum(["PENDING", "SUCCEEDED", "FAILED", "REFUNDED"]),
       SubscriptionStatus: a.enum(["TRIALING", "ACTIVE", "PAST_DUE", "CANCELED", "INCOMPLETE"]),
-      PortalEntityType: a.enum(["QUOTE", "INVOICE"]),
+      PortalEntityType: a.enum(["QUOTE", "INVOICE", "CUSTOMER"]),
       EmailTemplate: a.enum(["QUOTE_SENT", "INVOICE_SENT", "TEAM_INVITE", "REMINDER"]),
       EmailStatus: a.enum(["QUEUED", "SENT", "DELIVERED", "BOUNCED", "COMPLAINED", "FAILED"]),
       EmailEventType: a.enum(["DELIVERY", "BOUNCE", "COMPLAINT", "RENDERED", "FAILED"]),

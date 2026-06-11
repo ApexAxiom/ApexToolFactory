@@ -15,6 +15,7 @@ import {
   requiredTrimmed
 } from "@/server/actions/validation";
 import { createCustomer, createProperty, getCustomer, updateCustomer } from "@/server/services/customers";
+import { createCustomerPortalLink } from "@/server/services/customer-portal";
 import { createOrganization, updateOrganization } from "@/server/services/organizations";
 import { createQuoteDraft, getQuote, getQuoteLines, sendQuote } from "@/server/services/quotes";
 import {
@@ -25,8 +26,13 @@ import {
   sendInvoice
 } from "@/server/services/invoices";
 import { cancelJob, completeJob, createJob, getJob, scheduleJob, startJob } from "@/server/services/jobs";
-import { inviteTeamMember } from "@/server/services/team";
-import { deliverInvoiceEmail, deliverJobConfirmationEmail, deliverQuoteEmail } from "@/server/services/email";
+import { inviteTeamMember, updateTeamMember } from "@/server/services/team";
+import {
+  deliverInvoiceEmail,
+  deliverJobConfirmationEmail,
+  deliverQuoteEmail,
+  deliverTeamInviteEmail
+} from "@/server/services/email";
 import { ensureStripeInvoice } from "@/server/services/stripe";
 
 async function requireContext(permission?: Permission) {
@@ -125,6 +131,19 @@ export async function updateCustomerAction(formData: FormData) {
   });
 
   redirect(`/app/customers/${data.customerId}`);
+}
+
+export async function createCustomerPortalLinkAction(formData: FormData) {
+  const { session, context } = await requireContext("customers:write");
+  const data = parseForm(z.object({ customerId: requiredTrimmed("Customer") }), formData);
+
+  const { token } = await createCustomerPortalLink({
+    organizationId: context.organization.id,
+    actorUserId: session.userId,
+    customerId: data.customerId
+  });
+
+  redirect(`/app/customers/${data.customerId}?portalToken=${token}`);
 }
 
 export async function createPropertyAction(formData: FormData) {
@@ -423,12 +442,42 @@ export async function inviteTeamMemberAction(formData: FormData) {
     formData
   );
 
-  await inviteTeamMember({
+  const result = await inviteTeamMember({
     organizationId: context.organization.id,
     actorUserId: session.userId,
     email: data.email,
     displayName: data.displayName,
-    role: data.role
+    role: data.role,
+    organizationName: context.organization.name
+  });
+
+  await deliverTeamInviteEmail({
+    emailMessage: result.emailMessage,
+    organizationName: context.organization.name,
+    role: data.role,
+    recipientEmail: data.email
+  });
+
+  redirect("/app/team");
+}
+
+export async function updateTeamMemberAction(formData: FormData) {
+  const { session, context } = await requireContext("team:manage");
+  const data = parseForm(
+    z.object({
+      membershipId: requiredTrimmed("Team member"),
+      role: z.enum(["OWNER", "OFFICE_MANAGER", "ESTIMATOR", "TECHNICIAN", "ACCOUNTING"]).optional(),
+      status: z.enum(["ACTIVE", "DISABLED"]).optional()
+    }),
+    formData
+  );
+
+  await updateTeamMember({
+    organizationId: context.organization.id,
+    actorUserId: session.userId,
+    membershipId: data.membershipId,
+    role: data.role,
+    status: data.status
   });
 
   redirect("/app/team");

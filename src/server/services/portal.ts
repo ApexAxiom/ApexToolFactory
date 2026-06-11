@@ -1,5 +1,5 @@
 import { createHash, randomBytes, randomUUID } from "crypto";
-import { PortalAccessToken } from "@/domain/types";
+import { PortalAccessToken, PortalEntityType } from "@/domain/types";
 import { nowIso } from "@/lib/utils";
 import { getStore } from "@/server/persistence/store";
 
@@ -9,7 +9,7 @@ export function hashPortalToken(token: string) {
 
 export async function createPortalToken(input: {
   organizationId: string;
-  entityType: "QUOTE" | "INVOICE";
+  entityType: PortalEntityType;
   entityId: string;
   expiresAt: string;
 }) {
@@ -30,7 +30,7 @@ export async function createPortalToken(input: {
   return { token, record };
 }
 
-export async function validatePortalToken(token: string, entityType: "QUOTE" | "INVOICE") {
+export async function validatePortalToken(token: string, entityType: PortalEntityType) {
   const hashed = hashPortalToken(token);
   const matches = await getStore().list<PortalAccessToken>("portalAccessTokens", {
     tokenHash: hashed,

@@ -1,12 +1,12 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { CalendarDays, Pencil, Plus } from "lucide-react";
+import { CalendarDays, Link2, Pencil, Plus } from "lucide-react";
 import { Panel } from "@/components/ui/panel";
 import { Button } from "@/components/ui/button";
 import { StatusPill } from "@/components/ui/status-pill";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { currency, dateOnly } from "@/lib/utils";
-import { createPropertyAction, updateCustomerAction } from "@/server/actions/app";
+import { createCustomerPortalLinkAction, createPropertyAction, updateCustomerAction } from "@/server/actions/app";
 import { requireSession } from "@/server/auth/session";
 import { getActiveOrganizationContext } from "@/server/auth/context";
 import {
@@ -19,12 +19,19 @@ import { listJobsForCustomer } from "@/server/services/jobs";
 
 const inputClass = "h-10 rounded-md border border-line bg-white px-3 text-sm outline-none focus:border-emerald focus:ring-2 focus:ring-emerald/10";
 
-export default async function CustomerDetailPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function CustomerDetailPage({
+  params,
+  searchParams
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ portalToken?: string }>;
+}) {
   const session = await requireSession();
   const context = await getActiveOrganizationContext(session);
   if (!context) return null;
 
   const { id } = await params;
+  const { portalToken } = await searchParams;
   const customer = await getCustomer(id);
   if (!customer || customer.organizationId !== context.organization.id) notFound();
 
@@ -141,6 +148,37 @@ export default async function CustomerDetailPage({ params }: { params: Promise<{
         </Panel>
 
         <Panel>
+          <div className="mb-6 rounded-lg border border-line bg-canvas p-4">
+            <div className="flex items-center gap-2">
+              <Link2 className="h-5 w-5 text-emerald" />
+              <h2 className="font-semibold">Customer portal</h2>
+            </div>
+            <p className="mt-1 text-sm text-muted">
+              A secure link where {customer.name} can see upcoming visits, service history, open invoices, and
+              request a visit — no login needed.
+            </p>
+            {portalToken ? (
+              <div className="mt-3">
+                <input
+                  className="h-10 w-full rounded-md border border-emerald bg-white px-3 font-mono text-xs text-ink"
+                  readOnly
+                  value={`${process.env.APP_URL || "http://localhost:3000"}/portal/account/${portalToken}`}
+                  aria-label="Customer portal link"
+                />
+                <p className="mt-2 text-xs font-semibold text-emerald">
+                  Copy this link and send it to the customer — it is shown only once and stays valid for a year.
+                </p>
+              </div>
+            ) : (
+              <form action={createCustomerPortalLinkAction} className="mt-3">
+                <input type="hidden" name="customerId" value={customer.id} />
+                <SubmitButton variant="secondary" pendingText="Generating...">
+                  Generate portal link
+                </SubmitButton>
+              </form>
+            )}
+          </div>
+
           <h2 className="text-lg font-semibold">Properties and contacts</h2>
           <div className="mt-4 space-y-3">
             {contacts.map((contact) => (

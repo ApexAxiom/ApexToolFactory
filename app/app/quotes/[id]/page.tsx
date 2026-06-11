@@ -7,8 +7,9 @@ import { SubmitButton } from "@/components/ui/submit-button";
 import { currency, dateOnly } from "@/lib/utils";
 import { requireSession } from "@/server/auth/session";
 import { getActiveOrganizationContext } from "@/server/auth/context";
-import { getQuote, getQuoteLines, getQuoteRevision } from "@/server/services/quotes";
+import { getQuote, getQuoteAttachments, getQuoteLines, getQuoteRevision } from "@/server/services/quotes";
 import { listJobs } from "@/server/services/jobs";
+import { QuoteAttachments } from "@/components/forms/quote-attachments";
 import { issueInvoiceAction, sendQuoteAction } from "@/server/actions/app";
 
 const inputClass = "h-10 rounded-md border border-line bg-white px-3 text-sm outline-none focus:border-emerald focus:ring-2 focus:ring-emerald/10";
@@ -22,10 +23,11 @@ export default async function QuoteDetailPage({ params }: { params: Promise<{ id
   const quote = await getQuote(id);
   if (!quote || quote.organizationId !== context.organization.id) notFound();
 
-  const [revision, lines, allJobs] = await Promise.all([
+  const [revision, lines, allJobs, attachments] = await Promise.all([
     getQuoteRevision(quote.currentRevisionId),
     getQuoteLines(quote.id, context.organization.id),
-    listJobs(context.organization.id)
+    listJobs(context.organization.id),
+    getQuoteAttachments(quote.id, context.organization.id)
   ]);
 
   if (!revision) notFound();
@@ -104,6 +106,10 @@ export default async function QuoteDetailPage({ params }: { params: Promise<{ id
                 </tbody>
               </table>
             </div>
+          </Panel>
+
+          <Panel>
+            <QuoteAttachments quoteId={quote.id} attachments={attachments} />
           </Panel>
         </div>
 

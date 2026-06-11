@@ -5,8 +5,17 @@ import { PageHeader } from "@/components/ui/page-header";
 import { StatusPill } from "@/components/ui/status-pill";
 import { requireSession } from "@/server/auth/session";
 import { getActiveOrganizationContext } from "@/server/auth/context";
-import { inviteTeamMemberAction } from "@/server/actions/app";
+import { hasPermission } from "@/server/auth/permissions";
+import { inviteTeamMemberAction, updateTeamMemberAction } from "@/server/actions/app";
 import { listTeamMembers } from "@/server/services/team";
+
+const roleOptions = [
+  ["OWNER", "Owner"],
+  ["OFFICE_MANAGER", "Office Manager"],
+  ["ESTIMATOR", "Estimator"],
+  ["TECHNICIAN", "Technician"],
+  ["ACCOUNTING", "Accounting"]
+] as const;
 
 const inputClass = "h-10 rounded-md border border-line bg-white px-3 text-sm outline-none focus:border-emerald focus:ring-2 focus:ring-emerald/10";
 
@@ -16,6 +25,7 @@ export default async function TeamPage() {
   if (!context) return null;
 
   const team = await listTeamMembers(context.organization.id);
+  const canManage = hasPermission(context.membership, "team:manage");
 
   return (
     <div className="space-y-6">
@@ -29,15 +39,56 @@ export default async function TeamPage() {
           <div className="space-y-3">
             {team.map((member) => (
               <div key={member.id} className="rounded-lg border border-line p-4">
-                <div className="flex items-center justify-between gap-4">
+                <div className="flex flex-wrap items-center justify-between gap-4">
                   <div>
                     <div className="font-semibold">{member.displayName || member.email}</div>
                     <div className="text-sm text-muted">{member.email}</div>
                   </div>
-                  <div className="text-right">
-                    <div className="text-sm font-semibold">{member.role.replace(/_/g, " ").toLowerCase()}</div>
-                    <StatusPill status={member.status} className="mt-2" />
-                  </div>
+                  {canManage ? (
+                    <div className="flex flex-wrap items-center gap-2">
+                      <form action={updateTeamMemberAction} className="flex items-center gap-2">
+                        <input type="hidden" name="membershipId" value={member.id} />
+                        <select
+                          className={`${inputClass} w-44`}
+                          name="role"
+                          defaultValue={member.role}
+                          aria-label={`Role for ${member.email}`}
+                        >
+                          {roleOptions.map(([value, label]) => (
+                            <option key={value} value={value}>
+                              {label}
+                            </option>
+                          ))}
+                        </select>
+                        <SubmitButton variant="secondary" pendingText="...">
+                          Update
+                        </SubmitButton>
+                      </form>
+                      {member.status !== "DISABLED" ? (
+                        <form action={updateTeamMemberAction}>
+                          <input type="hidden" name="membershipId" value={member.id} />
+                          <input type="hidden" name="status" value="DISABLED" />
+                          <SubmitButton variant="ghost" pendingText="...">
+                            Disable
+                          </SubmitButton>
+                        </form>
+                      ) : (
+                        <form action={updateTeamMemberAction}>
+                          <input type="hidden" name="membershipId" value={member.id} />
+                          <input type="hidden" name="status" value="ACTIVE" />
+                          <SubmitButton variant="secondary" pendingText="...">
+                            Reactivate
+                          </SubmitButton>
+                        </form>
+                      )}
+                      <StatusPill status={member.status} />
+                    </div>
+                  ) : (
+                    <div className="text-right">
+                      <div className="text-sm font-semibold">{member.role.replace(/_/g, " ").toLowerCase()}</div>
+                      <StatusPill status={member.status} className="mt-2" />
+                    </div>
+                  )}
                 </div>
               </div>
             ))}

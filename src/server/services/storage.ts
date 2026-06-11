@@ -1,7 +1,7 @@
 import { randomUUID } from "crypto";
 import { existsSync, readFileSync } from "fs";
 import { resolve } from "path";
-import { PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import { GetObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { env } from "@/config/env";
 import { QuoteAttachment } from "@/domain/types";
@@ -13,6 +13,25 @@ import { getQuote } from "@/server/services/quotes";
 const s3 = new S3Client({ region: env.AWS_REGION });
 let bucketCache: string | null | undefined;
 
+export const MAX_ATTACHMENT_BYTES = 15 * 1024 * 1024;
+const allowedContentTypes = new Set([
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "image/heic",
+  "image/heif",
+  "application/pdf"
+]);
+
+export function assertAllowedAttachment(contentType: string, size?: number) {
+  if (!allowedContentTypes.has(contentType)) {
+    throw new Error("Only photos (JPEG, PNG, WebP, HEIC) and PDFs can be attached");
+  }
+  if (size !== undefined && size > MAX_ATTACHMENT_BYTES) {
+    throw new Error("Attachments are limited to 15 MB");
+  }
+}
+
 export async function createUploadUrl(input: {
   organizationId: string;
   quoteId: string;
@@ -21,8 +40,9 @@ export async function createUploadUrl(input: {
 }) {
   const bucket = resolveAttachmentBucket();
   if (!bucket) {
-    throw new Error("S3_ATTACHMENTS_BUCKET is not configured");
+    throw new Error("File storage is not configured for this environment yet");
   }
+  assertAllowedAttachment(input.contentType);
 
   const key = `organizations/${input.organizationId}/quotes/${input.quoteId}/${randomUUID()}-${input.fileName}`;
   const command = new PutObjectCommand({
@@ -35,6 +55,16 @@ export async function createUploadUrl(input: {
   return { url, key };
 }
 
+export async function createDownloadUrl(storageKey: string) {
+  const bucket = resolveAttachmentBucket();
+  if (!bucket) {
+    throw new Error("File storage is not configured for this environment yet");
+  }
+
+  const command = new GetObjectCommand({ Bucket: bucket, Key: storageKey });
+  return getSignedUrl(s3, command, { expiresIn: 60 * 5 });
+}
+
 export async function finalizeQuoteAttachment(input: {
   organizationId: string;
   actorUserId: string;
@@ -45,6 +75,7 @@ export async function finalizeQuoteAttachment(input: {
   size: number;
   capturedAt?: string;
 }) {
+  assertAllowedAttachment(input.mimeType, input.size);
   const quote = await getQuote(input.quoteId);
   if (!quote || quote.organizationId !== input.organizationId) {
     throw new Error("Quote was not found");

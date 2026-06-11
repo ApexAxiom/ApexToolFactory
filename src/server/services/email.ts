@@ -129,6 +129,30 @@ export async function deliverJobConfirmationEmail(input: {
   });
 }
 
+export async function deliverTeamInviteEmail(input: {
+  emailMessage: EmailMessage;
+  organizationName: string;
+  role: string;
+  recipientEmail: string;
+}) {
+  const signupUrl = `${env.APP_URL}/signup`;
+  const html = `
+    <div style="font-family:Arial,sans-serif;line-height:1.5;color:#17201d">
+      <h1 style="margin-bottom:8px">You have been invited to ${input.organizationName}</h1>
+      <p>You were added as a <strong>${input.role.toLowerCase().replace(/_/g, " ")}</strong> on the ${input.organizationName} workspace.</p>
+      <p>Create your account with this email address (${input.recipientEmail}) to join:</p>
+      <p><a href="${signupUrl}" style="display:inline-block;padding:12px 16px;background:#173127;color:#fff;text-decoration:none;border-radius:999px">Create your account</a></p>
+    </div>
+  `.trim();
+
+  return sendRawEmail({
+    message: input.emailMessage,
+    fromName: input.organizationName,
+    html,
+    text: stripHtml(html)
+  });
+}
+
 interface RawAttachment {
   fileName: string;
   contentType: string;
